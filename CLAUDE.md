@@ -112,4 +112,38 @@ Completeness 30% + Consistency 25% + Cleanliness 20% + Representativeness 15% + 
 
 - **Team:** Crosscurrent Racing (US/UK simracing)
 - **Accent:** #e81123 (red)
-- **Style:** Windows 11 Fluent Design (same as ccr-tauri project)
+- **Style:** Discord-inspired dark UI (driver-friendly), carrying the CCR red accent.
+
+## Build Status — Phase 1 (implemented & verified in-browser)
+
+Next.js App Router + React 19 + TS. `npm run build` and `tsc --noEmit` pass; the
+full flow (seed → log sessions → ranked recommendations → detail expand → export)
+was verified end-to-end. Structure:
+
+- `src/types` contracts · `src/lib/scoring.ts` (pure 5-factor engine + SVS + aggregate)
+  · `src/lib/recompute.ts` (groups by car/track/condition, scores latest 10) ·
+  `src/lib/validation.ts` · `src/lib/time.ts` · `src/lib/benchmark-sync.ts`
+  (Google Sheets, graceful fallback) · `src/lib/seed*.ts`.
+- Data layer = a `Store` interface with **two backends** auto-selected in
+  `src/lib/db/index.ts`.
+- API route handlers under `src/app/api/*` (sessions CRUD, rankings, recompute,
+  benchmarks, sync, cars, tracks, drivers, seed). All `runtime="nodejs"`.
+- UI: `/` rankings (5s poll, filters, export, expandable factor breakdown),
+  `/log` session form, `/sessions` log+delete, `/benchmarks` + sync. Discord shell.
+
+### Three pragmatic build decisions (not in the original spec — flag if revisiting)
+
+1. **Dual store (idiot-proof local dev):** Postgres when `DATABASE_URL` is set
+   (production/Netlify, per the locked design), else a zero-config JSON store at
+   `.data/store.json`. Same engine/UI either way. Docker isn't installed on this
+   machine, so requiring Postgres to test locally would have blocked the manual
+   feedback loop.
+2. **Consistency = best→avg gap proxy.** SPEC §3.2 wants std-dev of every lap, but
+   the form (SPEC §5.1) logs only best + average + count. So `consistency =
+   100×(1 − (avg−best)/avg)`. On long laps this barely differentiates cars (all
+   ~99) — a known limitation; swap in `consistencyFactorFromLaps()` once full lap
+   arrays are captured. Differentiation currently comes from pace/tyre/mistakes.
+3. **Seed benchmarks are placeholders** (`patch_version = "seed"`, readiness 25%):
+   approximate per-track LMH alien times × class/tier multipliers, so pace scoring
+   works out of the box. Replaced by the first successful Google Sheets sync (the
+   Ohne Speed tab/column mapping still needs calibration against the live sheet).

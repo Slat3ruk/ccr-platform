@@ -1,0 +1,14 @@
+# Netlify configuration — CrossCurrent Racing Platform
+# The official @netlify/plugin-nextjs adapter handles the build + serverless
+# functions automatically. Set DATABASE_URL (+ optional GOOGLE_SHEETS_* keys)
+# in Site settings → Environment for the Postgres-backed production store.
+
+[build]
+  command = "npm run build"
+  # No `publish` here — @netlify/plugin-nextjs sets the output target itself.
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "20"

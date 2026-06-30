@@ -28,6 +28,14 @@ build/
 *.sqlite
 *.sqlite3
 
+# Local dev JSON store (used when DATABASE_URL is unset)
+.data/
+
+# Next.js
+next-env.d.ts
+.netlify/
+*.tsbuildinfo
+
 # OS
 Thumbs.db
 .DS_Store

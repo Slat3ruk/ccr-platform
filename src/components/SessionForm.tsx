@@ -1,0 +1,268 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api-client";
+import { parseLapTime } from "@/lib/time";
+import { CONDITIONS, SESSION_TYPES, type Car, type Track } from "@/types";
+
+interface TyreState {
+  fl: number;
+  fr: number;
+  rl: number;
+  rr: number;
+}
+
+const initialTyres: TyreState = { fl: 100, fr: 100, rl: 100, rr: 100 };
+
+export default function SessionForm() {
+  const [cars, setCars] = useState<Car[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+
+  const [driverName, setDriverName] = useState("");
+  const [carId, setCarId] = useState("");
+  const [trackId, setTrackId] = useState("");
+  const [sessionType, setSessionType] = useState("Test");
+  const [condition, setCondition] = useState("Dry");
+  const [bestLap, setBestLap] = useState("");
+  const [avgLap, setAvgLap] = useState("");
+  const [lapCount, setLapCount] = useState("12");
+  const [tyres, setTyres] = useState<TyreState>(initialTyres);
+  const [offTrack, setOffTrack] = useState("0");
+  const [confidence, setConfidence] = useState(7);
+  const [setupVersion, setSetupVersion] = useState("");
+  const [comments, setComments] = useState("");
+
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.cars().then(setCars).catch(() => {});
+    api.tracks().then(setTracks).catch(() => {});
+  }, []);
+
+  function reset(keepContext: boolean) {
+    setBestLap("");
+    setAvgLap("");
+    setLapCount("12");
+    setTyres(initialTyres);
+    setOffTrack("0");
+    setComments("");
+    if (!keepContext) {
+      setDriverName("");
+      setCarId("");
+      setTrackId("");
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErrors([]);
+    setSuccess(null);
+
+    const localErrors: string[] = [];
+    const best = parseLapTime(bestLap);
+    const avg = parseLapTime(avgLap);
+    if (!driverName.trim()) localErrors.push("Driver name is required.");
+    if (!carId) localErrors.push("Select a car.");
+    if (!trackId) localErrors.push("Select a track.");
+    if (best == null) localErrors.push("Best lap time is invalid (use M:SS.mmm, e.g. 1:42.318).");
+    if (avg == null) localErrors.push("Average lap time is invalid (use M:SS.mmm).");
+    if (best != null && avg != null && avg + 1e-6 < best) localErrors.push("Average lap can’t be faster than best lap.");
+    if (localErrors.length) {
+      setErrors(localErrors);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await api.createSession({
+        driver_name: driverName.trim(),
+        car_id: Number(carId),
+        track_id: Number(trackId),
+        session_type: sessionType as (typeof SESSION_TYPES)[number],
+        condition_reported: condition as (typeof CONDITIONS)[number],
+        lap_count: Number(lapCount),
+        best_lap_time: best as number,
+        avg_lap_time: avg as number,
+        off_track_count: Number(offTrack),
+        confidence_rating: confidence,
+        setup_version: setupVersion.trim() || undefined,
+        comments: comments.trim() || undefined,
+        tyre_fl_pct_remaining: tyres.fl,
+        tyre_fr_pct_remaining: tyres.fr,
+        tyre_rl_pct_remaining: tyres.rl,
+        tyre_rr_pct_remaining: tyres.rr,
+      });
+      const carName = cars.find((c) => c.id === Number(carId))?.name ?? "car";
+      setSuccess(`Session logged for ${carName}. Rankings recomputed.`);
+      reset(true);
+    } catch (e) {
+      setErrors(String(e instanceof Error ? e.message : e).split("\n"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const noData = cars.length === 0 || tracks.length === 0;
+
+  return (
+    <form className="content-narrow" onSubmit={submit}>
+      {noData && (
+        <div className="msg error">
+          No cars/tracks loaded yet. Go to <strong>#rankings</strong> and click “Load sample data” first.
+        </div>
+      )}
+      {errors.length > 0 && (
+        <ul className="errors">
+          {errors.map((er, i) => (
+            <li key={i}>{er}</li>
+          ))}
+        </ul>
+      )}
+      {success && <div className="msg success">{success}</div>}
+
+      <div className="card">
+        <h2>Context</h2>
+        <div className="card-sub">Who drove what, where, and in what session.</div>
+        <div className="row">
+          <div className="field">
+            <label>Driver name</label>
+            <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="e.g. Dal" />
+          </div>
+        </div>
+        <div className="row">
+          <div className="field">
+            <label>Car</label>
+            <select value={carId} onChange={(e) => setCarId(e.target.value)}>
+              <option value="">Select car…</option>
+              {cars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.category})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Track</label>
+            <select value={trackId} onChange={(e) => setTrackId(e.target.value)}>
+              <option value="">Select track…</option>
+              {tracks.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="row">
+          <div className="field">
+            <label>Session type</label>
+            <select value={sessionType} onChange={(e) => setSessionType(e.target.value)}>
+              {SESSION_TYPES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Weather</label>
+            <select value={condition} onChange={(e) => setCondition(e.target.value)}>
+              {CONDITIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Lap data</h2>
+        <div className="card-sub">Times as M:SS.mmm — e.g. 1:42.318.</div>
+        <div className="row">
+          <div className="field">
+            <label>Best lap</label>
+            <input type="text" value={bestLap} onChange={(e) => setBestLap(e.target.value)} placeholder="1:42.318" />
+          </div>
+          <div className="field">
+            <label>Average lap</label>
+            <input type="text" value={avgLap} onChange={(e) => setAvgLap(e.target.value)} placeholder="1:43.502" />
+          </div>
+          <div className="field">
+            <label>Laps completed</label>
+            <input type="number" min={1} value={lapCount} onChange={(e) => setLapCount(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Tyre wear</h2>
+        <div className="card-sub">% remaining at the end of the run (100 = fresh).</div>
+        <div className="tyre-grid">
+          {(["fl", "fr", "rl", "rr"] as const).map((pos) => (
+            <div className="field" key={pos} style={{ marginBottom: 4 }}>
+              <label>
+                {pos.toUpperCase()} — <span className="hint">{tyres[pos]}%</span>
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={tyres[pos]}
+                onChange={(e) => setTyres((t) => ({ ...t, [pos]: Number(e.target.value) }))}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Incidents &amp; assessment</h2>
+        <div className="row">
+          <div className="field">
+            <label>Off-track count</label>
+            <input type="number" min={0} value={offTrack} onChange={(e) => setOffTrack(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>
+              Confidence in car — <span className="hint">{confidence}/10</span>
+            </label>
+            <div className="slider-row">
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={confidence}
+                onChange={(e) => setConfidence(Number(e.target.value))}
+              />
+              <span className="slider-val">{confidence}</span>
+            </div>
+          </div>
+        </div>
+        <div className="row">
+          <div className="field">
+            <label>Setup version <span className="hint">(optional)</span></label>
+            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder="Basic V2 Quali" />
+          </div>
+        </div>
+        <div className="field">
+          <label>Comments <span className="hint">(optional)</span></label>
+          <textarea rows={3} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Understeer on entry, strong on traction…" />
+        </div>
+      </div>
+
+      <div className="flex" style={{ gap: 10 }}>
+        <button type="submit" className="btn" disabled={busy || noData}>
+          {busy ? "Logging…" : "Log session"}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => reset(false)} disabled={busy}>
+          Clear
+        </button>
+      </div>
+    </form>
+  );
+}

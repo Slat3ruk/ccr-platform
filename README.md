@@ -24,25 +24,38 @@ Output: car rankings per track/class, with a 5-factor breakdown (pace, consisten
 
 ---
 
-## Quick Start (When Ready)
+## Quick Start
+
+**Local dev needs no database.** When `DATABASE_URL` is unset the app uses a
+zero-config JSON store at `.data/store.json` (gitignored). Set `DATABASE_URL`
+to switch to PostgreSQL — same engine, same UI, nothing else changes.
 
 ```bash
-# Clone repo
-git clone <repo-url>
-cd ccr-platform
-
-# Install dependencies
+# 1. Install
 npm install
 
-# Set up PostgreSQL
-# (Netlify Postgres or local/external instance)
-# Run migrations: psql -f db/1_init_schema.sql
-
-# Dev server
+# 2. Run the dev server (no DB required)
 npm run dev
 
-# Open http://localhost:3000
+# 3. Open http://localhost:3000
+#    → click "Load sample data" in the banner to populate cars/tracks/benchmarks
+#      (or, with the server running, `npm run seed` in another terminal)
 ```
+
+### With PostgreSQL (production / Netlify)
+
+```bash
+# Create the schema once
+psql "$DATABASE_URL" -f db/1_init_schema.sql
+
+# Then run with DATABASE_URL set — the app auto-detects it
+DATABASE_URL=postgres://… npm run dev
+```
+
+> **Stack note:** this is **Next.js (App Router) + React 19 + TypeScript** with
+> Next.js API route handlers. Next.js uses its own bundler — there is no Vite in
+> this app (the original spec's "Vite" mention was a slip). Deployment is Netlify
+> via `@netlify/plugin-nextjs`.
 
 ---
 
