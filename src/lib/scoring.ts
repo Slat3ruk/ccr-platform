@@ -284,11 +284,15 @@ export function aggregateCarScore(scored: ScoredSession[]): CarScoreResult {
     ),
   );
 
-  // Confidence: data volume (N/10) × average session quality (avgSvs/100), 0–1.
+  // Confidence: data volume × average session quality (avgSvs/100), 0–1.
+  // Volume saturates at CONFIDENCE_TARGET_SESSIONS (not the full 10-session
+  // window) so a handful of good runs reads as genuinely confident.
   const avgSvs = totalSvs / n;
-  const confidence_score = Math.round(clamp((n / 10) * (avgSvs / 100), 0, 1) * 100) / 100;
+  const volume = Math.min(1, n / CONFIDENCE_TARGET_SESSIONS);
+  const confidence_score = Math.round(clamp(volume * (avgSvs / 100), 0, 1) * 100) / 100;
 
   return { car_score, factors, sessions_used: n, confidence_score };
 }
 
-export const SCORING_WINDOW = 10; // latest N sessions per car-track combo
+export const SCORING_WINDOW = 10; // latest N sessions per car-track combo aggregated
+export const CONFIDENCE_TARGET_SESSIONS = 5; // sessions for "full" data-volume confidence

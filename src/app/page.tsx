@@ -5,14 +5,17 @@ import ExportButton from "@/components/ExportButton";
 import RankingsTable from "@/components/RankingsTable";
 import SetupBanner from "@/components/SetupBanner";
 import { api } from "@/lib/api-client";
-import type { Car, RankingRow, Track } from "@/types";
+import { useRole } from "@/lib/role";
+import type { RankingRow, Track } from "@/types";
 
 const CLASSES = ["LMGT3", "LMH", "LMP3", "LMP2-ELMS"];
 const CONDITIONS = ["Dry", "Wet", "Mixed"];
 const POLL_MS = 5000;
 
 export default function DashboardPage() {
+  const { role } = useRole();
   const [backend, setBackend] = useState("…");
+  const [recomputing, setRecomputing] = useState(false);
   const [carsCount, setCarsCount] = useState<number | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [rows, setRows] = useState<RankingRow[]>([]);
@@ -58,6 +61,16 @@ export default function DashboardPage() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [autoRefresh, loadRankings]);
+
+  async function recompute() {
+    setRecomputing(true);
+    try {
+      await api.recompute();
+      await loadRankings();
+    } finally {
+      setRecomputing(false);
+    }
+  }
 
   return (
     <>
@@ -127,10 +140,23 @@ export default function DashboardPage() {
               <span className="muted" style={{ fontSize: 13 }}>5s</span>
             </label>
           </div>
+          {role === "admin" && (
+            <button className="btn btn-ghost btn-sm" onClick={recompute} disabled={recomputing}>
+              {recomputing ? "Recomputing…" : "🔧 Recompute"}
+            </button>
+          )}
           <ExportButton rows={rows} />
         </div>
 
-        <RankingsTable rows={rows} />
+        {role === "admin" && (
+          <div className="msg" style={{ background: "var(--bg-card-2)", border: "1px solid var(--border-soft)", color: "var(--text-faint)" }}>
+            <strong style={{ color: "var(--text-muted)" }}>Admin view</strong> — backend: <code>{backend}</code> · expand a
+            row to see per-session Session Value Score components. Driver view hides the factor columns; Team Manager shows
+            the full breakdown.
+          </div>
+        )}
+
+        <RankingsTable rows={rows} role={role} />
       </div>
     </>
   );

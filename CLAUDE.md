@@ -157,3 +157,17 @@ was verified end-to-end. Structure:
    col A = `<track><CLASS>`, B = track, C = patch, E–J = alien/competitive/good/
    midpack/tail-ender/offline (clean 1% steps; alien = ~100% column, NOT the
    faster "Class avgW" col D). GTE rows are skipped (no current LMU cars map to it).
+
+### Feedback round 1 (2026-07-01)
+
+- **Confidence saturates at 5 sessions**, not 10 (`CONFIDENCE_TARGET_SESSIONS`
+  in scoring.ts). A few good runs now read as genuinely confident (3 sessions ≈
+  57% instead of ~29%). Aggregation window is still the latest 10.
+- **Comments + setup are surfaced**: Notes/Setup columns on #session-log (Notes
+  truncates with full-text-on-hover), and setup/💬-comment lines in the rankings
+  detail expander.
+- **View-as role toggle** (`src/lib/role.tsx`, sidebar footer) — Driver / Team
+  Manager / Admin, persisted in localStorage, mapping to the planned Discord
+  roles. Driver = car + score + verdict only; Team Manager = full factor
+  breakdown (default); Admin = + Recompute button + per-session SVS component
+  debug. Phase 2 replaces this with real Discord-OAuth RBAC.

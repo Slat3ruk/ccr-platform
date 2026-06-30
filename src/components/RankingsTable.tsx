@@ -5,6 +5,7 @@ import { api } from "@/lib/api-client";
 import { confidenceColor, factorColor, fmtPct, fmtScore, scoreColor } from "@/lib/format";
 import { formatLapTime } from "@/lib/time";
 import { FACTOR_WEIGHTS } from "@/lib/scoring";
+import type { Role } from "@/lib/role";
 import type { RankingRow, Session } from "@/types";
 
 const FACTORS: { key: keyof typeof FACTOR_WEIGHTS; label: string; field: keyof RankingRow }[] = [
@@ -14,6 +15,14 @@ const FACTORS: { key: keyof typeof FACTOR_WEIGHTS; label: string; field: keyof R
   { key: "drivability", label: "Drivability", field: "drivability_factor" },
   { key: "mistakes", label: "Mistakes", field: "mistakes_factor" },
 ];
+
+function verdict(score: number): string {
+  if (score >= 85) return "Top pick";
+  if (score >= 75) return "Strong";
+  if (score >= 60) return "Viable";
+  if (score >= 45) return "Marginal";
+  return "Avoid";
+}
 
 function FactorCell({ value }: { value: number }) {
   return (
@@ -26,9 +35,14 @@ function FactorCell({ value }: { value: number }) {
   );
 }
 
-export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
+export default function RankingsTable({ rows, role = "manager" }: { rows: RankingRow[]; role?: Role }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [detailSessions, setDetailSessions] = useState<Record<number, Session[]>>({});
+
+  const showFactors = role !== "driver";
+  const showSessions = role !== "driver";
+  const showDebug = role === "admin";
+  const colSpan = role === "driver" ? 4 : 10;
 
   async function toggle(row: RankingRow) {
     if (expanded === row.id) {
@@ -36,7 +50,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       return;
     }
     setExpanded(row.id);
-    if (!detailSessions[row.id]) {
+    if (showSessions && !detailSessions[row.id]) {
       try {
         const sessions = await api.sessions({ car_id: row.car_id, track_id: row.track_id, limit: 10 });
         setDetailSessions((m) => ({ ...m, [row.id]: sessions }));
@@ -64,11 +78,13 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
             <th className="num">#</th>
             <th>Car</th>
             <th className="num">Score</th>
-            {FACTORS.map((f) => (
-              <th key={f.key}>{f.label}</th>
-            ))}
-            <th className="num">Sessions</th>
-            <th className="num">Confidence</th>
+            {showFactors ? (
+              FACTORS.map((f) => <th key={f.key}>{f.label}</th>)
+            ) : (
+              <th>Verdict</th>
+            )}
+            {showFactors && <th className="num">Sessions</th>}
+            {showFactors && <th className="num">Confidence</th>}
           </tr>
         </thead>
         <tbody>
@@ -91,22 +107,32 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                       {fmtScore(row.car_score)}
                     </span>
                   </td>
-                  {FACTORS.map((f) => (
-                    <td key={f.key}>
-                      <FactorCell value={Number(row[f.field])} />
+                  {showFactors ? (
+                    <>
+                      {FACTORS.map((f) => (
+                        <td key={f.key}>
+                          <FactorCell value={Number(row[f.field])} />
+                        </td>
+                      ))}
+                      <td className="num">{row.sessions_used}</td>
+                      <td className="num">
+                        <span className="conf" style={{ justifyContent: "center" }}>
+                          <span className="dot" style={{ background: confidenceColor(row.confidence_score) }} />
+                          {fmtPct(row.confidence_score)}
+                        </span>
+                      </td>
+                    </>
+                  ) : (
+                    <td>
+                      <span className="pill" style={{ background: scoreColor(row.car_score), color: "#0c0c0c" }}>
+                        {verdict(row.car_score)}
+                      </span>
                     </td>
-                  ))}
-                  <td className="num">{row.sessions_used}</td>
-                  <td className="num">
-                    <span className="conf" style={{ justifyContent: "center" }}>
-                      <span className="dot" style={{ background: confidenceColor(row.confidence_score) }} />
-                      {fmtPct(row.confidence_score)}
-                    </span>
-                  </td>
+                  )}
                 </tr>
                 {isOpen && (
                   <tr className="detail-row">
-                    <td colSpan={9}>
+                    <td colSpan={colSpan}>
                       <div className="detail-inner">
                         <div className="detail-grid">
                           {FACTORS.map((f) => {
@@ -122,34 +148,59 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                             );
                           })}
                         </div>
-                        <div className="flex spread" style={{ marginBottom: 8 }}>
-                          <strong style={{ fontSize: 13 }}>
-                            Contributing sessions ({row.sessions_used})
-                          </strong>
-                          <span className="muted" style={{ fontSize: 12 }}>
-                            class {row.class} · {row.condition} · updated{" "}
-                            {new Date(row.last_updated).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="session-list">
-                          {(detailSessions[row.id] ?? []).length === 0 && (
-                            <div className="muted">Loading sessions…</div>
-                          )}
-                          {(detailSessions[row.id] ?? []).map((s) => (
-                            <div className="sess" key={s.id}>
-                              <span style={{ minWidth: 90 }}>{s.session_type}</span>
-                              <span>best {formatLapTime(s.best_lap_time)}</span>
-                              <span>avg {formatLapTime(s.avg_lap_time)}</span>
-                              <span>{s.lap_count} laps</span>
-                              <span>{s.off_track_count} OT</span>
-                              <span>wear {s.tyres.avg_wear_pct.toFixed(0)}%</span>
-                              <span>conf {s.confidence_rating}/10</span>
-                              {s.session_value_score != null && (
-                                <span className="muted">SVS {s.session_value_score.toFixed(0)}</span>
-                              )}
+
+                        {showSessions && (
+                          <>
+                            <div className="flex spread" style={{ marginBottom: 8 }}>
+                              <strong style={{ fontSize: 13 }}>Contributing sessions ({row.sessions_used})</strong>
+                              <span className="muted" style={{ fontSize: 12 }}>
+                                class {row.class} · {row.condition} · {fmtPct(row.confidence_score)} confidence · updated{" "}
+                                {new Date(row.last_updated).toLocaleString()}
+                              </span>
                             </div>
-                          ))}
-                        </div>
+                            <div className="session-list">
+                              {(detailSessions[row.id] ?? []).length === 0 && (
+                                <div className="muted">Loading sessions…</div>
+                              )}
+                              {(detailSessions[row.id] ?? []).map((s) => (
+                                <div className="sess" key={s.id}>
+                                  <span style={{ minWidth: 84 }}>{s.session_type}</span>
+                                  <span>best {formatLapTime(s.best_lap_time)}</span>
+                                  <span>avg {formatLapTime(s.avg_lap_time)}</span>
+                                  <span>{s.lap_count} laps</span>
+                                  <span>{s.off_track_count} OT</span>
+                                  <span>wear {s.tyres.avg_wear_pct.toFixed(0)}%</span>
+                                  <span>conf {s.confidence_rating}/10</span>
+                                  {s.setup_version && <span className="muted">setup: {s.setup_version}</span>}
+                                  {s.session_value_score != null && (
+                                    <span className="muted">SVS {s.session_value_score.toFixed(0)}</span>
+                                  )}
+                                  {showDebug && s.value_components && (
+                                    <span className="muted" style={{ flexBasis: "100%", fontSize: 12 }}>
+                                      cmpl {s.value_components.completeness.toFixed(0)} · cons{" "}
+                                      {s.value_components.consistency.toFixed(0)} · clean{" "}
+                                      {s.value_components.cleanliness.toFixed(0)} · repr{" "}
+                                      {s.value_components.representativeness.toFixed(0)} · rec{" "}
+                                      {s.value_components.recency.toFixed(0)}
+                                    </span>
+                                  )}
+                                  {s.comments && (
+                                    <span style={{ flexBasis: "100%", color: "var(--text-muted)" }}>
+                                      💬 {s.comments}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {!showSessions && (
+                          <div className="muted" style={{ fontSize: 13 }}>
+                            Based on {row.sessions_used} logged session{row.sessions_used === 1 ? "" : "s"} ·{" "}
+                            {verdict(row.car_score)} for this track.
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

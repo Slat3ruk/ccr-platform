@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ROLES, useRole } from "@/lib/role";
 
 const NAV = [
   { href: "/", label: "rankings", icon: "🏆" },
@@ -12,6 +13,8 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { role, setRole } = useRole();
+  const current = ROLES.find((r) => r.value === role) ?? ROLES[1];
   return (
     <aside className="sidebar">
       <div className="sidebar-header">CrossCurrent Racing</div>
@@ -27,13 +30,21 @@ export default function Sidebar() {
           );
         })}
       </div>
-      <div className="sidebar-foot">
-        <div className="avatar">CC</div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>Engineer</div>
-          <div className="muted" style={{ fontSize: 11 }}>
-            Phase 1 · no auth
-          </div>
+      <div className="sidebar-foot" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+        <div className="nav-section" style={{ padding: "0 0 2px" }}>
+          View as <span className="muted">· {current.hint}</span>
+        </div>
+        <div className="role-switch">
+          {ROLES.map((r) => (
+            <button
+              key={r.value}
+              className={`role-btn${role === r.value ? " active" : ""}`}
+              onClick={() => setRole(r.value)}
+              title={r.hint}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
       </div>
     </aside>

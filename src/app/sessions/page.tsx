@@ -69,6 +69,8 @@ export default function SessionsPage() {
                   <th className="num">Wear</th>
                   <th className="num">Conf</th>
                   <th className="num">SVS</th>
+                  <th>Setup</th>
+                  <th>Notes</th>
                   <th></th>
                 </tr>
               </thead>
@@ -91,6 +93,10 @@ export default function SessionsPage() {
                     <td className="num">{s.tyres.avg_wear_pct.toFixed(0)}%</td>
                     <td className="num">{s.confidence_rating}</td>
                     <td className="num">{s.session_value_score != null ? s.session_value_score.toFixed(0) : "—"}</td>
+                    <td className="muted">{s.setup_version || "—"}</td>
+                    <td className="notes-cell" title={s.comments || ""}>
+                      {s.comments ? s.comments : <span className="muted">—</span>}
+                    </td>
                     <td>
                       <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>
                         Delete
