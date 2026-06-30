@@ -36,6 +36,10 @@ next-env.d.ts
 .netlify/
 *.tsbuildinfo
 
+# Saved "Ohne Speed" sheet download — source for scripts/parse-ohne-speed.mjs.
+# The parsed result (src/data/*.json) is committed; the bulky raw export is not.
+Ohne Speed*
+
 # OS
 Thumbs.db
 .DS_Store

@@ -121,60 +121,47 @@ interface ParsedBenchmark {
 }
 
 /**
- * Best-effort row parser. Expects a header row containing recognizable column
- * names (track, class, condition, alien/competitive/good/midpack/tail/offline).
- * Times may be "M:SS.mmm" or seconds. Returns [] if the header isn't found.
+ * Parser for the "Ohne Speed" sheet layout (decoded 2026-07-01, matches
+ * scripts/parse-ohne-speed.mjs). The sheet is a single grid of per-class
+ * sections; we identify data rows positionally rather than by header:
+ *   col A (0) = "<track><CLASS>"  · col B (1) = track · col C (2) = patch
+ *   cols E..J (4..9) = alien / competitive / good / midpack / tail-ender / offline
+ * The class is recovered from col A's suffix after the track string. GTE rows
+ * (and anything unmapped) are skipped. All conditions are Dry on this sheet.
  */
 function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
-  if (rows.length < 2) return [];
-  const header = rows[0].map((h) => normalize(h));
-  const col = (...names: string[]) => header.findIndex((h) => names.some((n) => h.includes(n)));
-
-  const idx = {
-    track: col("track", "circuit"),
-    cls: col("class", "category"),
-    condition: col("condition", "weather"),
-    alien: col("alien"),
-    competitive: col("competitive"),
-    good: col("good"),
-    midpack: col("midpack", "mid pack"),
-    tail: col("tailender", "tail ender", "tail"),
-    offline: col("offline"),
-    readiness: col("readiness", "data"),
-    patch: col("patch", "version"),
-  };
-
-  if (idx.track < 0 || idx.alien < 0) return []; // not the layout we expect
-
   const out: ParsedBenchmark[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    const trackName = r[idx.track]?.trim();
-    if (!trackName) continue;
+  for (const r of rows) {
+    if (!r || r.length < 10) continue;
+    const helper = (r[0] ?? "").trim();
+    const trackName = (r[1] ?? "").trim();
+    if (!helper || !trackName) continue;
 
-    const cls = normalizeClass(r[idx.cls]);
-    const condition = normalizeCondition(r[idx.condition]);
-    const alien = toSeconds(r[idx.alien]);
-    if (!cls || alien == null) continue;
+    const alien = toSeconds(r[4]);
+    if (alien == null) continue; // not a data row
 
-    const competitive = toSeconds(r[idx.competitive]) ?? alien * 1.01;
-    const good = toSeconds(r[idx.good]) ?? alien * 1.02;
-    const midpack = toSeconds(r[idx.midpack]) ?? alien * 1.035;
-    const tail = toSeconds(r[idx.tail]) ?? alien * 1.06;
-    const offline = toSeconds(r[idx.offline]) ?? alien * 1.07;
+    const rawClass = helper.startsWith(trackName) ? helper.slice(trackName.length).trim() : helper.replace(trackName, "").trim();
+    const cls = normalizeClass(rawClass);
+    if (!cls) continue; // skips GTE / unmapped
+
+    const competitive = toSeconds(r[5]) ?? alien * 1.01;
+    const good = toSeconds(r[6]) ?? alien * 1.02;
+    const midpack = toSeconds(r[7]) ?? alien * 1.03;
+    const tail = toSeconds(r[8]) ?? alien * 1.04;
+    const offline = toSeconds(r[9]) ?? alien * 1.05;
 
     out.push({
       trackName,
       class: cls,
-      condition,
+      condition: "Dry",
       alien_time: alien,
       competitive_time: competitive,
       good_time: good,
       midpack_time: midpack,
       tail_ender_time: tail,
       offline_time: offline,
-      data_readiness_pct: clampPct(Number(r[idx.readiness])),
-      patch_version: idx.patch >= 0 ? r[idx.patch]?.trim() || null : null,
+      data_readiness_pct: 100,
+      patch_version: (r[2] ?? "").trim() || null,
     });
   }
   return out;
@@ -195,13 +182,6 @@ function normalizeClass(s: string | undefined): RacingClass | null {
   return null;
 }
 
-function normalizeCondition(s: string | undefined): Condition {
-  const n = normalize(s || "");
-  if (n.includes("wet") || n.includes("rain")) return "Wet";
-  if (n.includes("mix") || n.includes("damp")) return "Mixed";
-  return "Dry";
-}
-
 function toSeconds(s: string | undefined): number | null {
   if (!s) return null;
   const raw = s.trim();
@@ -215,11 +195,6 @@ function toSeconds(s: string | undefined): number | null {
   }
   const v = Number(raw);
   return Number.isFinite(v) && v > 0 ? v : null;
-}
-
-function clampPct(n: number): number {
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, n));
 }
 
 function matchTrack(trackByName: Map<string, number>, name: string): number | undefined {

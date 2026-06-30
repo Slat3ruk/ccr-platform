@@ -143,7 +143,17 @@ was verified end-to-end. Structure:
    100×(1 − (avg−best)/avg)`. On long laps this barely differentiates cars (all
    ~99) — a known limitation; swap in `consistencyFactorFromLaps()` once full lap
    arrays are captured. Differentiation currently comes from pace/tyre/mistakes.
-3. **Seed benchmarks are placeholders** (`patch_version = "seed"`, readiness 25%):
-   approximate per-track LMH alien times × class/tier multipliers, so pace scoring
-   works out of the box. Replaced by the first successful Google Sheets sync (the
-   Ohne Speed tab/column mapping still needs calibration against the live sheet).
+3. **Benchmarks are REAL** — imported from a saved copy of the "Ohne Speed" sheet
+   (29 tracks/layouts × 5 classes = 145 Dry tiers, patch "1.3 +"). The importer
+   `scripts/parse-ohne-speed.mjs` (run via `npm run import:benchmarks`) parses the
+   saved-as-HTML export into committed `src/data/{benchmarks,tracks}.json`, which
+   the seeder loads. Tracks are seeded from this list too (real names like "Spa",
+   "Circuit de la Sarthe", "Bahrain (endurance)"). The live Google Sheets sync in
+   `benchmark-sync.ts` is calibrated to the same column layout (class from col A
+   suffix, tiers at cols E–J) for when an API key is configured. Re-run the
+   importer after downloading a fresh sheet copy; the raw download is gitignored.
+
+   **Sheet layout (decoded 2026-07-01):** per-class sections; each data row's
+   col A = `<track><CLASS>`, B = track, C = patch, E–J = alien/competitive/good/
+   midpack/tail-ender/offline (clean 1% steps; alien = ~100% column, NOT the
+   faster "Class avgW" col D). GTE rows are skipped (no current LMU cars map to it).

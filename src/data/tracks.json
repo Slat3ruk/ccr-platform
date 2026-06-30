@@ -1,0 +1,147 @@
+[
+  {
+    "name": "Bahrain (wec)",
+    "layout_id": "wec",
+    "country": "Bahrain"
+  },
+  {
+    "name": "Bahrain (endurance)",
+    "layout_id": "endurance",
+    "country": "Bahrain"
+  },
+  {
+    "name": "Bahrain (outer)",
+    "layout_id": "outer",
+    "country": "Bahrain"
+  },
+  {
+    "name": "Bahrain (paddock)",
+    "layout_id": "paddock",
+    "country": "Bahrain"
+  },
+  {
+    "name": "Barcelona",
+    "layout_id": null,
+    "country": "Spain"
+  },
+  {
+    "name": "Circuit de la Sarthe",
+    "layout_id": null,
+    "country": "France"
+  },
+  {
+    "name": "Circuit de la Sarthe (straight)",
+    "layout_id": "straight",
+    "country": "France"
+  },
+  {
+    "name": "COTA",
+    "layout_id": null,
+    "country": "USA"
+  },
+  {
+    "name": "COTA (national)",
+    "layout_id": "national",
+    "country": "USA"
+  },
+  {
+    "name": "Fuji (chicane)",
+    "layout_id": "chicane",
+    "country": "Japan"
+  },
+  {
+    "name": "Fuji (classic)",
+    "layout_id": "classic",
+    "country": "Japan"
+  },
+  {
+    "name": "Imola",
+    "layout_id": null,
+    "country": "Italy"
+  },
+  {
+    "name": "Interlagos",
+    "layout_id": null,
+    "country": "Brazil"
+  },
+  {
+    "name": "Monza",
+    "layout_id": null,
+    "country": "Italy"
+  },
+  {
+    "name": "Monza (curvagrande)",
+    "layout_id": "curvagrande",
+    "country": "Italy"
+  },
+  {
+    "name": "Paul Ricard",
+    "layout_id": null,
+    "country": "France"
+  },
+  {
+    "name": "Paul Ricard (1A)",
+    "layout_id": "1A",
+    "country": "France"
+  },
+  {
+    "name": "Paul Ricard (1A v2)",
+    "layout_id": "1A v2",
+    "country": "France"
+  },
+  {
+    "name": "Paul Ricard (1A v2 short)",
+    "layout_id": "1A v2 short",
+    "country": "France"
+  },
+  {
+    "name": "Paul Ricard (3A)",
+    "layout_id": "3A",
+    "country": "France"
+  },
+  {
+    "name": "Portimao",
+    "layout_id": null,
+    "country": "Portugal"
+  },
+  {
+    "name": "Qatar",
+    "layout_id": null,
+    "country": "Qatar"
+  },
+  {
+    "name": "Qatar (short)",
+    "layout_id": "short",
+    "country": "Qatar"
+  },
+  {
+    "name": "Silverstone (GP)",
+    "layout_id": "GP",
+    "country": "UK"
+  },
+  {
+    "name": "Silverstone (National)",
+    "layout_id": "National",
+    "country": "UK"
+  },
+  {
+    "name": "Silverstone (International)",
+    "layout_id": "International",
+    "country": "UK"
+  },
+  {
+    "name": "Sebring",
+    "layout_id": null,
+    "country": "USA"
+  },
+  {
+    "name": "Sebring (school)",
+    "layout_id": "school",
+    "country": "USA"
+  },
+  {
+    "name": "Spa",
+    "layout_id": null,
+    "country": "Belgium"
+  }
+]

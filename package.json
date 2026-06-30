@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node scripts/seed.mjs",
+    "import:benchmarks": "node scripts/parse-ohne-speed.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
