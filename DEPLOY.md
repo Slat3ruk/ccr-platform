@@ -6,6 +6,44 @@
 
 ---
 
+## ⚡ Quick start — get the team on it (current, ~8 min)
+
+The app runs on a local JSON store in dev (`.data/store.json`, one machine, not
+shared). Production needs Postgres. Fastest path:
+
+1. **Postgres (Neon, free):** <https://neon.tech> → New Project → copy the
+   **pooled** connection string (`…-pooler…?sslmode=require`). Serverless
+   functions open many short connections, so the *pooled* endpoint matters.
+   *(Or use Netlify's "Add database" button, which provisions Neon and sets
+   `DATABASE_URL` automatically — then skip to step 3.)*
+
+2. **Apply the schema — no psql needed:**
+   ```powershell
+   $env:DATABASE_URL = "postgres://…pooler…?sslmode=require"
+   npm run migrate
+   ```
+   This runs `db/1_init_schema.sql` (idempotent) and creates every table,
+   including the newer **`settings`** (active weighting preset) and **`races`**
+   (briefing calendar) tables. Re-runnable any time.
+
+3. **Netlify:** Add new site → Import from Git → `Slat3ruk/ccr-platform`. Build
+   settings auto-detect from `netlify.toml` (do **not** set a publish directory —
+   `@netlify/plugin-nextjs` handles it). Under **Site settings → Environment**,
+   add `DATABASE_URL` (required). `GOOGLE_SHEETS_*` are optional (only for live
+   benchmark re-sync; the seeded tiers work without them). Deploy.
+
+4. **Seed reference data (once):** open the site and click **"Load sample data"**
+   on the rankings banner, or `POST /api/seed`. Loads the car roster, tracks and
+   145 benchmark tiers, then computes rankings. Drivers can now log from anywhere.
+
+**Verify:** `GET /api/seed` should report `"backend": "postgres"` (not `json`).
+The first real Postgres run is the one thing not yet smoke-tested end-to-end
+(dev uses the JSON store) — this checklist *is* that smoke test.
+
+The phased detail (Netlify env vars, Docker staging, self-hosted VPS, CI) follows.
+
+---
+
 ## Phase 1: MVP Deploy (Netlify) — 5 minutes
 
 Netlify is the gold standard for Next.js apps. Free tier, auto-deploys from GitHub, zero ops overhead.
@@ -22,10 +60,12 @@ Netlify is the gold standard for Next.js apps. Free tier, auto-deploys from GitH
 2. Click **"New site from Git"**
 3. Select **GitHub** → authorize Netlify
 4. Find repo: **`Slat3ruk/ccr-platform`**
-5. Deploy settings:
+5. Deploy settings (auto-detected from `netlify.toml`):
    - **Build command:** `npm run build`
-   - **Publish directory:** `.next`
-   - **Environment variables:** Add `.env.local` vars (see section 1.3)
+   - **Publish directory:** *leave blank* — `@netlify/plugin-nextjs` sets the
+     output target itself. (Older guides said `.next`; don't override it.)
+   - **Environment variables:** Add `DATABASE_URL` (+ optional `GOOGLE_SHEETS_*`,
+     see section 1.3). Run `npm run migrate` once against the DB first (Quick start).
 6. Click **Deploy**
 
 Done. Your app is live at `https://ccr-platform.netlify.app/` (or custom subdomain).

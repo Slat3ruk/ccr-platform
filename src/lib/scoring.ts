@@ -7,10 +7,14 @@
 //
 // MVP NOTE on Consistency: SPEC §3.2 defines consistency from the std-dev of
 // *every* lap, but the MVP session form logs only best + average + lap count
-// (SPEC §5.1). We therefore use the best→average gap as the dispersion proxy:
-//   consistency = 100 × (1 − (avg − best) / avg)
-// A tight best→avg gap means consistent laps. Swap in true std-dev once the
-// form captures full lap arrays — the call sites stay the same.
+// (SPEC §5.1). We therefore use the best→average gap as the dispersion proxy.
+// The dispersion is scored in ABSOLUTE SECONDS, not relative to lap time:
+//   consistency = clamp(100 − (avg − best) / CONSISTENCY_TOLERANCE_S × 50)
+// (Dividing by avg lap time — the old formula — crushed every car to ~99, since
+// a 1 s gap over a ~140 s lap is <1%. A second of lap-to-lap scatter costs the
+// same positions whatever the track length, so absolute seconds is the honest
+// measure.) Swap in true std-dev via consistencyFactorFromLaps once the form
+// captures full lap arrays — the call sites stay the same.
 // ============================================================================
 
 import type {
@@ -138,19 +142,29 @@ export function paceFactor(bestLap: number, benchmark: Benchmark | null): number
 // §3.2 Consistency Factor (25%)
 // ============================================================================
 
-/** consistency = 100 × (1 − dispersion / avg). Dispersion = avg − best (MVP proxy). */
-export function consistencyFactor(bestLap: number, avgLap: number): number {
-  if (avgLap <= 0) return 0;
-  const dispersion = Math.max(0, avgLap - bestLap);
-  return clamp(100 * (1 - dispersion / avgLap));
+/**
+ * Score a lap-time dispersion (in SECONDS) to 0–100: 0 s = 100, and a gap of
+ * `tolerance` seconds = 50. Absolute seconds, not relative to lap time.
+ */
+function dispersionScore(seconds: number, tolerance: number): number {
+  if (!(tolerance > 0)) return 100;
+  return clamp(100 - (Math.max(0, seconds) / tolerance) * 50);
 }
 
-/** True-std-dev variant for when full lap arrays are available (future). */
+/** consistency from the best→average gap (seconds). See CONSISTENCY_TOLERANCE_S. */
+export function consistencyFactor(bestLap: number, avgLap: number): number {
+  if (avgLap <= 0) return 0;
+  return dispersionScore(avgLap - bestLap, CONSISTENCY_TOLERANCE_S);
+}
+
+/**
+ * True-std-dev variant for when full lap arrays are available (future). Std-dev
+ * is a tighter measure than the best→avg gap, so it uses its own (smaller)
+ * tolerance. Not yet wired — the form captures best/avg/count only.
+ */
 export function consistencyFactorFromLaps(lapTimes: number[]): number {
   if (lapTimes.length < 2) return 100;
-  const avg = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
-  if (avg <= 0) return 0;
-  return clamp(100 * (1 - stdDev(lapTimes) / avg));
+  return dispersionScore(stdDev(lapTimes), CONSISTENCY_STDDEV_TOLERANCE_S);
 }
 
 // ============================================================================
@@ -352,3 +366,5 @@ export function aggregateCarScore(
 
 export const SCORING_WINDOW = 10; // latest N sessions per car-track combo aggregated
 export const CONFIDENCE_CURVE_K = 1; // half-saturation of the confidence volume curve n/(n+k) — volume = 0.5 at n = k
+export const CONSISTENCY_TOLERANCE_S = 2.0; // best→avg gap (s) that scores 50; 0 s = 100 (raise to be more lenient)
+export const CONSISTENCY_STDDEV_TOLERANCE_S = 1.2; // per-lap std-dev (s) that scores 50 (for the future lap-array path)

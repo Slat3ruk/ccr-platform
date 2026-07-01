@@ -130,6 +130,13 @@ was verified end-to-end. Structure:
   benchmarks, sync, cars, tracks, drivers, seed). All `runtime="nodejs"`.
 - UI: `/` rankings (5s poll, filters, export, expandable factor breakdown),
   `/log` session form, `/sessions` log+delete, `/benchmarks` + sync. Discord shell.
+- **Tests + deploy tooling (round 3):** `npm test` runs Vitest over the pure
+  scoring engine (`src/lib/scoring.test.ts`, 25 cases — pace tiers, the absolute-
+  seconds consistency regression, tyre/mistakes, SVS, the n/(n+1) confidence
+  curve, and the weights presets/normalisation). `npm run migrate`
+  (`scripts/migrate.mjs`) applies `db/1_init_schema.sql` via `DATABASE_URL` with
+  no psql needed; DEPLOY.md opens with an ⚡ Quick start for the Neon + Netlify
+  path (pooled connection, migrate, seed via the UI banner).
 
 ### Three pragmatic build decisions (not in the original spec — flag if revisiting)
 
@@ -138,11 +145,18 @@ was verified end-to-end. Structure:
    `.data/store.json`. Same engine/UI either way. Docker isn't installed on this
    machine, so requiring Postgres to test locally would have blocked the manual
    feedback loop.
-2. **Consistency = best→avg gap proxy.** SPEC §3.2 wants std-dev of every lap, but
-   the form (SPEC §5.1) logs only best + average + count. So `consistency =
-   100×(1 − (avg−best)/avg)`. On long laps this barely differentiates cars (all
-   ~99) — a known limitation; swap in `consistencyFactorFromLaps()` once full lap
-   arrays are captured. Differentiation currently comes from pace/tyre/mistakes.
+2. **Consistency = best→avg gap, scored in ABSOLUTE SECONDS** (fixed round 3).
+   SPEC §3.2 wants std-dev of every lap, but the form (SPEC §5.1) logs only best +
+   average + count, so we proxy dispersion with the best→avg gap. It's now scored
+   `clamp(100 − gap/CONSISTENCY_TOLERANCE_S × 50)` (tolerance 2.0 s → 50 pts), NOT
+   the old `100×(1 − gap/avg)`. The old formula divided the ~1 s gap by the ~140 s
+   lap, crushing every car to ~98–99 — a dead 25% of the Car Score. Absolute
+   seconds is the honest measure (a second of scatter costs the same positions at
+   any track length); the real 0.7–1.8 s demo spread now maps to ~82→55, so
+   consistency genuinely moves the ranking (and Car Scores dropped ~6 pts overall
+   since it no longer inflates everyone). Swap in `consistencyFactorFromLaps()`
+   (true std-dev, `CONSISTENCY_STDDEV_TOLERANCE_S`) once full lap arrays are
+   captured — call sites unchanged.
 3. **Benchmarks are REAL** — imported from a saved copy of the "Ohne Speed" sheet
    (29 tracks/layouts × 5 classes = 145 Dry tiers, patch "1.3 +"). The importer
    `scripts/parse-ohne-speed.mjs` (run via `npm run import:benchmarks`) parses the
