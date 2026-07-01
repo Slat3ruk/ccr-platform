@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ExportButton from "@/components/ExportButton";
 import RankingsTable from "@/components/RankingsTable";
 import SetupBanner from "@/components/SetupBanner";
+import WeightsControl from "@/components/WeightsControl";
 import { api } from "@/lib/api-client";
 import { useRole } from "@/lib/role";
-import type { RankingRow, Track } from "@/types";
+import type { RankingRow, Track, WeightsConfig } from "@/types";
 
 const CLASSES = ["LMGT3", "LMH", "LMP3", "LMP2-ELMS"];
 const CONDITIONS = ["Dry", "Wet", "Mixed"];
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [condition, setCondition] = useState<string>("");
   const [updatedAt, setUpdatedAt] = useState<string>("");
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [weights, setWeights] = useState<WeightsConfig | null>(null);
 
   const filtersRef = useRef({ trackId, cls, condition });
   filtersRef.current = { trackId, cls, condition };
@@ -33,6 +35,14 @@ export default function DashboardPage() {
     setBackend(status.backend);
     setCarsCount(status.counts.cars ?? 0);
     setTracks(tk);
+  }, []);
+
+  const loadWeights = useCallback(async () => {
+    try {
+      setWeights((await api.weights()).active);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const loadRankings = useCallback(async () => {
@@ -48,7 +58,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadMeta().catch(() => {});
-  }, [loadMeta]);
+    loadWeights().catch(() => {});
+  }, [loadMeta, loadWeights]);
 
   useEffect(() => {
     loadRankings().catch(() => {});
@@ -127,6 +138,14 @@ export default function DashboardPage() {
               ))}
             </select>
           </div>
+          <WeightsControl
+            role={role}
+            active={weights}
+            onApplied={() => {
+              loadWeights();
+              loadRankings();
+            }}
+          />
           <div className="spacer" />
           <div className="field" style={{ minWidth: 0 }}>
             <label>Auto-refresh</label>
@@ -156,7 +175,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <RankingsTable rows={rows} role={role} />
+        <RankingsTable rows={rows} role={role} activeWeights={weights?.weights} />
       </div>
     </>
   );

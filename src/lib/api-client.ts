@@ -3,12 +3,40 @@
 // same-origin to the Next.js API routes.
 // ============================================================================
 
-import type { Benchmark, Car, RankingRow, Session, SessionInput, Track } from "@/types";
+import type {
+  Benchmark,
+  Car,
+  FactorWeights,
+  NewRaceInput,
+  RaceRow,
+  RankingRow,
+  Session,
+  SessionInput,
+  Track,
+  WeightsConfig,
+} from "@/types";
+
+export interface WeightsPreset {
+  name: string;
+  hint: string;
+  weights: FactorWeights;
+}
 
 async function jget<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+async function jsend<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as { error?: string }).error ?? `${method} ${url} → ${res.status}`);
+  return json as T;
 }
 
 export const api = {
@@ -70,4 +98,20 @@ export const api = {
     const res = await fetch("/api/rankings/recompute", { method: "POST" });
     return res.json();
   },
+
+  // weighting -----------------------------------------------------------------
+  weights: () => jget<{ active: WeightsConfig; presets: WeightsPreset[] }>("/api/rankings/weights"),
+
+  setWeights: (body: { preset?: string; weights?: FactorWeights }) =>
+    jsend<{ ok: true; active: WeightsConfig; recompute: unknown }>("/api/rankings/weights", "POST", body),
+
+  // race calendar + briefing --------------------------------------------------
+  races: () => jget<RaceRow[]>("/api/races"),
+
+  createRace: (input: NewRaceInput) => jsend<{ ok: true; race: RaceRow }>("/api/races", "POST", input),
+
+  updateRace: (id: number, patch: Record<string, unknown>) =>
+    jsend<{ ok: true; race: RaceRow }>(`/api/races/${id}`, "PATCH", patch),
+
+  deleteRace: (id: number) => jsend<{ ok: true }>(`/api/races/${id}`, "DELETE"),
 };

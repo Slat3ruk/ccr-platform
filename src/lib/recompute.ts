@@ -6,23 +6,39 @@
 // and by POST /api/rankings/recompute.
 // ============================================================================
 
-import { categoryToClass, type Condition, type RacingClass, type Session } from "@/types";
+import { categoryToClass, type Condition, type RacingClass, type Session, type WeightsConfig } from "@/types";
 import { getStore } from "./db";
 import type { Store } from "./db/types";
-import { aggregateCarScore, scoreSession, sessionValueScore, SCORING_WINDOW } from "./scoring";
+import {
+  aggregateCarScore,
+  DEFAULT_WEIGHTS_CONFIG,
+  scoreSession,
+  sessionValueScore,
+  SCORING_WINDOW,
+} from "./scoring";
 
 export interface RecomputeSummary {
   recommendations: number;
   sessions_scored: number;
   groups: number;
+  weights_preset: string;
 }
 
 function groupKey(carId: number, trackId: number, condition: Condition): string {
   return `${carId}|${trackId}|${condition}`;
 }
 
-export async function recomputeAll(store: Store = getStore(), nowMs = Date.now()): Promise<RecomputeSummary> {
+export async function recomputeAll(
+  store: Store = getStore(),
+  nowMs = Date.now(),
+  weightsConfig?: WeightsConfig,
+): Promise<RecomputeSummary> {
   await store.init();
+
+  // The active weighting is global: use the one passed in (from the weights
+  // endpoint) or the one persisted in settings, falling back to Balanced. Every
+  // recompute path (session create/delete, seed, sync) picks it up automatically.
+  const config = weightsConfig ?? (await store.getSetting<WeightsConfig>("weights")) ?? DEFAULT_WEIGHTS_CONFIG;
 
   const [sessions, cars, benchmarks] = await Promise.all([
     store.listSessions(),
@@ -78,7 +94,7 @@ export async function recomputeAll(store: Store = getStore(), nowMs = Date.now()
       sessionsScored++;
     }
 
-    const agg = aggregateCarScore(scored);
+    const agg = aggregateCarScore(scored, config.weights);
 
     await store.upsertRecommendation({
       car_id: first.car_id,
@@ -94,9 +110,10 @@ export async function recomputeAll(store: Store = getStore(), nowMs = Date.now()
       sessions_used: agg.sessions_used,
       session_ids: window.map((s) => s.id),
       confidence_score: agg.confidence_score,
+      weights_preset: config.preset,
     });
     recommendations++;
   }
 
-  return { recommendations, sessions_scored: sessionsScored, groups: groups.size };
+  return { recommendations, sessions_scored: sessionsScored, groups: groups.size, weights_preset: config.preset };
 }

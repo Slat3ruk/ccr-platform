@@ -11,6 +11,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  NewRaceInput,
+  RaceEvent,
   RacingClass,
   Recommendation,
   Session,
@@ -21,6 +23,7 @@ import type {
   NewBenchmark,
   NewRecommendation,
   NewSessionRecord,
+  RacePatch,
   SessionFilter,
   Store,
 } from "./types";
@@ -115,7 +118,24 @@ function rowToRecommendation(r: any): Recommendation {
     sessions_used: r.sessions_used,
     session_ids: r.session_ids ?? [],
     confidence_score: Number(r.confidence_score),
+    weights_preset: r.weights_preset ?? null,
     last_updated: iso(r.last_updated),
+  };
+}
+
+function rowToRace(r: any): RaceEvent {
+  return {
+    id: r.id,
+    track_id: r.track_id,
+    class: r.class ?? null,
+    condition: r.condition ?? null,
+    name: r.name ?? null,
+    event_date: typeof r.event_date === "string" ? r.event_date.slice(0, 10) : iso(r.event_date).slice(0, 10),
+    note: r.note ?? null,
+    note_by: r.note_by ?? null,
+    note_updated_at: r.note_updated_at ? iso(r.note_updated_at) : null,
+    created_by: r.created_by ?? null,
+    created_at: iso(r.created_at),
   };
 }
 
@@ -151,6 +171,26 @@ export class PostgresStore implements Store {
     const pool = await this.getPool();
     // Ensure the schema exists; full DDL lives in db/1_init_schema.sql.
     await pool.query("CREATE SCHEMA IF NOT EXISTS ccr");
+    // Additive migrations for the weighting + calendar features, so an already
+    // migrated production DB gets them without re-running the base schema file.
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS ccr.settings (key TEXT PRIMARY KEY, value JSONB, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+    );
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ccr.races (
+        id              SERIAL PRIMARY KEY,
+        track_id        INT NOT NULL REFERENCES ccr.tracks(id) ON DELETE CASCADE,
+        class           VARCHAR(50),
+        condition       VARCHAR(50),
+        name            VARCHAR(255),
+        event_date      DATE NOT NULL,
+        note            TEXT,
+        note_by         VARCHAR(255),
+        note_updated_at TIMESTAMP,
+        created_by      VARCHAR(255),
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
     this.initialized = true;
   }
 
@@ -375,22 +415,76 @@ export class PostgresStore implements Store {
     const res = await this.q(
       `INSERT INTO recommendations
          (car_id, track_id, class, condition, car_score, pace_factor, consistency_factor,
-          tyre_factor, drivability_factor, mistakes_factor, sessions_used, session_ids, confidence_score)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+          tyre_factor, drivability_factor, mistakes_factor, sessions_used, session_ids, confidence_score, weights_preset)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        ON CONFLICT (car_id, track_id, class, condition) DO UPDATE SET
          car_score=EXCLUDED.car_score, pace_factor=EXCLUDED.pace_factor,
          consistency_factor=EXCLUDED.consistency_factor, tyre_factor=EXCLUDED.tyre_factor,
          drivability_factor=EXCLUDED.drivability_factor, mistakes_factor=EXCLUDED.mistakes_factor,
          sessions_used=EXCLUDED.sessions_used, session_ids=EXCLUDED.session_ids,
-         confidence_score=EXCLUDED.confidence_score, last_updated=CURRENT_TIMESTAMP
+         confidence_score=EXCLUDED.confidence_score, weights_preset=EXCLUDED.weights_preset,
+         last_updated=CURRENT_TIMESTAMP
        RETURNING *`,
-      [r.car_id, r.track_id, r.class, r.condition, r.car_score, r.pace_factor, r.consistency_factor, r.tyre_factor, r.drivability_factor, r.mistakes_factor, r.sessions_used, JSON.stringify(r.session_ids), r.confidence_score],
+      [r.car_id, r.track_id, r.class, r.condition, r.car_score, r.pace_factor, r.consistency_factor, r.tyre_factor, r.drivability_factor, r.mistakes_factor, r.sessions_used, JSON.stringify(r.session_ids), r.confidence_score, r.weights_preset ?? null],
     );
     return rowToRecommendation(res.rows[0]);
   }
 
   async clearRecommendations(): Promise<void> {
     await this.q("DELETE FROM recommendations");
+  }
+
+  // settings ------------------------------------------------------------------
+  async getSetting<T = unknown>(key: string): Promise<T | null> {
+    const res = await this.q("SELECT value FROM settings WHERE key = $1", [key]);
+    return res.rows[0] ? (res.rows[0].value as T) : null;
+  }
+
+  async setSetting(key: string, value: unknown): Promise<void> {
+    await this.q(
+      `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP`,
+      [key, JSON.stringify(value)],
+    );
+  }
+
+  // races ---------------------------------------------------------------------
+  async listRaces(): Promise<RaceEvent[]> {
+    const res = await this.q("SELECT * FROM races ORDER BY event_date ASC, id ASC");
+    return res.rows.map(rowToRace);
+  }
+
+  async getRace(id: number): Promise<RaceEvent | null> {
+    const res = await this.q("SELECT * FROM races WHERE id = $1", [id]);
+    return res.rows[0] ? rowToRace(res.rows[0]) : null;
+  }
+
+  async createRace(input: NewRaceInput): Promise<RaceEvent> {
+    const res = await this.q(
+      `INSERT INTO races (track_id, class, condition, name, event_date, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [input.track_id, input.class ?? null, input.condition ?? null, input.name ?? null, input.event_date, input.created_by ?? null],
+    );
+    return rowToRace(res.rows[0]);
+  }
+
+  async updateRace(id: number, patch: RacePatch): Promise<RaceEvent | null> {
+    const cols: (keyof RacePatch)[] = ["track_id", "class", "condition", "name", "event_date", "note", "note_by"];
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    for (const col of cols) {
+      if (col in patch) { params.push((patch as any)[col]); sets.push(`${col} = $${params.length}`); }
+    }
+    if ("note" in patch) sets.push("note_updated_at = CURRENT_TIMESTAMP");
+    if (sets.length === 0) return this.getRace(id);
+    params.push(id);
+    const res = await this.q(`UPDATE races SET ${sets.join(", ")} WHERE id = $${params.length} RETURNING *`, params);
+    return res.rows[0] ? rowToRace(res.rows[0]) : null;
+  }
+
+  async deleteRace(id: number): Promise<boolean> {
+    const res = await this.q("DELETE FROM races WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
   }
 
   // meta ----------------------------------------------------------------------

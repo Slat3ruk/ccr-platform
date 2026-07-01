@@ -158,28 +158,48 @@ was verified end-to-end. Structure:
    midpack/tail-ender/offline (clean 1% steps; alien = ~100% column, NOT the
    faster "Class avgW" col D). GTE rows are skipped (no current LMU cars map to it).
 
-### Feedback round 2 — QUEUED for next session (requested 2026-07-01, do NOT start early)
+### Feedback round 2 — status (requested 2026-07-01)
 
-1. **Relabel the SVS debug abbreviations** in plain English (Admin detail view +
-   anywhere they appear). Mapping: cmpl = Completeness ("did they run a proper
-   stint / lap count"), cons = Consistency ("tight, repeatable laps"), clean =
-   Cleanliness ("few off-tracks/mistakes"), repr = Representativeness ("race-
-   relevant: Race/Quali > Practice/Test, dry vs wet"), rec = Recency ("fresh runs
-   count more"). Use full words + a hover tooltip.
-2. **Adjustable factor weights with presets.** Let the user tweak the 5 Car-Score
-   weights (pace/consistency/tyre/drivability/mistakes) via sliders, with presets
-   e.g. Balanced (default 35/25/15/15/10), Pace-focused, Tyre-saver/Enduro,
-   Sprint. OPEN QUESTION to resolve with user first: does re-weighting re-rank
-   live for everyone (persisted) or is it a personal "what-if" view? Weights live
-   in `FACTOR_WEIGHTS` (scoring.ts) — will need to thread a weights arg through
-   `aggregateCarScore`/recompute, or apply client-side for the what-if version.
-3. **BLUF "Race Briefing" landing page** — a new top-level page ABOVE #rankings:
-   bottom-line-up-front for drivers who don't want detail. Big headline like
-   "This week @ <track>: run the <top car>" auto-derived from the top-ranked car
-   for a chosen track/class, plus a free-text engineer note/announcement. Posting
-   gated to Team Manager/Admin (ties into the role toggle already built); drivers
-   read-only. Needs: a place to store the briefing (store + a briefings table/
-   collection), an editor for managers, and track/event selection.
+1. **[PENDING] Relabel the SVS debug abbreviations** in plain English (Admin
+   detail view + anywhere they appear). Mapping: cmpl = Completeness ("did they
+   run a proper stint / lap count"), cons = Consistency ("tight, repeatable
+   laps"), clean = Cleanliness ("few off-tracks/mistakes"), repr =
+   Representativeness ("race-relevant: Race/Quali > Practice/Test, dry vs wet"),
+   rec = Recency ("fresh runs count more"). Use full words + a hover tooltip.
+   Lives in `RankingsTable.tsx` (the `value_components` debug line, admin only).
+2. **[DONE 2026-07-01] Adjustable factor weights with presets.** Locked design:
+   ONE global, mathematically-derived ranking everyone sees — NOT a per-user
+   what-if. Manager/Admin picks the weighting; it persists in the store's
+   `settings` (key `weights`, a `WeightsConfig`) and every recompute reads it, so
+   the list is shared. Transparency = each recommendation is stamped with its
+   `weights_preset` name, shown as a Discord-style tag next to the car (point the
+   user made: "small little tags … with those names next to them"). Presets in
+   `scoring.ts` `WEIGHT_PRESETS` (Balanced 35/25/15/15/10, Pace-focused,
+   Tyre-saver, Sprint); a Custom mode (sliders, normalised to sum 1 server-side).
+   `aggregateCarScore(scored, weights)` takes the weights; `recomputeAll(store,
+   nowMs, config?)` reads/writes the active config. UI: `WeightsControl.tsx` in
+   the rankings toolbar (Manager/Admin editable, Driver read-only); endpoint
+   `GET/POST /api/rankings/weights` (POST validates, persists, recomputes).
+3. **[DONE 2026-07-01] BLUF "Race Briefing" landing page** — `/briefing`, first
+   sidebar item (new "Race weekend" section). Manually-added race calendar
+   (`races` store collection; `GET/POST /api/races`, `PATCH/DELETE
+   /api/races/[id]`). Calendar logic in `lib/calendar.ts`: a race is the
+   FEATURED briefing from `LEAD_DAYS=3` before its `event_date` (the user's 3-day
+   cut-off → opens Wednesday for a Saturday race) through `TRAIL_DAYS=1` after
+   (stays live through Sunday); nearest in-window event wins, else the next
+   upcoming shows as "Coming up". Team races Saturday-main with Fri/Sun optional —
+   tune the two constants to shift the window. BLUF card auto-pulls the top-ranked
+   car for the featured track (+ its class/condition) with the weighting tag, an
+   alternatives list, and an engineer's `note` (stored ON the race row: `note` /
+   `note_by` / `note_updated_at`; PATCH to set). Editing gated to Manager/Admin;
+   drivers read-only. Add-race form + Remove gated the same way.
+
+**Store/schema note (round 2):** the `Store` interface gained `getSetting`/
+`setSetting` (KV) and race CRUD; both the JSON dev store and Postgres implement
+them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
+(settings, races) + `ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS
+weights_preset`, so an already-migrated prod DB self-heals without re-running
+`db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
 ### Feedback round 1 (2026-07-01)
 

@@ -141,6 +141,8 @@ export interface Recommendation {
   sessions_used: number;
   session_ids: number[];
   confidence_score: number;
+  /** Name of the weighting preset this score was computed under (transparency). */
+  weights_preset?: string | null;
   last_updated: string;
 }
 
@@ -174,6 +176,66 @@ export interface FactorScores {
   tyre: number;
   drivability: number;
   mistakes: number;
+}
+
+// --- Car-Score weighting (adjustable factor weights) -------------------------
+
+/** The five Car-Score factor weights. Should sum to 1.0 (normalised on apply). */
+export interface FactorWeights {
+  pace: number;
+  consistency: number;
+  tyre: number;
+  drivability: number;
+  mistakes: number;
+}
+
+/**
+ * The globally-active weighting: a named preset ("Balanced", "Pace-focused",
+ * "Tyre-saver", "Sprint", or "Custom") plus the concrete weights it resolves to.
+ * Persisted in the store's settings; every recompute reads it so the ranking is
+ * one shared, mathematically-consistent list. The preset name is stamped onto
+ * each recommendation for transparency (the Discord-style tag in the table).
+ */
+export interface WeightsConfig {
+  preset: string;
+  weights: FactorWeights;
+}
+
+// --- Race calendar + BLUF briefing -------------------------------------------
+
+/**
+ * A manually-added race weekend. `event_date` is the main race day (typically
+ * Saturday); the briefing page features it from a few days before through the
+ * day after. `note` is the engineer/manager BLUF announcement.
+ */
+export interface RaceEvent {
+  id: number;
+  track_id: number;
+  class?: RacingClass | null;
+  condition?: Condition | null;
+  name?: string | null;
+  /** ISO date (YYYY-MM-DD) of the main race day. */
+  event_date: string;
+  note?: string | null;
+  note_by?: string | null;
+  note_updated_at?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+/** Payload accepted by POST /api/races. */
+export interface NewRaceInput {
+  track_id: number;
+  class?: RacingClass | null;
+  condition?: Condition | null;
+  name?: string | null;
+  event_date: string;
+  created_by?: string | null;
+}
+
+/** A race event joined with its track name for the briefing/calendar UI. */
+export interface RaceRow extends RaceEvent {
+  track_name: string;
 }
 
 /** A recommendation joined with car + track names for the dashboard. */

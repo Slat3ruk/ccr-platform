@@ -17,10 +17,12 @@ import type {
   Benchmark,
   Condition,
   FactorScores,
+  FactorWeights,
   RacingClass,
   Session,
   SessionType,
   ValueComponents,
+  WeightsConfig,
 } from "@/types";
 
 // --- weights ----------------------------------------------------------------
@@ -32,6 +34,53 @@ export const FACTOR_WEIGHTS = {
   drivability: 0.15,
   mistakes: 0.1,
 } as const;
+
+/**
+ * Selectable Car-Score weightings. Each set sums to 1.0. The user picks one
+ * (Manager/Admin only) and it applies globally — every driver sees the same
+ * mathematically-derived ranking, tagged with the preset name for transparency.
+ */
+export const WEIGHT_PRESETS: { name: string; hint: string; weights: FactorWeights }[] = [
+  {
+    name: "Balanced",
+    hint: "Default all-round — 35 / 25 / 15 / 15 / 10",
+    weights: { pace: 0.35, consistency: 0.25, tyre: 0.15, drivability: 0.15, mistakes: 0.1 },
+  },
+  {
+    name: "Pace-focused",
+    hint: "Outright speed — qualifying & short races",
+    weights: { pace: 0.5, consistency: 0.2, tyre: 0.1, drivability: 0.1, mistakes: 0.1 },
+  },
+  {
+    name: "Tyre-saver",
+    hint: "Endurance / long stints — reward low, even wear",
+    weights: { pace: 0.25, consistency: 0.25, tyre: 0.3, drivability: 0.1, mistakes: 0.1 },
+  },
+  {
+    name: "Sprint",
+    hint: "Short races — mistakes costly, tyres barely matter",
+    weights: { pace: 0.4, consistency: 0.2, tyre: 0.05, drivability: 0.15, mistakes: 0.2 },
+  },
+];
+
+/** The out-of-the-box weighting used until a preset is chosen. */
+export const DEFAULT_WEIGHTS_CONFIG: WeightsConfig = {
+  preset: "Balanced",
+  weights: { ...FACTOR_WEIGHTS },
+};
+
+/** Normalise arbitrary non-negative weights so they sum to 1 (keeps scores 0–100). */
+export function normalizeWeights(w: FactorWeights): FactorWeights {
+  const total = w.pace + w.consistency + w.tyre + w.drivability + w.mistakes;
+  if (!(total > 0)) return { ...FACTOR_WEIGHTS };
+  return {
+    pace: w.pace / total,
+    consistency: w.consistency / total,
+    tyre: w.tyre / total,
+    drivability: w.drivability / total,
+    mistakes: w.mistakes / total,
+  };
+}
 
 export const SVS_WEIGHTS = {
   completeness: 0.3,
@@ -245,9 +294,13 @@ interface ScoredSession {
 
 /**
  * Aggregate up to the latest 10 sessions (caller pre-sorts/slices) into a Car
- * Score, weighting each session's factors by its Session Value Score.
+ * Score, weighting each session's factors by its Session Value Score. The final
+ * factor→score weighting defaults to Balanced but accepts any active preset.
  */
-export function aggregateCarScore(scored: ScoredSession[]): CarScoreResult {
+export function aggregateCarScore(
+  scored: ScoredSession[],
+  weights: FactorWeights = FACTOR_WEIGHTS,
+): CarScoreResult {
   const n = scored.length;
   if (n === 0) {
     return {
@@ -276,11 +329,11 @@ export function aggregateCarScore(scored: ScoredSession[]): CarScoreResult {
 
   const car_score = round2(
     clamp(
-      factors.pace * FACTOR_WEIGHTS.pace +
-        factors.consistency * FACTOR_WEIGHTS.consistency +
-        factors.tyre * FACTOR_WEIGHTS.tyre +
-        factors.drivability * FACTOR_WEIGHTS.drivability +
-        factors.mistakes * FACTOR_WEIGHTS.mistakes,
+      factors.pace * weights.pace +
+        factors.consistency * weights.consistency +
+        factors.tyre * weights.tyre +
+        factors.drivability * weights.drivability +
+        factors.mistakes * weights.mistakes,
     ),
   );
 

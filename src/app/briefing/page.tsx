@@ -1,0 +1,383 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api-client";
+import { countdownLabel, pickFeatured, type RaceWindow } from "@/lib/calendar";
+import { fmtPct, fmtScore, scoreColor } from "@/lib/format";
+import { ROLES, useRole } from "@/lib/role";
+import { RACING_CLASSES, type RaceRow, type RankingRow, type Track, type WeightsConfig } from "@/types";
+
+function verdict(score: number): string {
+  if (score >= 85) return "Top pick";
+  if (score >= 75) return "Strong";
+  if (score >= 60) return "Viable";
+  if (score >= 45) return "Marginal";
+  return "Avoid";
+}
+
+function fmtDate(iso: string): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+}
+
+export default function BriefingPage() {
+  const { role } = useRole();
+  const canEdit = role !== "driver";
+  const roleLabel = ROLES.find((r) => r.value === role)?.label ?? "Team Manager";
+
+  const [races, setRaces] = useState<RaceRow[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [rankings, setRankings] = useState<RankingRow[]>([]);
+  const [weights, setWeights] = useState<WeightsConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [nowMs] = useState(() => Date.now());
+
+  // note editor
+  const [editing, setEditing] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteBy, setNoteBy] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+
+  // add-race form
+  const [formTrack, setFormTrack] = useState("");
+  const [formDate, setFormDate] = useState("");
+  const [formClass, setFormClass] = useState("");
+  const [formName, setFormName] = useState("");
+  const [formBusy, setFormBusy] = useState(false);
+  const [formErr, setFormErr] = useState("");
+
+  const loadRaces = useCallback(async () => {
+    const r = await api.races();
+    setRaces(r);
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    const [r, tk, w] = await Promise.all([api.races(), api.tracks(), api.weights().catch(() => null)]);
+    setRaces(r);
+    setTracks(tk);
+    if (w) setWeights(w.active);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadAll().catch(() => setLoading(false));
+  }, [loadAll]);
+
+  const result = useMemo(() => pickFeatured(races, nowMs), [races, nowMs]);
+  const focus: RaceWindow<RaceRow> | null = result.featured ?? result.next;
+  const isFeatured = !!result.featured;
+
+  // Load the ranking for whichever race is in focus (respecting its class/condition).
+  useEffect(() => {
+    const race = focus?.race;
+    if (!race) {
+      setRankings([]);
+      return;
+    }
+    api
+      .rankings({ track_id: race.track_id, class: race.class ?? undefined, condition: race.condition ?? undefined })
+      .then(setRankings)
+      .catch(() => setRankings([]));
+  }, [focus?.race?.id, focus?.race?.track_id, focus?.race?.class, focus?.race?.condition]);
+
+  // Seed the note editor whenever the focused race changes.
+  useEffect(() => {
+    setNoteDraft(focus?.race.note ?? "");
+    setNoteBy(focus?.race.note_by ?? "");
+    setEditing(false);
+  }, [focus?.race?.id]);
+
+  const topCar = rankings[0] ?? null;
+
+  async function saveNote() {
+    if (!focus) return;
+    setSavingNote(true);
+    try {
+      await api.updateRace(focus.race.id, { note: noteDraft, note_by: noteBy || roleLabel });
+      await loadRaces();
+      setEditing(false);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function addRace(e: React.FormEvent) {
+    e.preventDefault();
+    setFormErr("");
+    if (!formTrack || !formDate) {
+      setFormErr("Pick a track and a date.");
+      return;
+    }
+    setFormBusy(true);
+    try {
+      await api.createRace({
+        track_id: Number(formTrack),
+        event_date: formDate,
+        class: formClass ? (formClass as RaceRow["class"]) : null,
+        name: formName.trim() || null,
+        created_by: roleLabel,
+      });
+      setFormTrack("");
+      setFormDate("");
+      setFormClass("");
+      setFormName("");
+      await loadRaces();
+    } catch (err) {
+      setFormErr(err instanceof Error ? err.message : "Failed to add race.");
+    } finally {
+      setFormBusy(false);
+    }
+  }
+
+  async function removeRace(id: number, label: string) {
+    if (!confirm(`Remove ${label} from the calendar?`)) return;
+    await api.deleteRace(id);
+    await loadRaces();
+  }
+
+  return (
+    <>
+      <div className="topbar">
+        <span className="hash">#</span>
+        <h1>briefing</h1>
+        <span className="sub">Bottom line, up front · {races.length} race{races.length === 1 ? "" : "s"} on the calendar</span>
+      </div>
+      <div className="content">
+        {loading ? (
+          <div className="empty">Loading…</div>
+        ) : !focus ? (
+          <div className="empty">
+            <div className="big">📣</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>No races on the calendar</div>
+            <div>{canEdit ? "Add a race weekend below to generate a briefing." : "Ask a Team Manager to add the next race."}</div>
+          </div>
+        ) : (
+          <>
+            {/* ---- BLUF headline card ---- */}
+            <div className={`bluf${isFeatured ? " bluf-live" : ""}`}>
+              <div className="bluf-eyebrow">
+                <span className={`bluf-badge${isFeatured ? " live" : ""}`}>
+                  {isFeatured ? "This weekend" : "Coming up"}
+                </span>
+                <span className="muted">
+                  {focus.race.name ? `${focus.race.name} · ` : ""}
+                  {fmtDate(focus.race.event_date)} · {countdownLabel(focus.daysUntil)}
+                </span>
+              </div>
+
+              <h2 className="bluf-track">
+                {focus.race.track_name}
+                {focus.race.class && <span className="pill" style={{ marginLeft: 10 }}>{focus.race.class}</span>}
+                {focus.race.condition && (
+                  <span className="pill" style={{ marginLeft: 6 }}>{focus.race.condition}</span>
+                )}
+              </h2>
+
+              {topCar ? (
+                <div className="bluf-rec">
+                  <div className="bluf-run">
+                    <span className="bluf-run-label">Run the</span>
+                    <span className="bluf-car">{topCar.car_name}</span>
+                    {topCar.weights_preset && (
+                      <span className="preset-tag" title={`Ranked using the ${topCar.weights_preset} weighting`}>
+                        <span className="tag-dot" />
+                        {topCar.weights_preset}
+                      </span>
+                    )}
+                  </div>
+                  <div className="bluf-stats">
+                    <span className="score-pill" style={{ background: scoreColor(topCar.car_score) }}>
+                      {fmtScore(topCar.car_score)}
+                    </span>
+                    <span className="pill" style={{ background: scoreColor(topCar.car_score), color: "#0c0c0c" }}>
+                      {verdict(topCar.car_score)}
+                    </span>
+                    <span className="muted">
+                      {topCar.car_category} · {fmtPct(topCar.confidence_score)} confidence · {topCar.sessions_used} session
+                      {topCar.sessions_used === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="bluf-alts">
+                    {rankings.slice(1, 4).map((r, i) => (
+                      <span key={r.id} className="bluf-alt">
+                        <span className="muted">{i + 2}.</span> {r.car_name}{" "}
+                        <span className="muted">{fmtScore(r.car_score)}</span>
+                      </span>
+                    ))}
+                    {rankings.length === 0 && null}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    Mathematically ranked from logged sessions using the{" "}
+                    <strong style={{ color: "var(--text-muted)" }}>{weights?.preset ?? topCar.weights_preset ?? "Balanced"}</strong>{" "}
+                    weighting.
+                  </div>
+                </div>
+              ) : (
+                <div className="bluf-rec">
+                  <div className="muted">
+                    No ranked cars for this track{focus.race.class ? ` in ${focus.race.class}` : ""} yet — log some sessions
+                    on <a href="/log">#log-session</a> and the pick will appear here.
+                  </div>
+                </div>
+              )}
+
+              {/* ---- Engineer note ---- */}
+              <div className="bluf-note">
+                <div className="flex spread" style={{ marginBottom: 6 }}>
+                  <strong style={{ fontSize: 13 }}>Engineer's note</strong>
+                  {canEdit && !editing && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
+                      {focus.race.note ? "Edit" : "Add note"}
+                    </button>
+                  )}
+                </div>
+
+                {editing ? (
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={noteDraft}
+                      placeholder="e.g. Run the Ferrari 296 — smooth throttle out of the slow stuff, it protects the rears for a longer final stint."
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                    />
+                    <div className="flex" style={{ gap: 8, marginTop: 8 }}>
+                      <input
+                        type="text"
+                        style={{ maxWidth: 200 }}
+                        placeholder={`Posted by (${roleLabel})`}
+                        value={noteBy}
+                        onChange={(e) => setNoteBy(e.target.value)}
+                      />
+                      <button className="btn btn-sm" disabled={savingNote} onClick={saveNote}>
+                        {savingNote ? "Saving…" : "Post note"}
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={savingNote}
+                        onClick={() => {
+                          setNoteDraft(focus.race.note ?? "");
+                          setNoteBy(focus.race.note_by ?? "");
+                          setEditing(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : focus.race.note ? (
+                  <div>
+                    <div className="bluf-note-body">{focus.race.note}</div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                      — {focus.race.note_by || "Engineer"}
+                      {focus.race.note_updated_at ? ` · ${new Date(focus.race.note_updated_at).toLocaleString()}` : ""}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="muted" style={{ fontSize: 13 }}>No briefing note yet.</div>
+                )}
+              </div>
+            </div>
+
+            {/* ---- Upcoming races ---- */}
+            {result.upcoming.length > 0 && (
+              <div className="card">
+                <h2>Upcoming</h2>
+                <div className="card-sub">Races further out — the briefing features each one from 3 days before.</div>
+                <div className="race-list">
+                  {result.upcoming.map((w) => (
+                    <div className="race-row" key={w.race.id}>
+                      <div className="race-when">
+                        <span className="race-date">{fmtDate(w.race.event_date)}</span>
+                        <span className="muted">{countdownLabel(w.daysUntil)}</span>
+                      </div>
+                      <div className="race-meta">
+                        <span className="race-track">{w.race.track_name}</span>
+                        {w.race.name && <span className="muted"> · {w.race.name}</span>}
+                        {w.race.class && <span className="pill" style={{ marginLeft: 8 }}>{w.race.class}</span>}
+                      </div>
+                      {canEdit && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => removeRace(w.race.id, w.race.track_name)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ---- Featured-race remove (managers) ---- */}
+            {canEdit && (
+              <div className="flex" style={{ gap: 8, marginBottom: 16 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => removeRace(focus.race.id, focus.race.track_name)}>
+                  Remove “{focus.race.track_name}” from calendar
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---- Add race (managers/admins) ---- */}
+        {canEdit && (
+          <div className="card">
+            <h2>Add a race</h2>
+            <div className="card-sub">
+              Set the main race day (usually Saturday). It becomes the featured briefing from 3 days before, through the day
+              after.
+            </div>
+            {formErr && <div className="msg error">{formErr}</div>}
+            <form onSubmit={addRace}>
+              <div className="row">
+                <div className="field">
+                  <label>Track</label>
+                  <select value={formTrack} onChange={(e) => setFormTrack(e.target.value)}>
+                    <option value="">Select track…</option>
+                    {tracks.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Race day</label>
+                  <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>
+                    Class <span className="hint">optional</span>
+                  </label>
+                  <select value={formClass} onChange={(e) => setFormClass(e.target.value)}>
+                    <option value="">Any / top overall</option>
+                    {RACING_CLASSES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>
+                    Event name <span className="hint">optional</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formName}
+                    placeholder="e.g. Round 3 — 6h"
+                    onChange={(e) => setFormName(e.target.value)}
+                  />
+                </div>
+              </div>
+              <button className="btn" type="submit" disabled={formBusy}>
+                {formBusy ? "Adding…" : "Add to calendar"}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

@@ -114,9 +114,35 @@ CREATE TABLE IF NOT EXISTS recommendations (
   sessions_used      INT NOT NULL CHECK (sessions_used > 0),
   session_ids        JSONB,
   confidence_score   FLOAT NOT NULL CHECK (confidence_score BETWEEN 0.0 AND 1.0),
+  weights_preset     VARCHAR(50),
   last_updated       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (car_id, track_id, class, condition)
 );
 CREATE INDEX IF NOT EXISTS idx_recommendations_track ON recommendations(track_id, class);
 CREATE INDEX IF NOT EXISTS idx_recommendations_score ON recommendations(car_score DESC);
+-- Additive column for older DBs created before the weighting feature.
+ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50);
+
+-- Settings (key/value — e.g. the active Car-Score weighting preset) -----------
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      JSONB,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Races (manually-added calendar + BLUF briefing note) ------------------------
+CREATE TABLE IF NOT EXISTS races (
+  id              SERIAL PRIMARY KEY,
+  track_id        INT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  class           VARCHAR(50) CHECK (class IS NULL OR class IN ('LMGT3', 'LMH', 'LMP3', 'LMP2-ELMS', 'LMP2-WEC')),
+  condition       VARCHAR(50) CHECK (condition IS NULL OR condition IN ('Dry', 'Wet', 'Mixed')),
+  name            VARCHAR(255),
+  event_date      DATE NOT NULL,
+  note            TEXT,
+  note_by         VARCHAR(255),
+  note_updated_at TIMESTAMP,
+  created_by      VARCHAR(255),
+  created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_races_event_date ON races(event_date);

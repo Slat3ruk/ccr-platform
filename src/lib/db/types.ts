@@ -10,6 +10,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  NewRaceInput,
+  RaceEvent,
   RacingClass,
   Recommendation,
   Session,
@@ -74,6 +76,18 @@ export interface NewRecommendation {
   sessions_used: number;
   session_ids: number[];
   confidence_score: number;
+  weights_preset?: string | null;
+}
+
+/** Fields patchable on a race event (all optional; only present keys change). */
+export interface RacePatch {
+  track_id?: number;
+  class?: RacingClass | null;
+  condition?: Condition | null;
+  name?: string | null;
+  event_date?: string;
+  note?: string | null;
+  note_by?: string | null;
 }
 
 export interface Store {
@@ -113,6 +127,17 @@ export interface Store {
   listRecommendations(filter?: { track_id?: number; class?: RacingClass; condition?: Condition }): Promise<Recommendation[]>;
   upsertRecommendation(r: NewRecommendation): Promise<Recommendation>;
   clearRecommendations(): Promise<void>;
+
+  // settings (key/value — e.g. the active weighting preset)
+  getSetting<T = unknown>(key: string): Promise<T | null>;
+  setSetting(key: string, value: unknown): Promise<void>;
+
+  // races (calendar + BLUF briefing note)
+  listRaces(): Promise<RaceEvent[]>;
+  getRace(id: number): Promise<RaceEvent | null>;
+  createRace(input: NewRaceInput): Promise<RaceEvent>;
+  updateRace(id: number, patch: RacePatch): Promise<RaceEvent | null>;
+  deleteRace(id: number): Promise<boolean>;
 
   // meta
   counts(): Promise<{ drivers: number; cars: number; tracks: number; sessions: number; benchmarks: number; recommendations: number }>;

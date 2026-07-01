@@ -675,6 +675,17 @@ table.rank tbody tr.expanded {
   flex-wrap: wrap;
 }
 
+/* Admin SVS component breakdown — full labels with hover tooltips. */
+.svs-components {
+  color: var(--text-muted);
+}
+
+.svs-comp {
+  border-bottom: 1px dotted var(--text-dim);
+  cursor: help;
+  white-space: nowrap;
+}
+
 /* --- misc ----------------------------------------------------------------- */
 
 .empty {
@@ -750,6 +761,222 @@ table.rank tbody tr.expanded {
   min-width: 32px;
   text-align: center;
   color: var(--accent);
+}
+
+/* --- Weighting preset tag (Discord server-tag style) ---------------------- */
+
+.preset-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 7px 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--accent-soft);
+  color: #f2a6ad;
+  border: 1px solid rgba(232, 17, 35, 0.4);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.preset-tag .tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* --- Custom-weighting panel (wraps to its own toolbar row) ---------------- */
+
+.weights-panel {
+  flex-basis: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+
+.weights-sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 18px;
+}
+
+.weights-slider .ws-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.weights-slider .ws-val {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+/* --- Briefing (BLUF) page ------------------------------------------------- */
+
+.bluf {
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-2) 100%);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.bluf.bluf-live {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft), var(--shadow);
+}
+
+.bluf-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.bluf-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--bg-active);
+  color: var(--text-muted);
+}
+
+.bluf-badge.live {
+  background: var(--accent);
+  color: #fff;
+}
+
+.bluf-track {
+  font-size: 26px;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.bluf-rec {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.bluf-run {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bluf-run-label {
+  color: var(--text-faint);
+  font-size: 15px;
+}
+
+.bluf-car {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.bluf-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.bluf-stats .score-pill {
+  min-width: 54px;
+  font-size: 16px;
+  padding: 4px 10px;
+}
+
+.bluf-alts {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.bluf-alt {
+  color: var(--text-muted);
+}
+
+.bluf-note {
+  margin-top: 18px;
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.bluf-note-body {
+  white-space: pre-wrap;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* --- Race calendar list --------------------------------------------------- */
+
+.race-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.race-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.race-row:first-child {
+  border-top: none;
+}
+
+.race-when {
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+}
+
+.race-when .race-date {
+  font-weight: 600;
+}
+
+.race-when .muted {
+  font-size: 12px;
+}
+
+.race-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.race-meta .race-track {
+  font-weight: 600;
 }
 
 @media (max-width: 720px) {

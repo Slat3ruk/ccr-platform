@@ -13,6 +13,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  NewRaceInput,
+  RaceEvent,
   RacingClass,
   Recommendation,
   Session,
@@ -23,6 +25,7 @@ import type {
   NewBenchmark,
   NewRecommendation,
   NewSessionRecord,
+  RacePatch,
   SessionFilter,
   Store,
 } from "./types";
@@ -42,17 +45,21 @@ interface DbShape {
   sessions: RawSession[];
   benchmarks: Benchmark[];
   recommendations: Recommendation[];
+  settings: Record<string, unknown>;
+  races: RaceEvent[];
 }
 
 function emptyDb(): DbShape {
   return {
-    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0 },
+    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0 },
     drivers: [],
     cars: [],
     tracks: [],
     sessions: [],
     benchmarks: [],
     recommendations: [],
+    settings: {},
+    races: [],
   };
 }
 
@@ -320,6 +327,70 @@ export class JsonStore implements Store {
     await this.init();
     this.db.recommendations = [];
     await this.persist();
+  }
+
+  // settings ------------------------------------------------------------------
+  async getSetting<T = unknown>(key: string): Promise<T | null> {
+    await this.init();
+    return (this.db.settings[key] as T) ?? null;
+  }
+
+  async setSetting(key: string, value: unknown): Promise<void> {
+    await this.init();
+    this.db.settings[key] = value;
+    await this.persist();
+  }
+
+  // races ---------------------------------------------------------------------
+  async listRaces(): Promise<RaceEvent[]> {
+    await this.init();
+    return [...this.db.races].sort(
+      (a, b) => a.event_date.localeCompare(b.event_date) || a.id - b.id,
+    );
+  }
+
+  async getRace(id: number): Promise<RaceEvent | null> {
+    await this.init();
+    return this.db.races.find((r) => r.id === id) ?? null;
+  }
+
+  async createRace(input: NewRaceInput): Promise<RaceEvent> {
+    await this.init();
+    const race: RaceEvent = {
+      id: this.nextId("races"),
+      track_id: input.track_id,
+      class: input.class ?? null,
+      condition: input.condition ?? null,
+      name: input.name ?? null,
+      event_date: input.event_date,
+      note: null,
+      note_by: null,
+      note_updated_at: null,
+      created_by: input.created_by ?? null,
+      created_at: this.now(),
+    };
+    this.db.races.push(race);
+    await this.persist();
+    return race;
+  }
+
+  async updateRace(id: number, patch: RacePatch): Promise<RaceEvent | null> {
+    await this.init();
+    const race = this.db.races.find((r) => r.id === id);
+    if (!race) return null;
+    Object.assign(race, patch);
+    if ("note" in patch) race.note_updated_at = this.now();
+    await this.persist();
+    return race;
+  }
+
+  async deleteRace(id: number): Promise<boolean> {
+    await this.init();
+    const before = this.db.races.length;
+    this.db.races = this.db.races.filter((r) => r.id !== id);
+    const removed = this.db.races.length < before;
+    if (removed) await this.persist();
+    return removed;
   }
 
   // meta ----------------------------------------------------------------------

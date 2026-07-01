@@ -6,7 +6,7 @@ import { confidenceColor, factorColor, fmtPct, fmtScore, scoreColor } from "@/li
 import { formatLapTime } from "@/lib/time";
 import { FACTOR_WEIGHTS } from "@/lib/scoring";
 import type { Role } from "@/lib/role";
-import type { RankingRow, Session } from "@/types";
+import type { FactorWeights, RankingRow, Session, ValueComponents } from "@/types";
 
 const FACTORS: { key: keyof typeof FACTOR_WEIGHTS; label: string; field: keyof RankingRow }[] = [
   { key: "pace", label: "Pace", field: "pace_factor" },
@@ -14,6 +14,22 @@ const FACTORS: { key: keyof typeof FACTOR_WEIGHTS; label: string; field: keyof R
   { key: "tyre", label: "Tyre", field: "tyre_factor" },
   { key: "drivability", label: "Drivability", field: "drivability_factor" },
   { key: "mistakes", label: "Mistakes", field: "mistakes_factor" },
+];
+
+// Session Value Score components — full labels + a plain-English tooltip for
+// each, shown on the Admin per-session debug line (0–100 each). Weighted into
+// SVS as: Completeness 30 · Consistency 25 · Cleanliness 20 · Representativeness
+// 15 · Recency 10 (see SVS_WEIGHTS in scoring.ts).
+const SVS_COMPONENTS: { key: keyof ValueComponents; label: string; hint: string }[] = [
+  { key: "completeness", label: "Completeness", hint: "Did they run a proper stint? (based on lap count)" },
+  { key: "consistency", label: "Consistency", hint: "Tight, repeatable laps (small best→average gap)" },
+  { key: "cleanliness", label: "Cleanliness", hint: "Few off-tracks / mistakes" },
+  {
+    key: "representativeness",
+    label: "Representativeness",
+    hint: "How race-relevant: Race/Quali count more than Practice/Test, dry more than wet",
+  },
+  { key: "recency", label: "Recency", hint: "Fresh runs count more than old ones" },
 ];
 
 function verdict(score: number): string {
@@ -35,9 +51,18 @@ function FactorCell({ value }: { value: number }) {
   );
 }
 
-export default function RankingsTable({ rows, role = "manager" }: { rows: RankingRow[]; role?: Role }) {
+export default function RankingsTable({
+  rows,
+  role = "manager",
+  activeWeights,
+}: {
+  rows: RankingRow[];
+  role?: Role;
+  activeWeights?: FactorWeights;
+}) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [detailSessions, setDetailSessions] = useState<Record<number, Session[]>>({});
+  const weightFor = (key: keyof typeof FACTOR_WEIGHTS) => activeWeights?.[key] ?? FACTOR_WEIGHTS[key];
 
   const showFactors = role !== "driver";
   const showSessions = role !== "driver";
@@ -96,7 +121,15 @@ export default function RankingsTable({ rows, role = "manager" }: { rows: Rankin
                   <td className="num rank-pos">{i + 1}</td>
                   <td>
                     <div className="car-cell">
-                      <span className="car-name">{row.car_name}</span>
+                      <span className="car-name">
+                        {row.car_name}
+                        {row.weights_preset && (
+                          <span className="preset-tag" title={`Ranked using the ${row.weights_preset} weighting`}>
+                            <span className="tag-dot" />
+                            {row.weights_preset}
+                          </span>
+                        )}
+                      </span>
                       <span className="car-cat">
                         {row.car_category} · {row.track_name}
                       </span>
@@ -143,7 +176,7 @@ export default function RankingsTable({ rows, role = "manager" }: { rows: Rankin
                                 <div className="num" style={{ color: scoreColor(v) }}>
                                   {fmtScore(v)}
                                 </div>
-                                <div className="weight">weight {Math.round(FACTOR_WEIGHTS[f.key] * 100)}%</div>
+                                <div className="weight">weight {Math.round(weightFor(f.key) * 100)}%</div>
                               </div>
                             );
                           })}
@@ -176,12 +209,16 @@ export default function RankingsTable({ rows, role = "manager" }: { rows: Rankin
                                     <span className="muted">SVS {s.session_value_score.toFixed(0)}</span>
                                   )}
                                   {showDebug && s.value_components && (
-                                    <span className="muted" style={{ flexBasis: "100%", fontSize: 12 }}>
-                                      cmpl {s.value_components.completeness.toFixed(0)} · cons{" "}
-                                      {s.value_components.consistency.toFixed(0)} · clean{" "}
-                                      {s.value_components.cleanliness.toFixed(0)} · repr{" "}
-                                      {s.value_components.representativeness.toFixed(0)} · rec{" "}
-                                      {s.value_components.recency.toFixed(0)}
+                                    <span className="svs-components" style={{ flexBasis: "100%", fontSize: 12 }}>
+                                      <span className="muted">Session value · </span>
+                                      {SVS_COMPONENTS.map((c, idx) => (
+                                        <Fragment key={c.key}>
+                                          {idx > 0 && <span className="muted"> · </span>}
+                                          <span className="svs-comp" title={c.hint}>
+                                            {c.label} {s.value_components![c.key].toFixed(0)}
+                                          </span>
+                                        </Fragment>
+                                      ))}
                                     </span>
                                   )}
                                   {s.comments && (

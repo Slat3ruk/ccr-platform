@@ -4,11 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ROLES, useRole } from "@/lib/role";
 
-const NAV = [
-  { href: "/", label: "rankings", icon: "🏆" },
-  { href: "/log", label: "log-session", icon: "📝" },
-  { href: "/sessions", label: "session-log", icon: "📋" },
-  { href: "/benchmarks", label: "benchmarks", icon: "📊" },
+const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = [
+  {
+    title: "Race weekend",
+    items: [{ href: "/briefing", label: "briefing" }],
+  },
+  {
+    title: "Engineering",
+    items: [
+      { href: "/", label: "rankings" },
+      { href: "/log", label: "log-session" },
+      { href: "/sessions", label: "session-log" },
+      { href: "/benchmarks", label: "benchmarks" },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -19,16 +28,20 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-header">CrossCurrent Racing</div>
       <div className="sidebar-nav">
-        <div className="nav-section">Engineering</div>
-        {NAV.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          return (
-            <Link key={item.href} href={item.href} className={`nav-link${active ? " active" : ""}`}>
-              <span className="hash">#</span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {SECTIONS.map((section) => (
+          <div key={section.title}>
+            <div className="nav-section">{section.title}</div>
+            {section.items.map((item) => {
+              const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              return (
+                <Link key={item.href} href={item.href} className={`nav-link${active ? " active" : ""}`}>
+                  <span className="hash">#</span>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </div>
       <div className="sidebar-foot" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
         <div className="nav-section" style={{ padding: "0 0 2px" }}>
