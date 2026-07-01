@@ -158,6 +158,29 @@ was verified end-to-end. Structure:
    midpack/tail-ender/offline (clean 1% steps; alien = ~100% column, NOT the
    faster "Class avgW" col D). GTE rows are skipped (no current LMU cars map to it).
 
+### Feedback round 2 — QUEUED for next session (requested 2026-07-01, do NOT start early)
+
+1. **Relabel the SVS debug abbreviations** in plain English (Admin detail view +
+   anywhere they appear). Mapping: cmpl = Completeness ("did they run a proper
+   stint / lap count"), cons = Consistency ("tight, repeatable laps"), clean =
+   Cleanliness ("few off-tracks/mistakes"), repr = Representativeness ("race-
+   relevant: Race/Quali > Practice/Test, dry vs wet"), rec = Recency ("fresh runs
+   count more"). Use full words + a hover tooltip.
+2. **Adjustable factor weights with presets.** Let the user tweak the 5 Car-Score
+   weights (pace/consistency/tyre/drivability/mistakes) via sliders, with presets
+   e.g. Balanced (default 35/25/15/15/10), Pace-focused, Tyre-saver/Enduro,
+   Sprint. OPEN QUESTION to resolve with user first: does re-weighting re-rank
+   live for everyone (persisted) or is it a personal "what-if" view? Weights live
+   in `FACTOR_WEIGHTS` (scoring.ts) — will need to thread a weights arg through
+   `aggregateCarScore`/recompute, or apply client-side for the what-if version.
+3. **BLUF "Race Briefing" landing page** — a new top-level page ABOVE #rankings:
+   bottom-line-up-front for drivers who don't want detail. Big headline like
+   "This week @ <track>: run the <top car>" auto-derived from the top-ranked car
+   for a chosen track/class, plus a free-text engineer note/announcement. Posting
+   gated to Team Manager/Admin (ties into the role toggle already built); drivers
+   read-only. Needs: a place to store the briefing (store + a briefings table/
+   collection), an editor for managers, and track/event selection.
+
 ### Feedback round 1 (2026-07-01)
 
 - **Confidence saturates at 5 sessions**, not 10 (`CONFIDENCE_TARGET_SESSIONS`
