@@ -203,9 +203,16 @@ weights_preset`, so an already-migrated prod DB self-heals without re-running
 
 ### Feedback round 1 (2026-07-01)
 
-- **Confidence saturates at 5 sessions**, not 10 (`CONFIDENCE_TARGET_SESSIONS`
-  in scoring.ts). A few good runs now read as genuinely confident (3 sessions ≈
-  57% instead of ~29%). Aggregation window is still the latest 10.
+- **Confidence uses a diminishing-returns curve** (updated round 3):
+  `volume = n/(n+CONFIDENCE_CURVE_K)` (k=1) × avg session quality (avgSVS/100).
+  No hard cap — more runs always raise it with tapering reward, so a car with
+  many runs still out-trusts one with few. A clean 3-run sample reads ~71%
+  ("Solid"), 5→~79%, 8→~84%. History: round 1 moved off the old 10-session
+  target to a 5-session linear cap (`CONFIDENCE_TARGET_SESSIONS`, now removed);
+  round 3 replaced the cap with the smooth curve because 57%@3-runs read too low
+  for a top, all-green pick. Aggregation window is still the latest 10.
+  `confidenceLabel`/`confidenceTitle` (format.ts) drive a hover tooltip on the
+  rankings + briefing clarifying it's *data-backing, not pace*.
 - **Comments + setup are surfaced**: Notes/Setup columns on #session-log (Notes
   truncates with full-text-on-hover), and setup/💬-comment lines in the rankings
   detail expander.

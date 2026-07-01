@@ -33,6 +33,21 @@ export function fmtPct(conf: number | null | undefined): string {
   return `${Math.round(conf * 100)}%`;
 }
 
+/** Short word for a confidence level (data backing, not car pace). */
+export function confidenceLabel(conf: number | null | undefined): string {
+  if (conf == null || !Number.isFinite(conf)) return "No data";
+  if (conf >= 0.8) return "High";
+  if (conf >= 0.6) return "Solid";
+  if (conf >= 0.4) return "Emerging";
+  return "Preliminary";
+}
+
+/** Tooltip explaining what the confidence number means — it's about data, not pace. */
+export function confidenceTitle(conf: number | null | undefined, sessions?: number): string {
+  const runs = sessions != null ? ` from ${sessions} run${sessions === 1 ? "" : "s"}` : "";
+  return `${confidenceLabel(conf)} (${fmtPct(conf)})${runs} — how much data backs this pick (session volume × quality), not the car's pace. Log more sessions to raise it.`;
+}
+
 export function categoryLabel(category: string): string {
   return category;
 }

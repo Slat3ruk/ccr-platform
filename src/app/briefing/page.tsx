@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
 import { countdownLabel, pickFeatured, type RaceWindow } from "@/lib/calendar";
-import { fmtPct, fmtScore, scoreColor } from "@/lib/format";
+import { confidenceTitle, fmtPct, fmtScore, scoreColor } from "@/lib/format";
 import { ROLES, useRole } from "@/lib/role";
 import { RACING_CLASSES, type RaceRow, type RankingRow, type Track, type WeightsConfig } from "@/types";
 
@@ -193,8 +193,11 @@ export default function BriefingPage() {
                       {verdict(topCar.car_score)}
                     </span>
                     <span className="muted">
-                      {topCar.car_category} · {fmtPct(topCar.confidence_score)} confidence · {topCar.sessions_used} session
-                      {topCar.sessions_used === 1 ? "" : "s"}
+                      {topCar.car_category} ·{" "}
+                      <span title={confidenceTitle(topCar.confidence_score, topCar.sessions_used)} style={{ cursor: "help" }}>
+                        {fmtPct(topCar.confidence_score)} confidence
+                      </span>{" "}
+                      · {topCar.sessions_used} session{topCar.sessions_used === 1 ? "" : "s"}
                     </span>
                   </div>
                   <div className="bluf-alts">

@@ -338,14 +338,17 @@ export function aggregateCarScore(
   );
 
   // Confidence: data volume × average session quality (avgSvs/100), 0–1.
-  // Volume saturates at CONFIDENCE_TARGET_SESSIONS (not the full 10-session
-  // window) so a handful of good runs reads as genuinely confident.
+  // Volume follows a smooth diminishing-returns curve n/(n+k): more sessions
+  // always raise confidence (no hard cap), but with tapering reward — so a car
+  // backed by many runs still reads as more trustworthy than one with a few,
+  // while a strong 3-run sample already reads "solid" (~0.75 volume) rather than
+  // being penalised against an arbitrary target. k = half-saturation point.
   const avgSvs = totalSvs / n;
-  const volume = Math.min(1, n / CONFIDENCE_TARGET_SESSIONS);
+  const volume = n / (n + CONFIDENCE_CURVE_K);
   const confidence_score = Math.round(clamp(volume * (avgSvs / 100), 0, 1) * 100) / 100;
 
   return { car_score, factors, sessions_used: n, confidence_score };
 }
 
 export const SCORING_WINDOW = 10; // latest N sessions per car-track combo aggregated
-export const CONFIDENCE_TARGET_SESSIONS = 5; // sessions for "full" data-volume confidence
+export const CONFIDENCE_CURVE_K = 1; // half-saturation of the confidence volume curve n/(n+k) — volume = 0.5 at n = k

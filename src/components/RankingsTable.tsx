@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { api } from "@/lib/api-client";
-import { confidenceColor, factorColor, fmtPct, fmtScore, scoreColor } from "@/lib/format";
+import { confidenceColor, confidenceTitle, factorColor, fmtPct, fmtScore, scoreColor } from "@/lib/format";
 import { formatLapTime } from "@/lib/time";
 import { FACTOR_WEIGHTS } from "@/lib/scoring";
 import type { Role } from "@/lib/role";
@@ -148,8 +148,8 @@ export default function RankingsTable({
                         </td>
                       ))}
                       <td className="num">{row.sessions_used}</td>
-                      <td className="num">
-                        <span className="conf" style={{ justifyContent: "center" }}>
+                      <td className="num" title={confidenceTitle(row.confidence_score, row.sessions_used)}>
+                        <span className="conf" style={{ justifyContent: "center", cursor: "help" }}>
                           <span className="dot" style={{ background: confidenceColor(row.confidence_score) }} />
                           {fmtPct(row.confidence_score)}
                         </span>
