@@ -200,7 +200,9 @@ export default function RankingsTable({
                                   <span style={{ minWidth: 84 }}>{s.session_type}</span>
                                   <span>best {formatLapTime(s.best_lap_time)}</span>
                                   <span>avg {formatLapTime(s.avg_lap_time)}</span>
-                                  <span>{s.lap_count} laps</span>
+                                  <span title={s.lap_times?.length ? `${s.lap_times.length} individual lap times logged — consistency uses true lap-to-lap deviation` : undefined}>
+                                    {s.lap_count} laps{s.lap_times?.length ? " ⏱" : ""}
+                                  </span>
                                   <span>{s.off_track_count} OT</span>
                                   <span>wear {s.tyres.avg_wear_pct.toFixed(0)}%</span>
                                   <span>conf {s.confidence_rating}/10</span>

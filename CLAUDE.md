@@ -166,9 +166,19 @@ was verified end-to-end. Structure:
    seconds is the honest measure (a second of scatter costs the same positions at
    any track length); the real 0.7–1.8 s demo spread now maps to ~82→55, so
    consistency genuinely moves the ranking (and Car Scores dropped ~6 pts overall
-   since it no longer inflates everyone). Swap in `consistencyFactorFromLaps()`
-   (true std-dev, `CONSISTENCY_STDDEV_TOLERANCE_S`) once full lap arrays are
-   captured — call sites unchanged.
+   since it no longer inflates everyone).
+   **Per-lap path (round 4, DONE):** sessions can carry `lap_times: number[]`
+   (optional "paste your laps" textarea on the form — accepts M:SS.mmm or
+   seconds, one-per-line/comma/space separated, tolerates leading lap numbers;
+   `parseLapTimes` in time.ts; auto-fills best/avg/count). When ≥2 laps present,
+   `sessionConsistency()` uses TRUE std-dev (`consistencyFactorFromLaps`,
+   tolerance `CONSISTENCY_STDDEV_TOLERANCE_S`=1.2 s→50) after `cleanLaps()` trims
+   traffic/out-laps (> `LAP_OUTLIER_FACTOR`=1.07 × median, slow side only — raw
+   laps are stored untrimmed, trimming is scoring-time). No laps → best→avg
+   proxy. Verified: a session with σ≈0.1 s but a 2.8 s best→avg gap scores ~95
+   via laps where the proxy said 30. Postgres: `sessions.lap_times JSONB`
+   (additive migration in init() + schema); rankings detail shows "⏱" on
+   lap-timed sessions.
 3. **Benchmarks are REAL** — imported from a saved copy of the "Ohne Speed" sheet
    (29 tracks/layouts × 5 classes = 145 Dry tiers, patch "1.3 +"). The importer
    `scripts/parse-ohne-speed.mjs` (run via `npm run import:benchmarks`) parses the

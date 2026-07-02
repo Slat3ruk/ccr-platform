@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
-import { formatLapTime, parseLapTime } from "@/lib/time";
+import { cleanLaps, stdDev } from "@/lib/scoring";
+import { formatLapTime, parseLapTime, parseLapTimes } from "@/lib/time";
 import { CONDITIONS, SESSION_TYPES, type Car, type Session, type Track } from "@/types";
 
 interface TyreState {
@@ -35,6 +36,9 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [bestLap, setBestLap] = useState(s ? formatLapTime(s.best_lap_time) : "");
   const [avgLap, setAvgLap] = useState(s ? formatLapTime(s.avg_lap_time) : "");
   const [lapCount, setLapCount] = useState(s ? String(s.lap_count) : "12");
+  const [lapTimesText, setLapTimesText] = useState(
+    s?.lap_times && s.lap_times.length ? s.lap_times.map((t) => formatLapTime(t)).join("\n") : "",
+  );
   const [tyres, setTyres] = useState<TyreState>(
     s
       ? {
@@ -54,6 +58,33 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Live-parse the pasted lap list; ≥2 laps unlocks true std-dev consistency.
+  const parsedLaps = useMemo(() => parseLapTimes(lapTimesText), [lapTimesText]);
+  const lapStats = useMemo(() => {
+    if (parsedLaps.laps.length < 2) return null;
+    const usable = cleanLaps(parsedLaps.laps);
+    const best = Math.min(...parsedLaps.laps);
+    const avg = parsedLaps.laps.reduce((a, b) => a + b, 0) / parsedLaps.laps.length;
+    return {
+      count: parsedLaps.laps.length,
+      best,
+      avg,
+      sigma: usable.length >= 2 ? stdDev(usable) : null,
+      excluded: parsedLaps.laps.length - usable.length,
+    };
+  }, [parsedLaps]);
+
+  /** Paste laps → best/avg/count fill themselves (still editable afterwards). */
+  function onLapTimesChange(text: string) {
+    setLapTimesText(text);
+    const { laps } = parseLapTimes(text);
+    if (laps.length >= 2) {
+      setBestLap(formatLapTime(Math.min(...laps)));
+      setAvgLap(formatLapTime(laps.reduce((a, b) => a + b, 0) / laps.length));
+      setLapCount(String(laps.length));
+    }
+  }
+
   useEffect(() => {
     api.cars().then(setCars).catch(() => {});
     api.tracks().then(setTracks).catch(() => {});
@@ -63,6 +94,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     setBestLap("");
     setAvgLap("");
     setLapCount("12");
+    setLapTimesText("");
     setTyres(initialTyres);
     setOffTrack("0");
     setComments("");
@@ -105,6 +137,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       confidence_rating: confidence,
       setup_version: setupVersion.trim() || undefined,
       comments: comments.trim() || undefined,
+      lap_times: parsedLaps.laps.length >= 2 ? parsedLaps.laps : undefined,
       tyre_fl_pct_remaining: tyres.fl,
       tyre_fr_pct_remaining: tyres.fr,
       tyre_rl_pct_remaining: tyres.rl,
@@ -220,6 +253,37 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
             <label>Laps completed</label>
             <input type="number" min={1} value={lapCount} onChange={(e) => setLapCount(e.target.value)} />
           </div>
+        </div>
+        <div className="field">
+          <label>
+            Lap times <span className="hint">(optional — unlocks true lap-to-lap consistency)</span>
+          </label>
+          <textarea
+            rows={4}
+            value={lapTimesText}
+            onChange={(e) => onLapTimesChange(e.target.value)}
+            placeholder={"Paste your laps — one per line or comma-separated:\n1:42.318\n1:42.905\n1:43.112"}
+            style={{ fontFamily: "Consolas, monospace", fontSize: 13 }}
+          />
+          {lapStats && (
+            <div className="lap-parse ok">
+              ✓ {lapStats.count} laps parsed · best {formatLapTime(lapStats.best)} · avg {formatLapTime(lapStats.avg)}
+              {lapStats.sigma != null && <> · σ {lapStats.sigma.toFixed(3)}s</>}
+              {lapStats.excluded > 0 && (
+                <span className="muted">
+                  {" "}
+                  ({lapStats.excluded} traffic/out-lap{lapStats.excluded === 1 ? "" : "s"} excluded from consistency)
+                </span>
+              )}
+              — best/avg/count filled in for you.
+            </div>
+          )}
+          {parsedLaps.bad.length > 0 && (
+            <div className="lap-parse warn">
+              Couldn’t read: {parsedLaps.bad.slice(0, 5).join(" · ")}
+              {parsedLaps.bad.length > 5 ? ` (+${parsedLaps.bad.length - 5} more)` : ""}
+            </div>
+          )}
         </div>
       </div>
 

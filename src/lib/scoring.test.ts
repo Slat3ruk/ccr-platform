@@ -10,16 +10,19 @@ import type { Benchmark, Session } from "@/types";
 import {
   aggregateCarScore,
   clamp,
+  cleanLaps,
   consistencyFactor,
   consistencyFactorFromLaps,
   CONSISTENCY_TOLERANCE_S,
   DEFAULT_WEIGHTS_CONFIG,
   drivabilityFactor,
   FACTOR_WEIGHTS,
+  LAP_OUTLIER_FACTOR,
   mistakesFactor,
   normalizeWeights,
   paceFactor,
   scoreSession,
+  sessionConsistency,
   sessionValueScore,
   stdDev,
   tyreFactor,
@@ -153,6 +156,55 @@ describe("consistencyFactor", () => {
     expect(consistencyFactorFromLaps([100, 100, 100])).toBe(100); // zero spread
     expect(consistencyFactorFromLaps([100])).toBe(100); // single lap → neutral
     expect(consistencyFactorFromLaps([99, 101])).toBeLessThan(100); // some spread
+  });
+});
+
+// --- per-lap consistency path --------------------------------------------------
+
+describe("cleanLaps", () => {
+  it("drops traffic/out-laps more than the outlier factor over the median", () => {
+    const median = 100;
+    const outLap = median * LAP_OUTLIER_FACTOR + 1; // clearly over
+    expect(cleanLaps([100, 100.2, 99.8, outLap])).toEqual([100, 100.2, 99.8]);
+  });
+
+  it("keeps genuine flying laps (fast side is never trimmed)", () => {
+    expect(cleanLaps([100, 99, 98.5, 100.5])).toHaveLength(4);
+  });
+
+  it("leaves tiny arrays alone (no median to trust)", () => {
+    expect(cleanLaps([100, 130])).toEqual([100, 130]);
+  });
+});
+
+describe("sessionConsistency", () => {
+  it("uses true std-dev when lap times are present", () => {
+    // Tight laps (σ ≈ 0.08 s) but a big best→avg gap would score much lower via proxy.
+    const s = makeSession({
+      best_lap_time: 100,
+      avg_lap_time: 101.5,
+      lap_times: [100, 100.1, 100.2, 100.1, 100.0],
+    });
+    const withLaps = sessionConsistency(s);
+    const proxyOnly = consistencyFactor(100, 101.5);
+    expect(withLaps).toBeGreaterThan(90); // tiny real deviation
+    expect(withLaps).toBeGreaterThan(proxyOnly); // proxy would have punished them
+  });
+
+  it("falls back to best→avg when no laps logged", () => {
+    const s = makeSession({ best_lap_time: 100, avg_lap_time: 101, lap_times: null });
+    expect(sessionConsistency(s)).toBe(consistencyFactor(100, 101));
+  });
+
+  it("ignores out-laps when judging consistency", () => {
+    const clean = sessionConsistency(makeSession({ lap_times: [100, 100.2, 100.1, 100.3] }));
+    const withOutLap = sessionConsistency(makeSession({ lap_times: [100, 100.2, 100.1, 100.3, 125] }));
+    expect(withOutLap).toBeCloseTo(clean, 0); // the 125 s out-lap barely moves it
+  });
+
+  it("scoreSession picks up the lap-array path", () => {
+    const s = makeSession({ lap_times: [100, 100.1, 100.05, 100.2] });
+    expect(scoreSession(s, null).consistency).toBeGreaterThan(90);
   });
 });
 

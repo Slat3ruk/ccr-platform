@@ -158,13 +158,39 @@ export function consistencyFactor(bestLap: number, avgLap: number): number {
 }
 
 /**
- * True-std-dev variant for when full lap arrays are available (future). Std-dev
- * is a tighter measure than the best→avg gap, so it uses its own (smaller)
- * tolerance. Not yet wired — the form captures best/avg/count only.
+ * True-std-dev variant used when the session carries individual lap times.
+ * Std-dev is a tighter measure than the best→avg gap, so it uses its own
+ * (smaller) tolerance.
  */
 export function consistencyFactorFromLaps(lapTimes: number[]): number {
   if (lapTimes.length < 2) return 100;
   return dispersionScore(stdDev(lapTimes), CONSISTENCY_STDDEV_TOLERANCE_S);
+}
+
+/**
+ * Drop traffic/out/in-laps before measuring consistency: any lap more than
+ * LAP_OUTLIER_FACTOR × the median is treated as not representative of pace.
+ * (Slow side only — genuine flying laps are never that far over the median,
+ * but out-laps and traffic easily are, and they'd swamp the std-dev.)
+ */
+export function cleanLaps(lapTimes: number[]): number[] {
+  if (lapTimes.length < 3) return [...lapTimes];
+  const sorted = [...lapTimes].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return lapTimes.filter((t) => t <= median * LAP_OUTLIER_FACTOR);
+}
+
+/**
+ * The consistency score for a session: true std-dev over its cleaned lap
+ * array when one was logged (≥2 usable laps), otherwise the best→avg proxy.
+ */
+export function sessionConsistency(session: Session): number {
+  if (session.lap_times && session.lap_times.length >= 2) {
+    const usable = cleanLaps(session.lap_times.filter((t) => Number.isFinite(t) && t > 0));
+    if (usable.length >= 2) return consistencyFactorFromLaps(usable);
+  }
+  return consistencyFactor(session.best_lap_time, session.avg_lap_time);
 }
 
 // ============================================================================
@@ -247,7 +273,7 @@ export function sessionValueScore(session: Session, nowMs: number): SvsResult {
 
   const components: ValueComponents = {
     completeness: round2(completenessScore(session.lap_count)),
-    consistency: round2(consistencyFactor(session.best_lap_time, session.avg_lap_time)),
+    consistency: round2(sessionConsistency(session)),
     cleanliness: round2(mistakesFactor(session.off_track_count, session.lap_count)),
     representativeness: round2(
       representativenessScore(session.session_type, session.condition_reported),
@@ -276,7 +302,7 @@ export function scoreSession(session: Session, benchmark: Benchmark | null): Fac
   const pace = paceFactor(session.best_lap_time, benchmark);
   return {
     pace: round2(pace ?? NEUTRAL_PACE),
-    consistency: round2(consistencyFactor(session.best_lap_time, session.avg_lap_time)),
+    consistency: round2(sessionConsistency(session)),
     tyre: round2(
       tyreFactor([
         session.tyres.tyre_fl_pct_remaining,
@@ -367,4 +393,5 @@ export function aggregateCarScore(
 export const SCORING_WINDOW = 10; // latest N sessions per car-track combo aggregated
 export const CONFIDENCE_CURVE_K = 1; // half-saturation of the confidence volume curve n/(n+k) — volume = 0.5 at n = k
 export const CONSISTENCY_TOLERANCE_S = 2.0; // best→avg gap (s) that scores 50; 0 s = 100 (raise to be more lenient)
-export const CONSISTENCY_STDDEV_TOLERANCE_S = 1.2; // per-lap std-dev (s) that scores 50 (for the future lap-array path)
+export const CONSISTENCY_STDDEV_TOLERANCE_S = 1.2; // per-lap std-dev (s) that scores 50 (lap-array path)
+export const LAP_OUTLIER_FACTOR = 1.07; // laps >7% over the session median = traffic/out-laps, excluded from consistency

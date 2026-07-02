@@ -35,6 +35,7 @@ export interface NewSessionRecord {
   confidence_rating: number;
   setup_version?: string | null;
   comments?: string | null;
+  lap_times?: number[] | null;
   tyre_fl_pct_remaining: number;
   tyre_fr_pct_remaining: number;
   tyre_rl_pct_remaining: number;

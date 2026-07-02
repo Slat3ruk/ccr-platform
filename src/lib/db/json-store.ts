@@ -210,6 +210,7 @@ export class JsonStore implements Store {
       setup_version: rec.setup_version ?? null,
       svm_data: null,
       comments: rec.comments ?? null,
+      lap_times: rec.lap_times ?? null,
       session_value_score: null,
       value_components: null,
       created_at: this.now(),

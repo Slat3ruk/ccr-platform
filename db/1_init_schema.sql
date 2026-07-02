@@ -55,11 +55,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   setup_version            VARCHAR(255),
   svm_data                 JSONB,
   comments                 TEXT,
+  lap_times                JSONB,
   session_value_score      FLOAT CHECK (session_value_score IS NULL OR (session_value_score BETWEEN 0.0 AND 100.0)),
   value_components         JSONB,
   created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Additive column for DBs created before the per-lap-times feature.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS lap_times JSONB;
 CREATE INDEX IF NOT EXISTS idx_sessions_car_track ON sessions(car_id, track_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_driver    ON sessions(driver_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_created   ON sessions(created_at DESC);

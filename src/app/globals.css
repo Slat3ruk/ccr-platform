@@ -675,6 +675,21 @@ table.rank tbody tr.expanded {
   flex-wrap: wrap;
 }
 
+/* Lap-times paste feedback on the session form. */
+.lap-parse {
+  font-size: 12px;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.lap-parse.ok {
+  color: #8ee0ad;
+}
+
+.lap-parse.warn {
+  color: #ffb3b5;
+}
+
 /* Admin SVS component breakdown — full labels with hover tooltips. */
 .svs-components {
   color: var(--text-muted);

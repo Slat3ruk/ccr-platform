@@ -63,6 +63,22 @@ export function validateSessionInput(raw: unknown): ValidationResult {
     errors.push("Confidence rating must be between 1 and 10.");
   }
 
+  // Optional per-lap times (seconds). Already numbers when sent by the form;
+  // must all be positive and finite. Fewer than 2 laps carries no consistency
+  // signal, so it's stored as "not provided".
+  let lap_times: number[] | undefined;
+  if (b.lap_times != null) {
+    if (!Array.isArray(b.lap_times)) {
+      errors.push("Lap times must be a list of numbers (seconds).");
+    } else if (b.lap_times.length > 200) {
+      errors.push("Lap times list is too long (max 200 laps).");
+    } else if (!b.lap_times.every((t) => isFiniteNum(t) && t > 0)) {
+      errors.push("Every lap time must be a positive number of seconds.");
+    } else if (b.lap_times.length >= 2) {
+      lap_times = b.lap_times.map((t) => Math.round((t as number) * 1000) / 1000);
+    }
+  }
+
   const tyres = {
     tyre_fl_pct_remaining: Number(b.tyre_fl_pct_remaining),
     tyre_fr_pct_remaining: Number(b.tyre_fr_pct_remaining),
@@ -92,6 +108,7 @@ export function validateSessionInput(raw: unknown): ValidationResult {
       confidence_rating,
       setup_version: typeof b.setup_version === "string" ? b.setup_version.trim() || undefined : undefined,
       comments: typeof b.comments === "string" ? b.comments.trim() || undefined : undefined,
+      lap_times,
       ...tyres,
     },
   };

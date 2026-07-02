@@ -102,6 +102,8 @@ export interface Session {
   setup_version?: string | null;
   svm_data?: unknown;
   comments?: string | null;
+  /** Optional individual lap times (seconds). When present (≥2 laps), consistency uses true std-dev. */
+  lap_times?: number[] | null;
   session_value_score?: number | null;
   value_components?: ValueComponents | null;
   created_at: string;
@@ -163,6 +165,8 @@ export interface SessionInput {
   confidence_rating: number;
   setup_version?: string;
   comments?: string;
+  /** Optional individual lap times (seconds), already parsed by the form. */
+  lap_times?: number[];
   tyre_fl_pct_remaining: number;
   tyre_fr_pct_remaining: number;
   tyre_rl_pct_remaining: number;

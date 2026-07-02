@@ -57,6 +57,7 @@ export async function POST(req: Request) {
     confidence_rating: input.confidence_rating,
     setup_version: input.setup_version ?? null,
     comments: input.comments ?? null,
+    lap_times: input.lap_times ?? null,
     tyre_fl_pct_remaining: input.tyre_fl_pct_remaining,
     tyre_fr_pct_remaining: input.tyre_fr_pct_remaining,
     tyre_rl_pct_remaining: input.tyre_rl_pct_remaining,

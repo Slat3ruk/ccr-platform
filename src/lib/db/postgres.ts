@@ -70,6 +70,7 @@ function rowToSession(r: any): Session {
     setup_version: r.setup_version,
     svm_data: r.svm_data,
     comments: r.comments,
+    lap_times: r.lap_times ?? null,
     session_value_score: r.session_value_score == null ? null : Number(r.session_value_score),
     value_components: r.value_components ?? null,
     created_at: iso(r.created_at),
@@ -191,6 +192,7 @@ export class PostgresStore implements Store {
         created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
+    await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
     this.initialized = true;
   }
 
@@ -276,13 +278,14 @@ export class PostgresStore implements Store {
         `INSERT INTO sessions
           (driver_id, car_id, track_id, session_type, condition_reported, patch_version,
            lap_count, best_lap_time, avg_lap_time, off_track_count, off_track_penalty_points,
-           confidence_rating, setup_version, comments)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           confidence_rating, setup_version, comments, lap_times)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING id`,
         [
           rec.driver_id, rec.car_id, rec.track_id, rec.session_type, rec.condition_reported, rec.patch_version ?? null,
           rec.lap_count, rec.best_lap_time, rec.avg_lap_time, rec.off_track_count, rec.off_track_penalty_points,
           rec.confidence_rating, rec.setup_version ?? null, rec.comments ?? null,
+          rec.lap_times ? JSON.stringify(rec.lap_times) : null,
         ],
       );
       const id = s.rows[0].id;
@@ -323,12 +326,17 @@ export class PostgresStore implements Store {
     const sessionCols: (keyof NewSessionRecord)[] = [
       "driver_id", "car_id", "track_id", "session_type", "condition_reported", "patch_version",
       "lap_count", "best_lap_time", "avg_lap_time", "off_track_count", "off_track_penalty_points",
-      "confidence_rating", "setup_version", "comments",
+      "confidence_rating", "setup_version", "comments", "lap_times",
     ];
     const sets: string[] = [];
     const params: unknown[] = [];
     for (const col of sessionCols) {
-      if (col in patch) { params.push((patch as any)[col]); sets.push(`${col} = $${params.length}`); }
+      if (col in patch) {
+        const raw = (patch as any)[col];
+        // JSONB column: pg serialises JS arrays as PG arrays, so stringify.
+        params.push(col === "lap_times" && raw != null ? JSON.stringify(raw) : raw);
+        sets.push(`${col} = $${params.length}`);
+      }
     }
     if (sets.length) {
       params.push(id);
