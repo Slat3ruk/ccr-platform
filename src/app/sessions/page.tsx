@@ -3,10 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import SessionForm from "@/components/SessionForm";
 import { api } from "@/lib/api-client";
+import { useRole } from "@/lib/role";
 import { formatLapTime } from "@/lib/time";
 import type { Car, Driver, Session, Track } from "@/types";
 
 export default function SessionsPage() {
+  const { role } = useRole();
+  // Editing/deleting logged sessions is a Team Manager/Admin action; drivers
+  // get a read-only log. (Phase 1 = client-side gate; Phase 2 OAuth enforces it.)
+  const canManage = role !== "driver";
   const [sessions, setSessions] = useState<Session[]>([]);
   const [cars, setCars] = useState<Map<number, Car>>(new Map());
   const [tracks, setTracks] = useState<Map<number, Track>>(new Map());
@@ -51,7 +56,7 @@ export default function SessionsPage() {
         <span className="sub">{sessions.length} sessions</span>
       </div>
       <div className="content">
-        {editing && (
+        {canManage && editing && (
           <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid var(--border-soft)" }}>
             <div className="flex spread" style={{ marginBottom: 10 }}>
               <h2 style={{ margin: 0 }}>
@@ -99,7 +104,7 @@ export default function SessionsPage() {
                   <th className="num">SVS</th>
                   <th>Setup</th>
                   <th>Notes</th>
-                  <th></th>
+                  {canManage && <th></th>}
                 </tr>
               </thead>
               <tbody>
@@ -125,16 +130,18 @@ export default function SessionsPage() {
                     <td className="notes-cell" title={s.comments || ""}>
                       {s.comments ? s.comments : <span className="muted">—</span>}
                     </td>
-                    <td>
-                      <div className="flex" style={{ gap: 6 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>
-                          Edit
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canManage && (
+                      <td>
+                        <div className="flex" style={{ gap: 6 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>
+                            Edit
+                          </button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
