@@ -83,6 +83,20 @@ export const api = {
     return json;
   },
 
+  async updateSession(id: number, input: SessionInput) {
+    const res = await fetch(`/api/sessions/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      const details: string[] = json.details ?? [json.error ?? "Request failed"];
+      throw new Error(details.join("\n"));
+    }
+    return json;
+  },
+
   async deleteSession(id: number) {
     const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error(`Delete failed (${res.status})`);

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import { parseLapTime } from "@/lib/time";
-import { CONDITIONS, SESSION_TYPES, type Car, type Track } from "@/types";
+import { formatLapTime, parseLapTime } from "@/lib/time";
+import { CONDITIONS, SESSION_TYPES, type Car, type Session, type Track } from "@/types";
 
 interface TyreState {
   fl: number;
@@ -14,23 +14,41 @@ interface TyreState {
 
 const initialTyres: TyreState = { fl: 100, fr: 100, rl: 100, rr: 100 };
 
-export default function SessionForm() {
+/** When `edit` is passed the form updates that session (PUT); otherwise it creates one. */
+export interface EditContext {
+  session: Session;
+  driverName: string;
+}
+
+export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDone?: () => void }) {
+  const isEdit = !!edit;
+  const s = edit?.session;
+
   const [cars, setCars] = useState<Car[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
 
-  const [driverName, setDriverName] = useState("");
-  const [carId, setCarId] = useState("");
-  const [trackId, setTrackId] = useState("");
-  const [sessionType, setSessionType] = useState("Test");
-  const [condition, setCondition] = useState("Dry");
-  const [bestLap, setBestLap] = useState("");
-  const [avgLap, setAvgLap] = useState("");
-  const [lapCount, setLapCount] = useState("12");
-  const [tyres, setTyres] = useState<TyreState>(initialTyres);
-  const [offTrack, setOffTrack] = useState("0");
-  const [confidence, setConfidence] = useState(7);
-  const [setupVersion, setSetupVersion] = useState("");
-  const [comments, setComments] = useState("");
+  const [driverName, setDriverName] = useState(edit?.driverName ?? "");
+  const [carId, setCarId] = useState(s ? String(s.car_id) : "");
+  const [trackId, setTrackId] = useState(s ? String(s.track_id) : "");
+  const [sessionType, setSessionType] = useState<string>(s?.session_type ?? "Test");
+  const [condition, setCondition] = useState<string>(s?.condition_reported ?? "Dry");
+  const [bestLap, setBestLap] = useState(s ? formatLapTime(s.best_lap_time) : "");
+  const [avgLap, setAvgLap] = useState(s ? formatLapTime(s.avg_lap_time) : "");
+  const [lapCount, setLapCount] = useState(s ? String(s.lap_count) : "12");
+  const [tyres, setTyres] = useState<TyreState>(
+    s
+      ? {
+          fl: s.tyres.tyre_fl_pct_remaining,
+          fr: s.tyres.tyre_fr_pct_remaining,
+          rl: s.tyres.tyre_rl_pct_remaining,
+          rr: s.tyres.tyre_rr_pct_remaining,
+        }
+      : initialTyres,
+  );
+  const [offTrack, setOffTrack] = useState(s ? String(s.off_track_count) : "0");
+  const [confidence, setConfidence] = useState(s?.confidence_rating ?? 7);
+  const [setupVersion, setSetupVersion] = useState(s?.setup_version ?? "");
+  const [comments, setComments] = useState(s?.comments ?? "");
 
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -74,29 +92,36 @@ export default function SessionForm() {
       return;
     }
 
+    const payload = {
+      driver_name: driverName.trim(),
+      car_id: Number(carId),
+      track_id: Number(trackId),
+      session_type: sessionType as (typeof SESSION_TYPES)[number],
+      condition_reported: condition as (typeof CONDITIONS)[number],
+      lap_count: Number(lapCount),
+      best_lap_time: best as number,
+      avg_lap_time: avg as number,
+      off_track_count: Number(offTrack),
+      confidence_rating: confidence,
+      setup_version: setupVersion.trim() || undefined,
+      comments: comments.trim() || undefined,
+      tyre_fl_pct_remaining: tyres.fl,
+      tyre_fr_pct_remaining: tyres.fr,
+      tyre_rl_pct_remaining: tyres.rl,
+      tyre_rr_pct_remaining: tyres.rr,
+    };
+
     setBusy(true);
     try {
-      await api.createSession({
-        driver_name: driverName.trim(),
-        car_id: Number(carId),
-        track_id: Number(trackId),
-        session_type: sessionType as (typeof SESSION_TYPES)[number],
-        condition_reported: condition as (typeof CONDITIONS)[number],
-        lap_count: Number(lapCount),
-        best_lap_time: best as number,
-        avg_lap_time: avg as number,
-        off_track_count: Number(offTrack),
-        confidence_rating: confidence,
-        setup_version: setupVersion.trim() || undefined,
-        comments: comments.trim() || undefined,
-        tyre_fl_pct_remaining: tyres.fl,
-        tyre_fr_pct_remaining: tyres.fr,
-        tyre_rl_pct_remaining: tyres.rl,
-        tyre_rr_pct_remaining: tyres.rr,
-      });
-      const carName = cars.find((c) => c.id === Number(carId))?.name ?? "car";
-      setSuccess(`Session logged for ${carName}. Rankings recomputed.`);
-      reset(true);
+      if (isEdit && edit) {
+        await api.updateSession(edit.session.id, payload);
+        onDone?.();
+      } else {
+        await api.createSession(payload);
+        const carName = cars.find((c) => c.id === Number(carId))?.name ?? "car";
+        setSuccess(`Session logged for ${carName}. Rankings recomputed.`);
+        reset(true);
+      }
     } catch (e) {
       setErrors(String(e instanceof Error ? e.message : e).split("\n"));
     } finally {
@@ -257,10 +282,15 @@ export default function SessionForm() {
 
       <div className="flex" style={{ gap: 10 }}>
         <button type="submit" className="btn" disabled={busy || noData}>
-          {busy ? "Logging…" : "Log session"}
+          {busy ? (isEdit ? "Saving…" : "Logging…") : isEdit ? "Save changes" : "Log session"}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={() => reset(false)} disabled={busy}>
-          Clear
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => (isEdit ? onDone?.() : reset(false))}
+          disabled={busy}
+        >
+          {isEdit ? "Cancel" : "Clear"}
         </button>
       </div>
     </form>

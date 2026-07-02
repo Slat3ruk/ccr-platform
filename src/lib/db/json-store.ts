@@ -87,7 +87,10 @@ export class JsonStore implements Store {
   private loaded = false;
   private writeChain: Promise<void> = Promise.resolve();
 
-  constructor(dir = path.join(process.cwd(), ".data")) {
+  // Data dir resolves to CCR_DATA_DIR if set, else <cwd>/.data. The env override
+  // keeps the store anchored to the app even when the process is spawned with a
+  // different cwd (e.g. a dev/preview launcher), instead of scattering .data/.
+  constructor(dir = process.env.CCR_DATA_DIR ?? path.join(process.cwd(), ".data")) {
     this.file = path.join(dir, "store.json");
   }
 

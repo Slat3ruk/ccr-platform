@@ -17,10 +17,13 @@ export function factorColor(score: number): string {
   return scoreColor(score);
 }
 
+// Colour bands aligned 1:1 with confidenceLabel() so the dot and the word agree:
+//   ≥0.8 High (green) · ≥0.6 Solid (teal) · ≥0.4 Emerging (yellow) · <0.4 Preliminary (orange)
 export function confidenceColor(conf: number): string {
-  if (conf >= 0.75) return "#23a55a";
-  if (conf >= 0.4) return "#f0b232";
-  return "#f23f43";
+  if (conf >= 0.8) return "#23a55a"; // High
+  if (conf >= 0.6) return "#14b8a6"; // Solid
+  if (conf >= 0.4) return "#f0b232"; // Emerging
+  return "#f57c00"; // Preliminary
 }
 
 export function fmtScore(n: number | null | undefined): string {

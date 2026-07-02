@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import SessionForm from "@/components/SessionForm";
 import { api } from "@/lib/api-client";
 import { formatLapTime } from "@/lib/time";
 import type { Car, Driver, Session, Track } from "@/types";
@@ -11,6 +12,7 @@ export default function SessionsPage() {
   const [tracks, setTracks] = useState<Map<number, Track>>(new Map());
   const [drivers, setDrivers] = useState<Map<number, Driver>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Session | null>(null);
 
   const load = useCallback(async () => {
     const [s, c, t, d] = await Promise.all([
@@ -36,6 +38,11 @@ export default function SessionsPage() {
     load();
   }
 
+  function startEdit(s: Session) {
+    setEditing(s);
+    document.querySelector(".content")?.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
     <>
       <div className="topbar">
@@ -44,6 +51,27 @@ export default function SessionsPage() {
         <span className="sub">{sessions.length} sessions</span>
       </div>
       <div className="content">
+        {editing && (
+          <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid var(--border-soft)" }}>
+            <div className="flex spread" style={{ marginBottom: 10 }}>
+              <h2 style={{ margin: 0 }}>
+                Editing — {cars.get(editing.car_id)?.name ?? `#${editing.car_id}`} @{" "}
+                {tracks.get(editing.track_id)?.name ?? `#${editing.track_id}`}
+              </h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>
+                Close
+              </button>
+            </div>
+            <SessionForm
+              key={editing.id}
+              edit={{ session: editing, driverName: drivers.get(editing.driver_id)?.name ?? "" }}
+              onDone={() => {
+                setEditing(null);
+                load();
+              }}
+            />
+          </div>
+        )}
         {loading ? (
           <div className="empty">Loading…</div>
         ) : sessions.length === 0 ? (
@@ -98,9 +126,14 @@ export default function SessionsPage() {
                       {s.comments ? s.comments : <span className="muted">—</span>}
                     </td>
                     <td>
-                      <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>
-                        Delete
-                      </button>
+                      <div className="flex" style={{ gap: 6 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

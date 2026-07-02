@@ -137,6 +137,18 @@ was verified end-to-end. Structure:
   (`scripts/migrate.mjs`) applies `db/1_init_schema.sql` via `DATABASE_URL` with
   no psql needed; DEPLOY.md opens with an ⚡ Quick start for the Neon + Netlify
   path (pooled connection, migrate, seed via the UI banner).
+- **Quick wins (round 4):** (1) **Session editing** — `/sessions` rows have an
+  Edit button that opens `SessionForm` in edit mode (prefilled via an `edit`
+  prop, saves through `api.updateSession` → `PUT /api/sessions/[id]`, which now
+  validates the full SessionInput + resolves the driver like POST, replacing the
+  old loose-patch behaviour). (2) **Confidence colours harmonised** with
+  `confidenceLabel` in format.ts — ≥0.8 High/green · ≥0.6 Solid/teal · ≥0.4
+  Emerging/yellow · <0.4 Preliminary/orange (the dot and the word now agree).
+  (3) JSON dev store honours **`CCR_DATA_DIR`** (json-store.ts) so `.data/`
+  anchors to the app even when spawned with a foreign cwd — the `ccr-data-dev`
+  preview launch sets it via `env`; fixed the store landing in the stint-planner
+  folder. (Preview `cwd` can't point outside its project root, so `env` is the
+  mechanism.)
 
 ### Three pragmatic build decisions (not in the original spec — flag if revisiting)
 
