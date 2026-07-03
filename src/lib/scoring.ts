@@ -396,3 +396,4 @@ export const CONSISTENCY_TOLERANCE_S = 2.0; // best→avg gap (s) that scores 50
 export const CONSISTENCY_STDDEV_TOLERANCE_S = 1.2; // per-lap std-dev (s) that scores 50 (lap-array path)
 export const LAP_OUTLIER_FACTOR = 1.07; // laps >7% over the session median = traffic/out-laps, excluded from consistency
 export const MIN_SESSIONS_PER_SETUP = 3; // runs a setup needs before it can be a car's "best" (else fall back to a blend)
+export const MIN_SESSIONS_FOR_BADGE = 5; // sessions a driver needs before qualifying for a leaderboard badge (except Iron Man, which IS the volume metric)

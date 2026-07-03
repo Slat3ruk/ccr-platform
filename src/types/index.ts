@@ -278,3 +278,60 @@ export interface RankingRow extends Recommendation {
   car_category: CarCategory;
   track_name: string;
 }
+
+// --- Driver leaderboard / analytics ------------------------------------------
+
+/** One point on a driver's consistency-over-time trend line. */
+export interface ConsistencyPoint {
+  session_id: number;
+  created_at: string;
+  consistency: number;
+}
+
+/**
+ * A driver's aggregate stats across every session they've logged (current era,
+ * all cars/tracks/conditions combined — the factor scores are already
+ * benchmark-normalised 0-100 so they're comparable across combos). SVS-weighted
+ * the same way car aggregation is, so a thin/messy session counts less than a
+ * clean full race.
+ */
+export interface DriverStat {
+  driver_id: number;
+  driver_name: string;
+  sessions_used: number;
+  total_laps: number;
+  avg_pace: number;
+  avg_consistency: number;
+  avg_tyre: number;
+  avg_mistakes: number;
+  /** Std-dev across this driver's own 5 factor averages — lower = more balanced. */
+  balance_spread: number;
+  consistency_trend: ConsistencyPoint[];
+}
+
+export type BadgeId =
+  | "fastest"
+  | "consistent"
+  | "tyre_whisperer"
+  | "tyre_killer"
+  | "lawn_mower"
+  | "all_rounder"
+  | "iron_man";
+
+export interface BadgeHolder {
+  tier: "gold" | "silver" | "bronze";
+  driver_id: number;
+  driver_name: string;
+  /** The metric value that earned the tier, already in display units. */
+  value: number;
+}
+
+export interface BadgeDef {
+  id: BadgeId;
+  label: string;
+  emoji: string;
+  hint: string;
+  /** Roast badges get a different visual treatment (orange/red, not gold). */
+  roast: boolean;
+  holders: BadgeHolder[];
+}

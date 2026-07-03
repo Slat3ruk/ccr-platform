@@ -10,6 +10,10 @@ const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = 
     items: [{ href: "/briefing", label: "briefing" }],
   },
   {
+    title: "Leaderboard",
+    items: [{ href: "/drivers", label: "driver-board" }],
+  },
+  {
     title: "Engineering",
     items: [
       { href: "/", label: "rankings" },

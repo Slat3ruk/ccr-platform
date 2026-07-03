@@ -4,8 +4,10 @@
 // ============================================================================
 
 import type {
+  BadgeDef,
   Benchmark,
   Car,
+  DriverStat,
   Era,
   FactorWeights,
   NewEraInput,
@@ -141,4 +143,7 @@ export const api = {
     jsend<{ ok: true; race: RaceRow }>(`/api/races/${id}`, "PATCH", patch),
 
   deleteRace: (id: number) => jsend<{ ok: true }>(`/api/races/${id}`, "DELETE"),
+
+  // driver leaderboard --------------------------------------------------------
+  driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
 };
