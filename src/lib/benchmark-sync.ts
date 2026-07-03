@@ -1,13 +1,23 @@
 // ============================================================================
-// Benchmark sync — pulls pace tiers from the public "Ohne Speed" Google Sheet
-// and caches them in the store. Contract (SPEC §4): NEVER break rankings — if
-// the sync fails or no API key is configured, leave the existing cached/seeded
-// benchmarks untouched and report which path was taken.
+// Benchmark sync — pulls pace tiers from the public "Ohne Speed" LMU laptimes
+// spreadsheet and caches them in the store.
 //
-// NOTE: the exact tab/column layout of the Ohne Speed sheet still needs to be
-// calibrated against the live sheet. Until then, configure the mapping via the
-// env vars below or rely on the seeded placeholder benchmarks. Parsing is
-// defensive: anything unexpected is skipped, never thrown.
+// The sheet is PUBLISHED TO WEB (anyone-with-link), so we read the keyless CSV
+// export of the master laptimes tab — no Google API key, no secret to manage.
+// Just press the button. URL/ID is stable (published-doc id), matching how the
+// team already uses the sheet: when new cars/tracks/layouts drop, Ohne Speed
+// updates the sheet and a sync pulls the fresh numbers.
+//
+// Contract (SPEC §4): NEVER break rankings — if the fetch or parse fails, leave
+// the existing cached/seeded benchmarks untouched and report which path ran.
+// Missing tracks (new layouts) are AUTO-CREATED so a brand-new circuit flows
+// straight through instead of being silently skipped.
+//
+// Live CSV layout (decoded 2026-07-03, tab gid 1766901750): a single grid,
+// per-class sections. Each data row: col0 = "<track><CLASS>" (e.g. "SpaLMGT3"),
+// col1 = track, col2 = patch, and the pace tiers at cols 3/4/5/7/9/10 =
+// Alien / Competitive / Good / Midpack / Tail-ender / Offline (the sheet's own
+// labels; 103% and 105% columns are unlabelled and skipped). All rows are Dry.
 // ============================================================================
 
 import type { Condition, RacingClass } from "@/types";
@@ -18,90 +28,89 @@ export interface SyncResult {
   ok: boolean;
   source: "google-sheets" | "cache";
   upserted: number;
+  tracks_created: number;
   message: string;
 }
 
-const SHEET_RANGE = process.env.GOOGLE_SHEETS_RANGE || "A1:Z2000";
+// Published-doc id + tab gid of the master laptimes grid. Overridable via env
+// in case Ohne Speed ever republishes, but hardcoded so the button works with
+// zero configuration (the sheet is public).
+const PUBLISHED_ID =
+  process.env.OHNE_SPEED_PUBLISHED_ID?.trim() ||
+  "2PACX-1vTN03UvJDm99byA6vQPZHKOCYVvfxLu1zkJAzdaKyROykzEKY2-Xl1rl1q5znZEf36m88dxMKsY2eaO";
+const GID = process.env.OHNE_SPEED_GID?.trim() || "1766901750";
+
+const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/pub?output=csv&gid=${GID}`;
+
+// Tier → column index in a data row (the sheet's own labels, see header note).
+const COL = { helper: 0, track: 1, patch: 2, alien: 3, competitive: 4, good: 5, midpack: 7, tail: 9, offline: 10 } as const;
 
 /**
- * Attempt a live sync. Returns a structured result; on any problem it resolves
- * with ok:false and source:"cache" rather than throwing.
+ * Attempt a live sync from the public CSV. Returns a structured result; on any
+ * problem it resolves with ok:false / source:"cache" rather than throwing.
  */
 export async function syncBenchmarks(store: Store = getStore()): Promise<SyncResult> {
   await store.init();
 
-  const apiKey = process.env.GOOGLE_SHEETS_API_KEY?.trim();
-  const sheetId = process.env.GOOGLE_SHEETS_ID?.trim();
+  let text: string;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const res = await fetch(CSV_URL, { signal: controller.signal, redirect: "follow" });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      return { ok: false, source: "cache", upserted: 0, tracks_created: 0, message: `Sheet fetch ${res.status} — kept cache.` };
+    }
+    text = await res.text();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, source: "cache", upserted: 0, tracks_created: 0, message: `Sync error (${message}) — kept cache.` };
+  }
 
-  if (!apiKey || !sheetId) {
+  const parsed = parseBenchmarkRows(parseCsv(text));
+  if (parsed.length === 0) {
     return {
       ok: false,
       source: "cache",
       upserted: 0,
-      message: "GOOGLE_SHEETS_API_KEY / GOOGLE_SHEETS_ID not set — keeping cached/seeded benchmarks.",
+      tracks_created: 0,
+      message: "Fetched the sheet but parsed 0 benchmark rows — layout may have changed; kept cache.",
     };
   }
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-    sheetId,
-  )}/values/${encodeURIComponent(SHEET_RANGE)}?key=${encodeURIComponent(apiKey)}`;
+  const tracks = await store.listTracks();
+  const trackByName = new Map(tracks.map((t) => [normalize(t.name), t.id]));
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      return { ok: false, source: "cache", upserted: 0, message: `Sheets API ${res.status} — kept cache.` };
+  let upserted = 0;
+  let tracksCreated = 0;
+  for (const row of parsed) {
+    let trackId = matchTrack(trackByName, row.trackName);
+    if (!trackId) {
+      // Auto-create a new track/layout the sheet has that we don't yet.
+      const created = await store.createTrack(row.trackName);
+      trackId = created.id;
+      trackByName.set(normalize(created.name), created.id);
+      tracksCreated++;
     }
-
-    const json = (await res.json()) as { values?: string[][] };
-    const rows = json.values ?? [];
-    const parsed = parseBenchmarkRows(rows);
-
-    if (parsed.length === 0) {
-      return {
-        ok: false,
-        source: "cache",
-        upserted: 0,
-        message: "Fetched the sheet but parsed 0 benchmark rows — mapping needs calibration; kept cache.",
-      };
-    }
-
-    const tracks = await store.listTracks();
-    const trackByName = new Map(tracks.map((t) => [normalize(t.name), t.id]));
-
-    let upserted = 0;
-    for (const row of parsed) {
-      const trackId = matchTrack(trackByName, row.trackName);
-      if (!trackId) continue;
-      await store.upsertBenchmark({
-        track_id: trackId,
-        class: row.class,
-        condition: row.condition,
-        alien_time: row.alien_time,
-        competitive_time: row.competitive_time,
-        good_time: row.good_time,
-        midpack_time: row.midpack_time,
-        tail_ender_time: row.tail_ender_time,
-        offline_time: row.offline_time,
-        data_readiness_pct: row.data_readiness_pct,
-        patch_version: row.patch_version,
-      });
-      upserted++;
-    }
-
-    return {
-      ok: upserted > 0,
-      source: "google-sheets",
-      upserted,
-      message: upserted > 0 ? `Synced ${upserted} benchmark rows from Google Sheets.` : "No rows matched known tracks; kept cache.",
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, source: "cache", upserted: 0, message: `Sync error (${message}) — kept cache.` };
+    await store.upsertBenchmark({
+      track_id: trackId,
+      class: row.class,
+      condition: row.condition,
+      alien_time: row.alien_time,
+      competitive_time: row.competitive_time,
+      good_time: row.good_time,
+      midpack_time: row.midpack_time,
+      tail_ender_time: row.tail_ender_time,
+      offline_time: row.offline_time,
+      data_readiness_pct: row.data_readiness_pct,
+      patch_version: row.patch_version,
+    });
+    upserted++;
   }
+
+  const bits = [`Synced ${upserted} benchmark rows from the Ohne Speed sheet`];
+  if (tracksCreated > 0) bits.push(`created ${tracksCreated} new track${tracksCreated === 1 ? "" : "s"}`);
+  return { ok: true, source: "google-sheets", upserted, tracks_created: tracksCreated, message: `${bits.join(" · ")}.` };
 }
 
 // --- parsing helpers ---------------------------------------------------------
@@ -120,35 +129,61 @@ interface ParsedBenchmark {
   patch_version: string | null;
 }
 
-/**
- * Parser for the "Ohne Speed" sheet layout (decoded 2026-07-01, matches
- * scripts/parse-ohne-speed.mjs). The sheet is a single grid of per-class
- * sections; we identify data rows positionally rather than by header:
- *   col A (0) = "<track><CLASS>"  · col B (1) = track · col C (2) = patch
- *   cols E..J (4..9) = alien / competitive / good / midpack / tail-ender / offline
- * The class is recovered from col A's suffix after the track string. GTE rows
- * (and anything unmapped) are skipped. All conditions are Dry on this sheet.
- */
+/** Minimal RFC-4180 CSV parser (handles quoted fields, escaped quotes, newlines). */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (c !== "\r") {
+      field += c;
+    }
+  }
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
 function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
   const out: ParsedBenchmark[] = [];
   for (const r of rows) {
-    if (!r || r.length < 10) continue;
-    const helper = (r[0] ?? "").trim();
-    const trackName = (r[1] ?? "").trim();
+    if (!r || r.length <= COL.offline) continue;
+    const helper = (r[COL.helper] ?? "").trim();
+    const trackName = (r[COL.track] ?? "").trim();
     if (!helper || !trackName) continue;
 
-    const alien = toSeconds(r[4]);
-    if (alien == null) continue; // not a data row
+    const alien = toSeconds(r[COL.alien]);
+    if (alien == null) continue; // header / spacer / non-data row
 
+    // Class is the col0 suffix after the track string (e.g. "SpaLMGT3" → "LMGT3").
     const rawClass = helper.startsWith(trackName) ? helper.slice(trackName.length).trim() : helper.replace(trackName, "").trim();
     const cls = normalizeClass(rawClass);
     if (!cls) continue; // skips GTE / unmapped
 
-    const competitive = toSeconds(r[5]) ?? alien * 1.01;
-    const good = toSeconds(r[6]) ?? alien * 1.02;
-    const midpack = toSeconds(r[7]) ?? alien * 1.03;
-    const tail = toSeconds(r[8]) ?? alien * 1.04;
-    const offline = toSeconds(r[9]) ?? alien * 1.05;
+    const competitive = toSeconds(r[COL.competitive]) ?? alien * 1.01;
+    const good = toSeconds(r[COL.good]) ?? alien * 1.02;
+    const midpack = toSeconds(r[COL.midpack]) ?? alien * 1.04;
+    const tail = toSeconds(r[COL.tail]) ?? alien * 1.06;
+    const offline = toSeconds(r[COL.offline]) ?? alien * 1.07;
 
     out.push({
       trackName,
@@ -161,7 +196,7 @@ function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
       tail_ender_time: tail,
       offline_time: offline,
       data_readiness_pct: 100,
-      patch_version: (r[2] ?? "").trim() || null,
+      patch_version: (r[COL.patch] ?? "").trim() || null,
     });
   }
   return out;
@@ -198,13 +233,8 @@ function toSeconds(s: string | undefined): number | null {
 }
 
 function matchTrack(trackByName: Map<string, number>, name: string): number | undefined {
-  const target = normalize(name);
-  // exact normalized match first
-  const exact = trackByName.get(target);
-  if (exact) return exact;
-  // fuzzy: any seeded track whose normalized name contains, or is contained by, the sheet name
-  for (const [tname, id] of trackByName) {
-    if (tname.includes(target) || target.includes(tname)) return id;
-  }
-  return undefined;
+  // EXACT normalized match only. Fuzzy/contains matching would collapse layout
+  // variants ("Bahrain (wec)" → "Bahrain") onto one track and overwrite each
+  // other's benchmarks. A genuine miss auto-creates the track instead.
+  return trackByName.get(normalize(name));
 }

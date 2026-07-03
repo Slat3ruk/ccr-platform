@@ -47,15 +47,15 @@ export default function BenchmarksPage() {
       <div className="content">
         <div className="flex spread" style={{ marginBottom: 16 }}>
           <div className="muted" style={{ fontSize: 13, maxWidth: 560 }}>
-            Pace tiers from the “Ohne Speed” sheet. {hasSeed && (
+            Pace tiers from the public “Ohne Speed” LMU laptimes sheet. Press sync to pull the latest —
+            new tracks/layouts are added automatically. {hasSeed && (
               <>
-                Some rows are <span className="pill seed">seed</span> placeholders — run a sync (needs
-                GOOGLE_SHEETS_API_KEY) to replace them with live data.
+                Some rows are <span className="pill seed">seed</span> placeholders — a sync replaces them with live data.
               </>
             )}
           </div>
           <button className="btn" onClick={sync} disabled={busy}>
-            {busy ? "Syncing…" : "Sync from Google Sheets"}
+            {busy ? "Syncing…" : "Sync from Ohne Speed"}
           </button>
         </div>
         {msg && <div className="msg success">{msg}</div>}
