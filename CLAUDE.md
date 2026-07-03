@@ -237,6 +237,31 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### 🔭 Action points — queued, not yet built (most recent first)
+
+- **Per-driver weighting (requested 2026-07-04).** Each driver should see the
+  board under THEIR OWN chosen weighting, not the single global/shared one.
+  Recommended approach: **client-side re-weighting** — the persisted
+  recommendations already carry the five factor scores and
+  `car_score = Σ factor×weight`, so the board can be re-ranked under any preset
+  **in the browser from the loaded rows** — no recompute, no shared-state
+  mutation, instant. Persist each driver's pick in localStorage now → their
+  profile once auth lands. The global `weights` setting then becomes the **team
+  default** (fresh viewers + the persisted board). Caveat: best-setup selection
+  is weight-dependent, so client re-weighting is a close approximation, not
+  full-fidelity for which setup wins (acceptable for a per-driver lens). Same
+  mechanism as the **preset-winners strip** below — build them together.
+- **Preset-winners strip** — "who tops each preset" chips on rankings, computed
+  client-side from the loaded factor scores (cheap, non-destructive). Paired
+  with per-driver weighting above.
+- **Wet benchmarks per-track hand-tuning** — the round-11 wet layer is a uniform
+  global %; allow overriding individual (track,class,Wet) rows for circuits that
+  deviate (Le Mans skews higher).
+- **Auth hub** (release gate) — provider-agnostic identity + server-enforced
+  roles; likely a separate Cloudflare hub. Everything ships behind this.
+- **GT3-wheel control-panel styling** — dress the functional panel with
+  `public/steering-wheel-logo.png` (static-first).
+
 ### Wet benchmarks (derived, admin-tunable) + driver weighting (round 11, 2026-07-03/04)
 
 **Wet benchmarks are DERIVED, not sourced** (the sheet is dry-only): every Wet
