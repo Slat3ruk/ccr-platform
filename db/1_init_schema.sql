@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   off_track_count          INT DEFAULT 0 CHECK (off_track_count >= 0),
   off_track_penalty_points FLOAT DEFAULT 0.0,
   confidence_rating        FLOAT NOT NULL CHECK (confidence_rating BETWEEN 1.0 AND 10.0),
+  setup_type               VARCHAR(100),
   setup_version            VARCHAR(255),
   svm_data                 JSONB,
   comments                 TEXT,
@@ -63,6 +64,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 -- Additive column for DBs created before the per-lap-times feature.
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS lap_times JSONB;
+-- Additive column for DBs created before the controlled setup-type dropdown.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS setup_type VARCHAR(100);
 CREATE INDEX IF NOT EXISTS idx_sessions_car_track ON sessions(car_id, track_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_driver    ON sessions(driver_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_created   ON sessions(created_at DESC);

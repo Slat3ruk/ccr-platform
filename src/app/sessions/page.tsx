@@ -126,7 +126,17 @@ export default function SessionsPage() {
                     <td className="num">{s.tyres.avg_wear_pct.toFixed(0)}%</td>
                     <td className="num">{s.confidence_rating}</td>
                     <td className="num">{s.session_value_score != null ? s.session_value_score.toFixed(0) : "—"}</td>
-                    <td className="muted">{s.setup_version || "—"}</td>
+                    <td className="muted">
+                      {s.setup_type || s.setup_version ? (
+                        <>
+                          {s.setup_type ?? ""}
+                          {s.setup_type && s.setup_version ? " " : ""}
+                          {s.setup_version ? <span className="hint">{s.setup_version}</span> : ""}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="notes-cell" title={s.comments || ""}>
                       {s.comments ? s.comments : <span className="muted">—</span>}
                     </td>

@@ -119,10 +119,12 @@ export function scoreGroups(
       return { window, agg: aggregateCarScore(scored, config.weights) };
     };
 
-    // Sub-group by setup (trimmed; "" = unspecified).
+    // Sub-group by setup (trimmed; "" = unspecified). Prefer the controlled
+    // `setup_type` (so all versions of e.g. "Race · Esport" group together);
+    // fall back to legacy free-text `setup_version` for pre-dropdown sessions.
     const bySetup = new Map<string, Session[]>();
     for (const s of groupSessions) {
-      const key = (s.setup_version ?? "").trim();
+      const key = (s.setup_type ?? s.setup_version ?? "").trim();
       const arr = bySetup.get(key);
       if (arr) arr.push(s);
       else bySetup.set(key, [s]);

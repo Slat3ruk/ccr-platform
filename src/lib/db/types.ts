@@ -35,6 +35,7 @@ export interface NewSessionRecord {
   off_track_count: number;
   off_track_penalty_points: number;
   confidence_rating: number;
+  setup_type?: string | null;
   setup_version?: string | null;
   comments?: string | null;
   lap_times?: number[] | null;

@@ -22,6 +22,26 @@ export const SESSION_TYPES: SessionType[] = ["Practice", "Quali", "Race", "Test"
 export const CONDITIONS: Condition[] = ["Dry", "Wet", "Mixed"];
 
 /**
+ * The setup provider ships one fixed set of setups per car+track+game-version,
+ * spanning a purpose (Quali / Race / Endurance) × trim (Esport / Safe / Wet)
+ * matrix. This is the canonical 7 — a controlled enum so `setup_type` can never
+ * be misspelled (the whole problem free-text `setup_version` had). `code` is the
+ * provider's shorthand (doc: "E R"; their filenames: "R Esport" — same thing).
+ * The specific pack/game version a driver ran is captured separately in the
+ * free-text `setup_version`, since that string drifts and is only interpreted
+ * later (staleness flag).
+ */
+export const SETUP_TYPES: { value: string; code: string }[] = [
+  { value: "Race · Esport", code: "E R" },
+  { value: "Quali · Esport", code: "E Q" },
+  { value: "Race · Safe", code: "S R" },
+  { value: "Quali · Safe", code: "S Q" },
+  { value: "Race · Wet", code: "WET R" },
+  { value: "Quali · Wet", code: "WET Q" },
+  { value: "Endurance", code: "Endu" },
+];
+
+/**
  * Maps a car's physical category to the benchmark class used for pace
  * comparison and dashboard grouping. LMP2 defaults to the ELMS sheet; a
  * session can override via its own class field if WEC pace is wanted.
@@ -99,6 +119,9 @@ export interface Session {
   off_track_count: number;
   off_track_penalty_points: number;
   confidence_rating: number;
+  /** Controlled setup family (one of SETUP_TYPES). The grouping key for best-setup. */
+  setup_type?: string | null;
+  /** Free-text pack/game version the driver ran (e.g. "1.3.3", "GMR001"). Captured, not yet interpreted. */
   setup_version?: string | null;
   svm_data?: unknown;
   comments?: string | null;
@@ -165,6 +188,7 @@ export interface SessionInput {
   avg_lap_time: number; // seconds
   off_track_count: number;
   confidence_rating: number;
+  setup_type?: string;
   setup_version?: string;
   comments?: string;
   /** Optional individual lap times (seconds), already parsed by the form. */

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
 import { cleanLaps, stdDev } from "@/lib/scoring";
 import { formatLapTime, parseLapTime, parseLapTimes } from "@/lib/time";
-import { CONDITIONS, SESSION_TYPES, type Car, type Session, type Track } from "@/types";
+import { CONDITIONS, SESSION_TYPES, SETUP_TYPES, type Car, type Session, type Track } from "@/types";
 
 interface TyreState {
   fl: number;
@@ -51,6 +51,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   );
   const [offTrack, setOffTrack] = useState(s ? String(s.off_track_count) : "0");
   const [confidence, setConfidence] = useState(s?.confidence_rating ?? 7);
+  const [setupType, setSetupType] = useState(s?.setup_type ?? "");
   const [setupVersion, setSetupVersion] = useState(s?.setup_version ?? "");
   const [comments, setComments] = useState(s?.comments ?? "");
 
@@ -135,6 +136,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       avg_lap_time: avg as number,
       off_track_count: Number(offTrack),
       confidence_rating: confidence,
+      setup_type: setupType || undefined,
       setup_version: setupVersion.trim() || undefined,
       comments: comments.trim() || undefined,
       lap_times: parsedLaps.laps.length >= 2 ? parsedLaps.laps : undefined,
@@ -334,8 +336,19 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
         </div>
         <div className="row">
           <div className="field">
+            <label>Setup <span className="hint">(optional)</span></label>
+            <select value={setupType} onChange={(e) => setSetupType(e.target.value)}>
+              <option value="">— none / not listed —</option>
+              {SETUP_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.value} ({t.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
             <label>Setup version <span className="hint">(optional)</span></label>
-            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder="Basic V2 Quali" />
+            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder="e.g. 1.3.3 or GMR001" />
           </div>
         </div>
         <div className="field">

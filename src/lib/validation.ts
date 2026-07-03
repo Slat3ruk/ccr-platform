@@ -3,7 +3,9 @@
 // constraints so bad data is rejected before it ever hits the store.
 // ============================================================================
 
-import { CONDITIONS, SESSION_TYPES, type SessionInput } from "@/types";
+import { CONDITIONS, SESSION_TYPES, SETUP_TYPES, type SessionInput } from "@/types";
+
+const SETUP_TYPE_VALUES = new Set(SETUP_TYPES.map((t) => t.value));
 
 export interface ValidationResult {
   valid: boolean;
@@ -106,6 +108,8 @@ export function validateSessionInput(raw: unknown): ValidationResult {
       avg_lap_time,
       off_track_count,
       confidence_rating,
+      // Controlled enum — silently drop anything not in SETUP_TYPES (it's a fixed dropdown).
+      setup_type: typeof b.setup_type === "string" && SETUP_TYPE_VALUES.has(b.setup_type.trim()) ? b.setup_type.trim() : undefined,
       setup_version: typeof b.setup_version === "string" ? b.setup_version.trim() || undefined : undefined,
       comments: typeof b.comments === "string" ? b.comments.trim() || undefined : undefined,
       lap_times,

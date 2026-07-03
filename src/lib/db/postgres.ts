@@ -69,6 +69,7 @@ function rowToSession(r: any): Session {
     off_track_count: r.off_track_count,
     off_track_penalty_points: Number(r.off_track_penalty_points),
     confidence_rating: Number(r.confidence_rating),
+    setup_type: r.setup_type ?? null,
     setup_version: r.setup_version,
     svm_data: r.svm_data,
     comments: r.comments,
@@ -197,6 +198,7 @@ export class PostgresStore implements Store {
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
+    await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS setup_type VARCHAR(100)");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ccr.eras (
         id         SERIAL PRIMARY KEY,
@@ -291,13 +293,13 @@ export class PostgresStore implements Store {
         `INSERT INTO sessions
           (driver_id, car_id, track_id, session_type, condition_reported, patch_version,
            lap_count, best_lap_time, avg_lap_time, off_track_count, off_track_penalty_points,
-           confidence_rating, setup_version, comments, lap_times)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+           confidence_rating, setup_type, setup_version, comments, lap_times)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING id`,
         [
           rec.driver_id, rec.car_id, rec.track_id, rec.session_type, rec.condition_reported, rec.patch_version ?? null,
           rec.lap_count, rec.best_lap_time, rec.avg_lap_time, rec.off_track_count, rec.off_track_penalty_points,
-          rec.confidence_rating, rec.setup_version ?? null, rec.comments ?? null,
+          rec.confidence_rating, rec.setup_type ?? null, rec.setup_version ?? null, rec.comments ?? null,
           rec.lap_times ? JSON.stringify(rec.lap_times) : null,
         ],
       );
@@ -339,7 +341,7 @@ export class PostgresStore implements Store {
     const sessionCols: (keyof NewSessionRecord)[] = [
       "driver_id", "car_id", "track_id", "session_type", "condition_reported", "patch_version",
       "lap_count", "best_lap_time", "avg_lap_time", "off_track_count", "off_track_penalty_points",
-      "confidence_rating", "setup_version", "comments", "lap_times",
+      "confidence_rating", "setup_type", "setup_version", "comments", "lap_times",
     ];
     const sets: string[] = [];
     const params: unknown[] = [];

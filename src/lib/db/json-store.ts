@@ -211,6 +211,7 @@ export class JsonStore implements Store {
       off_track_count: rec.off_track_count,
       off_track_penalty_points: rec.off_track_penalty_points,
       confidence_rating: rec.confidence_rating,
+      setup_type: rec.setup_type ?? null,
       setup_version: rec.setup_version ?? null,
       svm_data: null,
       comments: rec.comments ?? null,

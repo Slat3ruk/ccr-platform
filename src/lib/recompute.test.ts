@@ -125,4 +125,24 @@ describe("scoreGroups — best-setup selection", () => {
     expect(dry?.best_setup).toBe("Setup A");
     expect(wetRec?.best_setup).toBeNull();
   });
+
+  it("groups by setup_type when present, regardless of differing setup_version", () => {
+    // Same controlled setup type across three DIFFERENT free-text versions →
+    // one bucket of 3 that qualifies, keyed by the type (versions are just
+    // captured metadata, not a grouping axis).
+    const typed = (ver: string, best: number): Session => ({
+      ...sess(ver, best),
+      setup_type: "Race · Esport",
+    });
+    const recs = run([typed("1.3.2", 103), typed("1.3.3", 103), typed("GMR001", 103)]);
+    expect(recs).toHaveLength(1);
+    expect(recs[0].best_setup).toBe("Race · Esport");
+    expect(recs[0].sessions_used).toBe(3);
+  });
+
+  it("falls back to setup_version grouping for legacy sessions with no setup_type", () => {
+    // Pre-dropdown data (setup_type null) still groups by the free-text string.
+    const recs = run([sess("Basic V2", 103), sess("Basic V2", 103), sess("Basic V2", 103)]);
+    expect(recs[0].best_setup).toBe("Basic V2");
+  });
 });

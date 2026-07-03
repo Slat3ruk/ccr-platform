@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     off_track_count: input.off_track_count,
     off_track_penalty_points: 0,
     confidence_rating: input.confidence_rating,
+    setup_type: input.setup_type ?? null,
     setup_version: input.setup_version ?? null,
     comments: input.comments ?? null,
     lap_times: input.lap_times ?? null,
