@@ -10,6 +10,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  Era,
+  NewEraInput,
   NewRaceInput,
   RaceEvent,
   RacingClass,
@@ -132,6 +134,19 @@ export interface Store {
   // settings (key/value — e.g. the active weighting preset)
   getSetting<T = unknown>(key: string): Promise<T | null>;
   setSetting(key: string, value: unknown): Promise<void>;
+
+  // eras (data "lines in the sand" — see lib/eras.ts for the boundary logic)
+  listEras(): Promise<Era[]>;
+  createEra(input: NewEraInput & { starts_at: string }): Promise<Era>;
+  /** Undo a drawn line. Sessions are untouched (they're assigned by timestamp). */
+  deleteEra(id: number): Promise<boolean>;
+
+  /**
+   * Hard fresh-start: delete ALL sessions (and their tyres). Cars, tracks,
+   * benchmarks, eras, races and settings survive. Returns sessions removed.
+   * Caller is responsible for recomputing afterwards.
+   */
+  purgeSessions(): Promise<number>;
 
   // races (calendar + BLUF briefing note)
   listRaces(): Promise<RaceEvent[]>;

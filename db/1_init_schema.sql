@@ -134,6 +134,16 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Eras (data "lines in the sand" — sessions assign by timestamp, nothing deleted)
+CREATE TABLE IF NOT EXISTS eras (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(255) NOT NULL,
+  starts_at  TIMESTAMP NOT NULL,
+  reason     TEXT,
+  created_by VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Races (manually-added calendar + BLUF briefing note) ------------------------
 CREATE TABLE IF NOT EXISTS races (
   id              SERIAL PRIMARY KEY,

@@ -24,11 +24,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { role, setRole } = useRole();
   const current = ROLES.find((r) => r.value === role) ?? ROLES[1];
+  const sections =
+    role === "admin"
+      ? [...SECTIONS, { title: "Admin", items: [{ href: "/control-panel", label: "control-panel" }] }]
+      : SECTIONS;
   return (
     <aside className="sidebar">
       <div className="sidebar-header">CrossCurrent Racing</div>
       <div className="sidebar-nav">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             <div className="nav-section">{section.title}</div>
             {section.items.map((item) => {

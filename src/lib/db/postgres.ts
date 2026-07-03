@@ -11,6 +11,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  Era,
+  NewEraInput,
   NewRaceInput,
   RaceEvent,
   RacingClass,
@@ -193,6 +195,15 @@ export class PostgresStore implements Store {
       )`);
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ccr.eras (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(255) NOT NULL,
+        starts_at  TIMESTAMP NOT NULL,
+        reason     TEXT,
+        created_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
     this.initialized = true;
   }
 
@@ -454,6 +465,43 @@ export class PostgresStore implements Store {
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP`,
       [key, JSON.stringify(value)],
     );
+  }
+
+  // eras ----------------------------------------------------------------------
+  private era(r: any): Era {
+    return {
+      id: r.id,
+      name: r.name,
+      starts_at: iso(r.starts_at),
+      reason: r.reason ?? null,
+      created_by: r.created_by ?? null,
+      created_at: iso(r.created_at),
+    };
+  }
+
+  async listEras(): Promise<Era[]> {
+    const res = await this.q("SELECT * FROM eras ORDER BY starts_at ASC, id ASC");
+    return res.rows.map((r) => this.era(r));
+  }
+
+  async createEra(input: NewEraInput & { starts_at: string }): Promise<Era> {
+    const res = await this.q(
+      "INSERT INTO eras (name, starts_at, reason, created_by) VALUES ($1,$2,$3,$4) RETURNING *",
+      [input.name, input.starts_at, input.reason ?? null, input.created_by ?? null],
+    );
+    return this.era(res.rows[0]);
+  }
+
+  async deleteEra(id: number): Promise<boolean> {
+    const res = await this.q("DELETE FROM eras WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  async purgeSessions(): Promise<number> {
+    // tyres cascade via FK; recommendations cleared so the board empties too.
+    const res = await this.q("DELETE FROM sessions");
+    await this.q("DELETE FROM recommendations");
+    return res.rowCount ?? 0;
   }
 
   // races ---------------------------------------------------------------------

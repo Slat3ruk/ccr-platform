@@ -205,6 +205,34 @@ export interface WeightsConfig {
   weights: FactorWeights;
 }
 
+// --- Data eras ("line in the sand") -------------------------------------------
+
+/**
+ * An era is a named boundary in time — typically drawn when an LMU patch/BoP
+ * change makes older data non-comparable. Sessions are assigned by timestamp
+ * (created_at >= starts_at, until the next era begins); nothing is deleted, so
+ * old eras stay recallable. Live rankings score only the current era.
+ */
+export interface Era {
+  id: number;
+  name: string;
+  /** ISO timestamp the era begins. */
+  starts_at: string;
+  /** Why the line was drawn (e.g. "Patch 1.4 BoP"). */
+  reason?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+/** Payload accepted by POST /api/eras. */
+export interface NewEraInput {
+  name: string;
+  /** ISO timestamp; defaults to "now" server-side. */
+  starts_at?: string;
+  reason?: string | null;
+  created_by?: string | null;
+}
+
 // --- Race calendar + BLUF briefing -------------------------------------------
 
 /**

@@ -13,6 +13,8 @@ import type {
   CarCategory,
   Condition,
   Driver,
+  Era,
+  NewEraInput,
   NewRaceInput,
   RaceEvent,
   RacingClass,
@@ -47,11 +49,12 @@ interface DbShape {
   recommendations: Recommendation[];
   settings: Record<string, unknown>;
   races: RaceEvent[];
+  eras: Era[];
 }
 
 function emptyDb(): DbShape {
   return {
-    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0 },
+    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0, eras: 0 },
     drivers: [],
     cars: [],
     tracks: [],
@@ -60,6 +63,7 @@ function emptyDb(): DbShape {
     recommendations: [],
     settings: {},
     races: [],
+    eras: [],
   };
 }
 
@@ -343,6 +347,47 @@ export class JsonStore implements Store {
     await this.init();
     this.db.settings[key] = value;
     await this.persist();
+  }
+
+  // eras ----------------------------------------------------------------------
+  async listEras(): Promise<Era[]> {
+    await this.init();
+    return [...this.db.eras].sort(
+      (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id - b.id,
+    );
+  }
+
+  async createEra(input: NewEraInput & { starts_at: string }): Promise<Era> {
+    await this.init();
+    const era: Era = {
+      id: this.nextId("eras"),
+      name: input.name,
+      starts_at: input.starts_at,
+      reason: input.reason ?? null,
+      created_by: input.created_by ?? null,
+      created_at: this.now(),
+    };
+    this.db.eras.push(era);
+    await this.persist();
+    return era;
+  }
+
+  async deleteEra(id: number): Promise<boolean> {
+    await this.init();
+    const before = this.db.eras.length;
+    this.db.eras = this.db.eras.filter((e) => e.id !== id);
+    const removed = this.db.eras.length < before;
+    if (removed) await this.persist();
+    return removed;
+  }
+
+  async purgeSessions(): Promise<number> {
+    await this.init();
+    const removed = this.db.sessions.length;
+    this.db.sessions = [];
+    this.db.recommendations = [];
+    await this.persist();
+    return removed;
   }
 
   // races ---------------------------------------------------------------------

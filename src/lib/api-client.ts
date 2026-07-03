@@ -6,7 +6,9 @@
 import type {
   Benchmark,
   Car,
+  Era,
   FactorWeights,
+  NewEraInput,
   NewRaceInput,
   RaceRow,
   RankingRow,
@@ -44,11 +46,12 @@ export const api = {
   tracks: () => jget<Track[]>("/api/tracks"),
   benchmarks: () => jget<Benchmark[]>("/api/benchmarks"),
 
-  rankings: (params: { track_id?: number; class?: string; condition?: string } = {}) => {
+  rankings: (params: { track_id?: number; class?: string; condition?: string; era_id?: number | "pre" } = {}) => {
     const q = new URLSearchParams();
     if (params.track_id != null) q.set("track_id", String(params.track_id));
     if (params.class) q.set("class", params.class);
     if (params.condition) q.set("condition", params.condition);
+    if (params.era_id != null) q.set("era_id", String(params.era_id));
     const qs = q.toString();
     return jget<RankingRow[]>(`/api/rankings${qs ? `?${qs}` : ""}`);
   },
@@ -118,6 +121,16 @@ export const api = {
 
   setWeights: (body: { preset?: string; weights?: FactorWeights }) =>
     jsend<{ ok: true; active: WeightsConfig; recompute: unknown }>("/api/rankings/weights", "POST", body),
+
+  // eras ------------------------------------------------------------------------
+  eras: () => jget<Era[]>("/api/eras"),
+
+  createEra: (input: NewEraInput) => jsend<{ ok: true; era: Era; recompute: unknown }>("/api/eras", "POST", input),
+
+  deleteEra: (id: number) => jsend<{ ok: true; recompute: unknown }>(`/api/eras/${id}`, "DELETE"),
+
+  purgeSessions: () =>
+    jsend<{ ok: true; sessions_removed: number; recompute: unknown }>("/api/admin/purge", "POST", { confirm: "PURGE" }),
 
   // race calendar + briefing --------------------------------------------------
   races: () => jget<RaceRow[]>("/api/races"),

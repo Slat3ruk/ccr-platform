@@ -55,17 +55,20 @@ export default function RankingsTable({
   rows,
   role = "manager",
   activeWeights,
+  archived = false,
 }: {
   rows: RankingRow[];
   role?: Role;
   activeWeights?: FactorWeights;
+  /** Archived-era view: factor breakdown only (the session list endpoint serves current data). */
+  archived?: boolean;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [detailSessions, setDetailSessions] = useState<Record<number, Session[]>>({});
   const weightFor = (key: keyof typeof FACTOR_WEIGHTS) => activeWeights?.[key] ?? FACTOR_WEIGHTS[key];
 
   const showFactors = role !== "driver";
-  const showSessions = role !== "driver";
+  const showSessions = role !== "driver" && !archived;
   const showDebug = role === "admin";
   const colSpan = role === "driver" ? 4 : 10;
 

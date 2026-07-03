@@ -237,6 +237,43 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Data eras + admin control panel (round 5, 2026-07-02)
+
+**Eras — "lines in the sand", fully recallable (nothing auto-deletes).** An era
+is a named timestamp boundary (`eras` store collection / `ccr.eras` table),
+typically drawn when an LMU patch/BoP change makes older data non-comparable.
+Sessions are assigned by `created_at` — no FK, no row migration — so deleting an
+era ("Undo line") merges its sessions straight back. Boundary logic is pure in
+`src/lib/eras.ts` (`currentEra` = latest `starts_at <= now`; none ⇒ implicit
+"all data" era = exact pre-feature behaviour; future-dated eras are inert until
+reached; ranges are `[starts_at, next.starts_at)`, newest open-ended). 14 tests.
+
+- **Live board = current era only.** `recomputeAll` filters sessions through
+  `currentEraRange` before scoring. The scoring core is now extracted as
+  `scoreGroups(sessions, cars, benchmarks, config, nowMs)` (pure, no store
+  writes) shared by both paths.
+- **Archived eras are viewable, not persisted:** `GET /api/rankings?era_id=N`
+  (or `era_id=pre` for the span before the first era) recomputes that era
+  ad-hoc via `scoreGroups` and returns rows with negative ids. The rankings
+  page gets an Era selector (manager/admin, only when eras exist) + an amber
+  "viewing archived era" banner; `RankingsTable archived` prop suppresses the
+  contributing-sessions expander there (the sessions endpoint serves current
+  data, so listing would mislead).
+- **API:** `GET/POST /api/eras` (POST recomputes; `starts_at` optional,
+  backdating allowed), `DELETE /api/eras/[id]` (recomputes). **Purge** =
+  `POST /api/admin/purge` requiring body `{confirm:"PURGE"}` — deletes ALL
+  sessions (tyres cascade), clears recommendations; cars/tracks/benchmarks/
+  eras/races/settings survive. Verified end-to-end incl. purge (backup→purge→
+  restore dance, since the dev store is memory-cached).
+- **`/control-panel`** (admin-gated client-side; sidebar "Admin" section only
+  renders for the admin role): status cards (current era, weighting, sessions,
+  rankings + recompute), "draw a line" form (name/reason/optional backdate via
+  datetime-local), era history with per-era "Undo line", and a danger zone
+  where purge only arms after typing PURGE. **This page is slated to be
+  dressed as the GT3 steering-wheel overlay** (`public/steering-wheel-logo.png`,
+  transparent, logo baked into the LCD) — dials on the wheel's rotaries, status
+  panel beside it. Features first, dressing later (user decision).
+
 ### Feedback round 1 (2026-07-01)
 
 - **Confidence uses a diminishing-returns curve** (updated round 3):
