@@ -237,6 +237,41 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Controlled setup-type dropdown (round 8, 2026-07-03)
+
+**The free-text "Setup version" field became a fixed 7-item dropdown + a
+separate optional version field.** Problem it solved: free text let the same
+setup be named "Enduro 1" one time and "Endurance" the next, which fragmented
+best-setup grouping into separate sub-buckets that each then failed the ≥3-run
+threshold — quietly defeating round 6. The 7 types are a controlled enum
+(`SETUP_TYPES` in `types/index.ts`), a purpose (Quali/Race/Endurance) × trim
+(Esport/Safe/Wet) matrix taken from the setup provider's own convention.
+**Confirmed against two sources:** the documented codes (E R, E Q, S R, S Q,
+WET R, WET Q, Endu) *and* the real `.svm` filenames (`R Esport`, `Q Safe`,
+`Endu Esport`…) — same 7. Note the real files **drift from the documented
+convention** (`GO 1.3.3 GMR001 HYP IMO R Esport` vs the doc's `GO4 AMR LMGT3
+BRN E R01`), which is exactly why we capture structured parts and never match
+on the filename string. Stored as the readable label ("Race · Esport"); the
+provider shorthand shows in the dropdown.
+
+**`setup_version` stays free text but changed meaning** — it's now the
+pack/game version the driver ran (`1.3.3`, `GMR001`), not the setup identity.
+Captured now, interpreted later: the data must exist before any staleness/
+currency flag can be built on it, and the version strings drift too much to
+structure. Deliberately NOT a score penalty yet — an old setup isn't a slower
+car, and there are already two currency mechanisms (SVS recency + eras); a
+future "latest per setup line" *flag* (derived from logged data, not the global
+game version — releases are staggered) is the planned use.
+
+**best-setup grouping** now keys off `setup_type` when present (all versions of
+"Race · Esport" group as one setup line), falling back to legacy free-text
+`setup_version` for pre-dropdown sessions — round-6 behaviour and existing data
+untouched. Full stack: `setup_type` on Session/SessionInput/NewSessionRecord;
+validation whitelists against `SETUP_TYPES` (bogus values silently dropped);
+Postgres column + additive migration; JSON store; both session routes; the
+session-log table shows type + version. 2 new tests (70 total). Verified
+end-to-end (valid type round-trips, bogus dropped to null).
+
 ### Driver leaderboard (round 7, 2026-07-03)
 
 **Friendly cross-driver competition — badges + charts, no role gating.** New
