@@ -237,6 +237,37 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Driver leaderboard (round 7, 2026-07-03)
+
+**Friendly cross-driver competition — badges + charts, no role gating.** New
+`/drivers` page ("driver-board" in the sidebar, its own "Leaderboard" section).
+Reuses the exact same per-session factor scores the car rankings use
+(`scoreSession`), just aggregated by `driver_id` across every car/track/
+condition a driver has logged instead of by `(car, track, condition)` —
+the factors are already benchmark-normalised 0–100 so a driver's GT3 laps at
+Le Mans and LMP2 laps at Spa are directly comparable with no new scoring math.
+New `src/lib/driverAnalytics.ts`: `computeDriverStats` (SVS-weighted averages
+per driver, same weighting principle as car aggregation) + `computeBadges`.
+
+**Badge catalog** — top 3 per badge get gold/silver/bronze, gated behind
+`MIN_SESSIONS_FOR_BADGE` (=5, tunable const in scoring.ts) except Iron Man
+(session count *is* the metric, gating it would be circular): Fastest Overall
+(pace), Mr/Mrs Consistent, Tyre Whisperer, All-Rounder (smallest spread across
+a driver's own 5 factor averages — no weak spot), Iron Man (most sessions
+logged) on the positive side; **Tyre Killer** and **Lawn Mower** (most
+off-tracks) on a separate "Roast wall" card — same underlying numbers, worst
+end of the scale, for laughs.
+
+**Three hand-rolled inline-SVG charts** (no new dependency, on-brand CSS vars):
+a sessions-logged bar chart, a consistency-over-time line chart overlaying the
+top 5 most-active drivers, and per-driver tyre-wear ring gauges (green/amber/
+red). Read-only, ad-hoc (`/api/driver-stats`, no persistence), scoped to the
+current era like the live rankings board. **V1 is "overall" only** (all cars/
+tracks/conditions blended per driver) — per-track/per-car drill-down was
+explicitly deferred until the overall badges prove which ones people actually
+care about. 9 tests in `driverAnalytics.test.ts` (68 total). Verified live
+with 3 seeded drivers across all 7 badges + both roast entries + all 3 charts.
+
 ### Best-setup scoring (round 6, 2026-07-02)
 
 **A car is ranked by its BEST qualifying setup, not a blend of everything tried.**
