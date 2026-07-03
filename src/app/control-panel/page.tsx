@@ -44,6 +44,7 @@ export default function ControlPanelPage() {
   const [purgeText, setPurgeText] = useState("");
   const [purging, setPurging] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const [e, w, status] = await Promise.all([api.eras(), api.weights().catch(() => null), api.status()]);
@@ -90,11 +91,21 @@ export default function ControlPanelPage() {
   }
 
   async function removeEra(era: Era) {
+    if (removingId != null) return; // guard against a double-click / concurrent delete
     if (!confirm(`Undo the “${era.name}” line? Sessions are untouched — they flow back into the previous era, and the board recomputes.`)) return;
     setMsg(null);
-    await api.deleteEra(era.id);
-    await load();
-    setMsg({ kind: "success", text: `Era “${era.name}” removed — its sessions rejoined the previous era.` });
+    setRemovingId(era.id);
+    try {
+      await api.deleteEra(era.id);
+      await load();
+      setMsg({ kind: "success", text: `Era “${era.name}” removed — its sessions rejoined the previous era.` });
+    } catch (err) {
+      // e.g. a 404 if it was already deleted in another tab — refresh so the UI reflects reality.
+      await load().catch(() => {});
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to remove era." });
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   async function purge() {
@@ -249,8 +260,12 @@ export default function ControlPanelPage() {
                       {e.reason ? ` · ${e.reason}` : ""}
                     </span>
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={() => removeEra(e)}>
-                    Undo line
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => removeEra(e)}
+                    disabled={removingId != null}
+                  >
+                    {removingId === e.id ? "Removing…" : "Undo line"}
                   </button>
                 </div>
               ))}
