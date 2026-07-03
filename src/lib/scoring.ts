@@ -234,11 +234,16 @@ function completenessScore(lapCount: number): number {
   return clamp((lapCount / 10) * 80); // 0→0 .. 10→80, decays below a stint
 }
 
-const SESSION_TYPE_REPRESENTATIVENESS: Record<SessionType, number> = {
+// This platform's data is gathered from dedicated TESTING (run in Practice
+// sessions), not race telemetry — so Practice is the primary, authoritative
+// source and must NOT be penalised. Race stays top (equally valid if ever
+// logged); a pure Quali hotlap is slightly less representative of stint pace.
+// The "thin hotlap vs substantial run" distinction is carried by `completeness`
+// (lap count), not this tier. Legacy "Test" rows fall back to Practice's value.
+const SESSION_TYPE_REPRESENTATIVENESS: Record<string, number> = {
   Race: 100,
-  Quali: 85,
-  Test: 70,
-  Practice: 60,
+  Practice: 100,
+  Quali: 90,
 };
 
 const CONDITION_REPRESENTATIVENESS: Record<Condition, number> = {
@@ -249,7 +254,8 @@ const CONDITION_REPRESENTATIVENESS: Record<Condition, number> = {
 };
 
 function representativenessScore(type: SessionType, condition: Condition): number {
-  return clamp(SESSION_TYPE_REPRESENTATIVENESS[type] * CONDITION_REPRESENTATIVENESS[condition]);
+  const typeScore = SESSION_TYPE_REPRESENTATIVENESS[type] ?? 100; // unknown/legacy (e.g. "Test") → treat as Practice
+  return clamp(typeScore * CONDITION_REPRESENTATIVENESS[condition]);
 }
 
 function recencyScore(daysSince: number): number {

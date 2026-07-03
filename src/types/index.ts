@@ -12,13 +12,13 @@ export type CarCategory = "Hypercar" | "GT3" | "LMP2" | "LMP3";
 /** Benchmark / ranking class. LMP2 splits into ELMS / WEC spec sheets. */
 export type RacingClass = "LMGT3" | "LMH" | "LMP3" | "LMP2-ELMS" | "LMP2-WEC";
 
-export type SessionType = "Practice" | "Quali" | "Race" | "Test";
+export type SessionType = "Practice" | "Quali" | "Race";
 export type Condition = "Dry" | "Wet" | "Mixed";
 export type DriverRole = "driver" | "engineer" | "admin";
 
 export const CAR_CATEGORIES: CarCategory[] = ["Hypercar", "GT3", "LMP2", "LMP3"];
 export const RACING_CLASSES: RacingClass[] = ["LMGT3", "LMH", "LMP3", "LMP2-ELMS", "LMP2-WEC"];
-export const SESSION_TYPES: SessionType[] = ["Practice", "Quali", "Race", "Test"];
+export const SESSION_TYPES: SessionType[] = ["Practice", "Quali", "Race"];
 export const CONDITIONS: Condition[] = ["Dry", "Wet", "Mixed"];
 
 /**

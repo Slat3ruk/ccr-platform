@@ -258,6 +258,25 @@ describe("sessionValueScore", () => {
     const nowMs = Date.parse("2026-07-01T00:00:00.000Z");
     expect(sessionValueScore(stale, nowMs).score).toBeLessThan(sessionValueScore(fresh, nowMs).score);
   });
+
+  it("does not penalise Practice (the platform's primary data source) vs Race on representativeness", () => {
+    const nowMs = Date.parse("2026-07-01T00:00:00.000Z");
+    const race = makeSession({ session_type: "Race", created_at: "2026-07-01T00:00:00.000Z" });
+    const practice = makeSession({ session_type: "Practice", created_at: "2026-07-01T00:00:00.000Z" });
+    expect(sessionValueScore(practice, nowMs).components.representativeness).toBe(100);
+    expect(sessionValueScore(practice, nowMs).components.representativeness).toBe(
+      sessionValueScore(race, nowMs).components.representativeness,
+    );
+  });
+
+  it("treats a legacy 'Test' session type as Practice (no NaN, full representativeness)", () => {
+    const nowMs = Date.parse("2026-07-01T00:00:00.000Z");
+    // Cast: "Test" is no longer a valid SessionType, but old rows may still carry it.
+    const legacy = makeSession({ session_type: "Test" as never, created_at: "2026-07-01T00:00:00.000Z" });
+    const svs = sessionValueScore(legacy, nowMs);
+    expect(Number.isFinite(svs.score)).toBe(true);
+    expect(svs.components.representativeness).toBe(100);
+  });
 });
 
 // --- §3.7 aggregate + confidence + weights -----------------------------------

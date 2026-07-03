@@ -31,7 +31,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [driverName, setDriverName] = useState(edit?.driverName ?? "");
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
   const [trackId, setTrackId] = useState(s ? String(s.track_id) : "");
-  const [sessionType, setSessionType] = useState<string>(s?.session_type ?? "Test");
+  const [sessionType, setSessionType] = useState<string>(s?.session_type ?? "Practice");
   const [condition, setCondition] = useState<string>(s?.condition_reported ?? "Dry");
   const [bestLap, setBestLap] = useState(s ? formatLapTime(s.best_lap_time) : "");
   const [avgLap, setAvgLap] = useState(s ? formatLapTime(s.avg_lap_time) : "");
@@ -74,6 +74,14 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       excluded: parsedLaps.laps.length - usable.length,
     };
   }, [parsedLaps]);
+
+  // Soft, non-blocking nudge if the chosen setup's trim clashes with the logged
+  // weather (e.g. a Wet setup in the Dry, or a dry setup in the Wet). Cross-
+  // testing is legit, so this never blocks the submit — just a sanity check.
+  const setupIsWet = setupType.includes("Wet");
+  const setupWeatherMismatch =
+    setupType !== "" &&
+    ((setupIsWet && condition !== "Wet") || (!setupIsWet && condition === "Wet"));
 
   /** Paste laps → best/avg/count fill themselves (still editable afterwards). */
   function onLapTimesChange(text: string) {
@@ -351,6 +359,11 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
             <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder="e.g. 1.3.3 or GMR001" />
           </div>
         </div>
+        {setupWeatherMismatch && (
+          <div className="lap-parse" style={{ color: "var(--yellow)", marginTop: -6 }}>
+            ⚠ You picked a {setupIsWet ? "Wet" : "dry-weather"} setup but logged {condition} conditions — fine if that’s intended, just flagging it.
+          </div>
+        )}
         <div className="field">
           <label>Comments <span className="hint">(optional)</span></label>
           <textarea rows={3} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Understeer on entry, strong on traction…" />
