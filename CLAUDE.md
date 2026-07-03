@@ -237,6 +237,42 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Benchmark sync now works — keyless public CSV + auto-create tracks (round 10, 2026-07-03)
+
+**The "Sync from Ohne Speed" button was dead and mis-calibrated; now it works
+with zero config.** Two problems fixed:
+- It was gated on `GOOGLE_SHEETS_API_KEY`/`GOOGLE_SHEETS_ID` env vars (never
+  set) → silently kept seed data. And the parser (calibrated offline on a saved
+  HTML copy) read tier columns 4–9, but the **live** grid has them at
+  3/4/5/7/9/10 — so it would have produced garbage even with keys.
+- Fix: the Ohne Speed sheet is **published-to-web (public)**, so we read the
+  **keyless CSV export** of the master tab — no API key, no secret. The button
+  just works.
+
+**Ohne Speed sheet reference (so nobody has to re-decode it):**
+- Published-doc id: `2PACX-1vTN03UvJDm99byA6vQPZHKOCYVvfxLu1zkJAzdaKyROykzEKY2-Xl1rl1q5znZEf36m88dxMKsY2eaO`
+  (hardcoded default, override via `OHNE_SPEED_PUBLISHED_ID`).
+- Master laptimes tab **gid `1766901750`** (override via `OHNE_SPEED_GID`). The
+  doc has 42 tabs; this is the one with the all-class benchmark grid.
+- CSV URL: `https://docs.google.com/spreadsheets/d/e/<id>/pub?output=csv&gid=<gid>`.
+- **Live layout:** per-class grid; each data row col0 = "<track><CLASS>" (e.g.
+  "SpaLMGT3"), col1 = track, col2 = patch, tiers at cols **3/4/5/7/9/10** =
+  Alien / Competitive / Good / Midpack / Tail-ender / Offline (the sheet's own
+  labels; the 103%/105% columns are unlabelled → skipped). All rows Dry.
+- Class from col0's suffix after the track string. GTE rows skipped.
+
+**Auto-create tracks:** matching is **exact-normalized only** now — the old
+fuzzy/contains match would collapse layout variants ("Bahrain (wec)" →
+"Bahrain") onto one track and clobber each other's benchmarks. A genuine miss
+creates the track, so a new circuit/layout on the sheet flows straight through.
+`SyncResult` gained `tracks_created`; a minimal RFC-4180 CSV parser was added.
+
+**Verified live:** pulled 145 rows (29 tracks × 5 classes, all Dry), 0 tracks
+created (all existed), tiers exact vs the sheet (Spa LMGT3 alien 2:17.12 →
+offline 2:26.07). Seed placeholders replaced with real data. **Wet benchmarks
+stay a separate derived layer (dry × 5–10% penalty) for later — this is the dry
+source-of-truth pull.**
+
 ### "Test" session type dropped + representativeness recalibrated (round 9, 2026-07-03)
 
 **Rooted in the data-collection reality: drivers run dedicated TESTS (in
