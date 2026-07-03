@@ -237,6 +237,32 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Wet benchmarks (derived, admin-tunable) + driver weighting (round 11, 2026-07-03/04)
+
+**Wet benchmarks are DERIVED, not sourced** (the sheet is dry-only): every Wet
+tier = dry × (1 + penalty/100). Penalty defaults to **8%** (LMU dry→wet loss
+~5–10%; Le Mans 3:30 lap ≈ 15–25s ≈ 7–12%), stored in setting `wet_penalty`,
+**admin-tunable in the control panel** ("Wet pace penalty" card).
+- `deriveWetBenchmarks(store, pct)` in `benchmark-sync.ts` rebuilds all Wet rows
+  from current Dry (upsert-keyed on track/class/Wet — no stale rows); wet rows
+  tagged `patch_version` "<dry> (wet +N%)".
+- `GET/POST /api/benchmarks/wet` (penalty read / set 0–30 → regenerate +
+  recompute); api-client `wetPenalty()`/`setWetPenalty()`.
+- A **dry sync now also regenerates wet** at the stored penalty, so wet tracks
+  fresh dry data. Scoring unchanged — wet sessions already look up a
+  (track,class,Wet) benchmark (Dry fallback stays for Mixed etc.).
+- Per-track hand-tuning of wet is a future layer; this is a uniform global %.
+- Verified: 290 benchmarks (145 Dry + 145 Wet), Spa LMGT3 wet alien 2:28.09 =
+  dry 2:17.12 × 1.08 exact.
+
+**Driver can switch the weighting preset (but not edit raw weights).**
+`WeightsControl` gate renamed `canEditRaw` (role !== "driver"): everyone gets
+the preset dropdown; the "Custom…" option + ⚙ slider editor are manager/admin
+only. A driver viewing a manager-set Custom weighting sees it as a disabled
+option and can still pick a preset. NOTE: weighting is global/shared, so a
+driver's preset change applies to everyone + recomputes (consistent with the
+existing model; revisit if per-user views land with auth).
+
 ### Benchmark sync now works — keyless public CSV + auto-create tracks (round 10, 2026-07-03)
 
 **The "Sync from Ohne Speed" button was dead and mis-calibrated; now it works
