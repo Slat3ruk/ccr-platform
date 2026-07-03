@@ -237,6 +237,30 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### "Test" session type dropped + representativeness recalibrated (round 9, 2026-07-03)
+
+**Rooted in the data-collection reality: drivers run dedicated TESTS (in
+Practice sessions), never real races.** Two linked changes:
+
+- **`SessionType` is now `Practice | Quali | Race`** — "Test" removed (in LMU,
+  testing *is* a Practice session, so it was a redundant label). Form defaults
+  to Practice. No data migration: the representativeness lookup falls back to
+  100 for any unknown/legacy type, so old "Test" rows still score (and never
+  NaN).
+- **SVS `representativeness` recalibrated so testing isn't self-penalised.** Old
+  map was a race-weekend model (Race 100 > Quali 85 > Test 70 > Practice 60) —
+  but with every session a Practice test, that sub-score sat pinned at the low
+  end for everyone, dragging all SVS/confidence down uniformly *and* not
+  discriminating. New map: **Practice 100** (the primary source), Race 100,
+  Quali 90 (pure hotlap slightly less representative of stint pace). The
+  hotlap-vs-long-run signal is carried by `completeness` (lap count), not this
+  tier. Dry/Wet/Mixed condition multiplier unchanged (benchmark sheet is Dry).
+- **Soft weather-vs-setup hint** on the log form (non-blocking amber note): if
+  the chosen setup's trim clashes with logged weather (Wet setup in the Dry, or
+  a dry setup in the Wet). Cross-testing is legit → never blocks submit.
+
+2 new SVS tests (72 total).
+
 ### Controlled setup-type dropdown (round 8, 2026-07-03)
 
 **The free-text "Setup version" field became a fixed 7-item dropdown + a
