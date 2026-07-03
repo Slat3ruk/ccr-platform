@@ -24,6 +24,13 @@ import type { Condition, RacingClass } from "@/types";
 import { getStore } from "./db";
 import type { Store } from "./db/types";
 
+// Wet pace penalty. LMU dry→fully-wet loss runs ~5–10% (per Ohne Speed / user
+// research; e.g. a 3:30 Le Mans lap → 15–25s ≈ 7–12%). We DERIVE Wet benchmark
+// tiers as dry × (1 + pct/100) rather than sourcing them — the sheet is dry-only.
+// The factor is admin-tunable (control panel, stored setting "wet_penalty").
+export const DEFAULT_WET_PENALTY_PCT = 8;
+export const WET_PENALTY_SETTING = "wet_penalty";
+
 export interface SyncResult {
   ok: boolean;
   source: "google-sheets" | "cache";
@@ -111,6 +118,36 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
   const bits = [`Synced ${upserted} benchmark rows from the Ohne Speed sheet`];
   if (tracksCreated > 0) bits.push(`created ${tracksCreated} new track${tracksCreated === 1 ? "" : "s"}`);
   return { ok: true, source: "google-sheets", upserted, tracks_created: tracksCreated, message: `${bits.join(" · ")}.` };
+}
+
+/**
+ * Regenerate Wet benchmark tiers from the current Dry sheets, scaling every tier
+ * by (1 + pct/100). Upsert-keyed on (track, class, Wet), so re-running just
+ * overwrites — no stale rows. Returns how many wet rows were written. A uniform
+ * global penalty for now; per-track hand-tuning can layer on later.
+ */
+export async function deriveWetBenchmarks(store: Store = getStore(), pct: number = DEFAULT_WET_PENALTY_PCT): Promise<number> {
+  await store.init();
+  const factor = 1 + pct / 100;
+  const dry = (await store.listBenchmarks()).filter((b) => b.condition === "Dry");
+  let n = 0;
+  for (const d of dry) {
+    await store.upsertBenchmark({
+      track_id: d.track_id,
+      class: d.class,
+      condition: "Wet",
+      alien_time: d.alien_time * factor,
+      competitive_time: d.competitive_time * factor,
+      good_time: d.good_time * factor,
+      midpack_time: d.midpack_time * factor,
+      tail_ender_time: d.tail_ender_time * factor,
+      offline_time: d.offline_time * factor,
+      data_readiness_pct: d.data_readiness_pct,
+      patch_version: d.patch_version ? `${d.patch_version} (wet +${pct}%)` : `wet +${pct}%`,
+    });
+    n++;
+  }
+  return n;
 }
 
 // --- parsing helpers ---------------------------------------------------------

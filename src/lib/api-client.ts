@@ -113,6 +113,12 @@ export const api = {
     return res.json();
   },
 
+  // wet benchmarks (derived from dry × penalty) ------------------------------
+  wetPenalty: () => jget<{ penalty_pct: number; default_pct: number }>("/api/benchmarks/wet"),
+
+  setWetPenalty: (penalty_pct: number) =>
+    jsend<{ ok: true; penalty_pct: number; derived: number }>("/api/benchmarks/wet", "POST", { penalty_pct }),
+
   async recompute() {
     const res = await fetch("/api/rankings/recompute", { method: "POST" });
     return res.json();

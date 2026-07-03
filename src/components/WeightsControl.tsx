@@ -53,7 +53,10 @@ export default function WeightsControl({
       .catch(() => {});
   }, []);
 
-  const canEdit = role !== "driver";
+  // Everyone can switch the WEIGHTING (pick a preset); only manager/admin can
+  // edit the raw WEIGHTS (the custom-slider panel). Drivers get the dropdown
+  // minus the "Custom…" option and the ⚙ editor.
+  const canEditRaw = role !== "driver";
   const presetNames = useMemo(() => presets.map((p) => p.name), [presets]);
   const isKnown = active ? presetNames.includes(active.preset) : true;
   const selectValue = active ? (isKnown ? active.preset : CUSTOM) : "Balanced";
@@ -87,18 +90,6 @@ export default function WeightsControl({
     }
   }
 
-  // Drivers just see the active weighting, read-only.
-  if (!canEdit) {
-    return (
-      <div className="field" style={{ minWidth: 0 }}>
-        <label>Weighting</label>
-        <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
-          {active?.preset ?? "Balanced"}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="field" style={{ minWidth: 168 }}>
@@ -118,20 +109,28 @@ export default function WeightsControl({
                 {p.name}
               </option>
             ))}
-            <option value={CUSTOM}>Custom…</option>
+            {canEditRaw ? (
+              <option value={CUSTOM}>Custom…</option>
+            ) : (
+              // Driver viewing a manager-set custom weighting: show it (disabled)
+              // so the dropdown reads correctly; they can still pick a preset.
+              !isKnown && <option value={CUSTOM} disabled>{active?.preset ?? "Custom"}</option>
+            )}
           </select>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            title="Fine-tune the factor weights"
-            onClick={() => (open ? setOpen(false) : openPanel())}
-          >
-            ⚙
-          </button>
+          {canEditRaw && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              title="Fine-tune the factor weights"
+              onClick={() => (open ? setOpen(false) : openPanel())}
+            >
+              ⚙
+            </button>
+          )}
         </div>
       </div>
 
-      {open && (
+      {canEditRaw && open && (
         <div className="weights-panel">
           <div className="flex spread" style={{ marginBottom: 10 }}>
             <strong style={{ fontSize: 13 }}>Custom weighting</strong>

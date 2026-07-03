@@ -46,12 +46,22 @@ export default function ControlPanelPage() {
   const [recomputing, setRecomputing] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
 
+  // wet benchmark penalty
+  const [wetPct, setWetPct] = useState("");
+  const [wetSaving, setWetSaving] = useState(false);
+
   const load = useCallback(async () => {
-    const [e, w, status] = await Promise.all([api.eras(), api.weights().catch(() => null), api.status()]);
+    const [e, w, status, wet] = await Promise.all([
+      api.eras(),
+      api.weights().catch(() => null),
+      api.status(),
+      api.wetPenalty().catch(() => null),
+    ]);
     setEras(e);
     if (w) setWeights(w.active);
     setCounts(status.counts);
     setBackend(status.backend);
+    if (wet) setWetPct(String(wet.penalty_pct));
     setLoading(false);
   }, []);
 
@@ -134,6 +144,26 @@ export default function ControlPanelPage() {
       setMsg({ kind: "success", text: "Rankings recomputed." });
     } finally {
       setRecomputing(false);
+    }
+  }
+
+  async function saveWetPenalty(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const pct = Number(wetPct);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 30) {
+      setMsg({ kind: "error", text: "Wet penalty must be a number between 0 and 30 (%)." });
+      return;
+    }
+    setWetSaving(true);
+    try {
+      const res = await api.setWetPenalty(pct);
+      await load();
+      setMsg({ kind: "success", text: `Wet penalty set to +${res.penalty_pct}% — regenerated ${res.derived} wet benchmark rows from the dry sheets.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to update wet penalty." });
+    } finally {
+      setWetSaving(false);
     }
   }
 
@@ -236,6 +266,37 @@ export default function ControlPanelPage() {
                 <button className="btn" type="submit" disabled={busy}>
                   {busy ? "Starting…" : "Start new era"}
                 </button>
+              </form>
+            </div>
+
+            {/* ---- Wet benchmark penalty ---- */}
+            <div className="card">
+              <h2>Wet pace penalty</h2>
+              <div className="card-sub">
+                The Ohne Speed sheet is dry-only. Wet benchmark tiers are <strong>derived</strong> as{" "}
+                dry × (1 + penalty). LMU dry→fully-wet loss runs ~5–10% (a 3:30 Le Mans lap ≈ 15–25s).
+                Changing this regenerates every wet tier and recomputes wet rankings.
+              </div>
+              <form onSubmit={saveWetPenalty}>
+                <div className="row">
+                  <div className="field" style={{ maxWidth: 160, flex: "0 0 auto" }}>
+                    <label>Penalty %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={30}
+                      step={0.5}
+                      value={wetPct}
+                      onChange={(e) => setWetPct(e.target.value)}
+                      placeholder="8"
+                    />
+                  </div>
+                  <div className="field" style={{ justifyContent: "flex-end" }}>
+                    <button className="btn" type="submit" disabled={wetSaving}>
+                      {wetSaving ? "Regenerating…" : "Save & regenerate wet"}
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
 
