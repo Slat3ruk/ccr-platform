@@ -118,14 +118,16 @@ CREATE TABLE IF NOT EXISTS recommendations (
   session_ids        JSONB,
   confidence_score   FLOAT NOT NULL CHECK (confidence_score BETWEEN 0.0 AND 1.0),
   weights_preset     VARCHAR(50),
+  best_setup         VARCHAR(255),
   last_updated       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (car_id, track_id, class, condition)
 );
 CREATE INDEX IF NOT EXISTS idx_recommendations_track ON recommendations(track_id, class);
 CREATE INDEX IF NOT EXISTS idx_recommendations_score ON recommendations(car_score DESC);
--- Additive column for older DBs created before the weighting feature.
+-- Additive columns for older DBs created before the weighting / best-setup features.
 ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50);
+ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255);
 
 -- Settings (key/value — e.g. the active Car-Score weighting preset) -----------
 CREATE TABLE IF NOT EXISTS settings (

@@ -145,6 +145,8 @@ export interface Recommendation {
   confidence_score: number;
   /** Name of the weighting preset this score was computed under (transparency). */
   weights_preset?: string | null;
+  /** The setup_version that produced this score (best qualifying setup), or null when blended. */
+  best_setup?: string | null;
   last_updated: string;
 }
 

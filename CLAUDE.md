@@ -237,6 +237,30 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Best-setup scoring (round 6, 2026-07-02)
+
+**A car is ranked by its BEST qualifying setup, not a blend of everything tried.**
+Inside `scoreGroups`, each (car, track, condition) bucket is sub-grouped by
+`setup_version` (trimmed; blank = one "unspecified" bucket). A setup qualifies
+once it has ≥ `MIN_SESSIONS_PER_SETUP` (=3, tunable const in scoring.ts) runs;
+among qualifiers, each setup's latest `SCORING_WINDOW` runs are aggregated and
+the **highest Car Score wins** (the score is already race-weighted, so the winner
+is the best race package, not a hot-lap). Rationale: blending punishes thorough
+testing — a car you tried 4 setups on gets dragged down by the 2 duds you've
+since abandoned. Guard against max-of-noise = the ≥3 threshold. **Fallbacks keep
+it harmless:** if no setup clears the bar (thin data, or all runs on one <3-run
+setup), it blends the bucket's latest `SCORING_WINDOW` = exact pre-feature
+behaviour; blank/untagged setups collapse to that same blend. The winning
+`setup_version` is stamped on the recommendation (`best_setup`, null when
+blended/unspecified) and shown as a "setup …" tag under the car on the board;
+`sessions_used`/`confidence` reflect the winning setup's runs only. SVS is now
+computed for every in-range session (per-session quality, setup-independent), not
+just the windowed ones. Store: `best_setup` on recommendations (JSON flows via
+spread; Postgres column + additive migration). 5 tests in `recompute.test.ts`.
+Verified in-game-shaped: 3 faster "Aero B" runs flipped the Ferrari from
+"Basic V2" 88.2 → "Aero B" 95.2 (using only the 3 winning runs), reverted on
+delete.
+
 ### Data eras + admin control panel (round 5, 2026-07-02)
 
 **Eras — "lines in the sand", fully recallable (nothing auto-deletes).** An era

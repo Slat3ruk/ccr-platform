@@ -568,6 +568,25 @@ table.rank tbody tr.expanded {
   color: var(--text-dim);
 }
 
+.car-cell .setup-tag {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.car-cell .setup-tag .setup-ico {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: var(--bg-active);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 5px;
+}
+
 .score-pill {
   display: inline-flex;
   align-items: center;

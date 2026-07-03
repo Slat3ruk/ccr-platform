@@ -122,6 +122,7 @@ function rowToRecommendation(r: any): Recommendation {
     session_ids: r.session_ids ?? [],
     confidence_score: Number(r.confidence_score),
     weights_preset: r.weights_preset ?? null,
+    best_setup: r.best_setup ?? null,
     last_updated: iso(r.last_updated),
   };
 }
@@ -194,6 +195,7 @@ export class PostgresStore implements Store {
         created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
+    await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ccr.eras (
@@ -434,17 +436,17 @@ export class PostgresStore implements Store {
     const res = await this.q(
       `INSERT INTO recommendations
          (car_id, track_id, class, condition, car_score, pace_factor, consistency_factor,
-          tyre_factor, drivability_factor, mistakes_factor, sessions_used, session_ids, confidence_score, weights_preset)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          tyre_factor, drivability_factor, mistakes_factor, sessions_used, session_ids, confidence_score, weights_preset, best_setup)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        ON CONFLICT (car_id, track_id, class, condition) DO UPDATE SET
          car_score=EXCLUDED.car_score, pace_factor=EXCLUDED.pace_factor,
          consistency_factor=EXCLUDED.consistency_factor, tyre_factor=EXCLUDED.tyre_factor,
          drivability_factor=EXCLUDED.drivability_factor, mistakes_factor=EXCLUDED.mistakes_factor,
          sessions_used=EXCLUDED.sessions_used, session_ids=EXCLUDED.session_ids,
          confidence_score=EXCLUDED.confidence_score, weights_preset=EXCLUDED.weights_preset,
-         last_updated=CURRENT_TIMESTAMP
+         best_setup=EXCLUDED.best_setup, last_updated=CURRENT_TIMESTAMP
        RETURNING *`,
-      [r.car_id, r.track_id, r.class, r.condition, r.car_score, r.pace_factor, r.consistency_factor, r.tyre_factor, r.drivability_factor, r.mistakes_factor, r.sessions_used, JSON.stringify(r.session_ids), r.confidence_score, r.weights_preset ?? null],
+      [r.car_id, r.track_id, r.class, r.condition, r.car_score, r.pace_factor, r.consistency_factor, r.tyre_factor, r.drivability_factor, r.mistakes_factor, r.sessions_used, JSON.stringify(r.session_ids), r.confidence_score, r.weights_preset ?? null, r.best_setup ?? null],
     );
     return rowToRecommendation(res.rows[0]);
   }

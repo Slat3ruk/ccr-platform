@@ -136,6 +136,11 @@ export default function RankingsTable({
                       <span className="car-cat">
                         {row.car_category} · {row.track_name}
                       </span>
+                      {row.best_setup && (
+                        <span className="setup-tag" title={`Best race package logged on setup “${row.best_setup}” — its runs set this score`}>
+                          <i className="setup-ico">setup</i> {row.best_setup}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="num">

@@ -26,6 +26,7 @@ import type { NewRecommendation, Store } from "./db/types";
 import {
   aggregateCarScore,
   DEFAULT_WEIGHTS_CONFIG,
+  MIN_SESSIONS_PER_SETUP,
   scoreSession,
   sessionValueScore,
   SCORING_WINDOW,
@@ -51,10 +52,19 @@ export interface GroupScores {
 }
 
 /**
- * Pure-ish scoring core: bucket sessions by (car, track, condition), score the
- * latest SCORING_WINDOW of each bucket under `config`, and return the would-be
- * recommendation rows. No store writes — callers decide whether to persist
- * (live recompute) or just serve the result (archived-era view).
+ * Pure-ish scoring core. Buckets sessions by (car, track, condition), then
+ * within each bucket scores the car by its BEST qualifying setup:
+ *   - sub-group by setup_version (trimmed; blank = one "unspecified" bucket);
+ *   - a setup qualifies once it has >= MIN_SESSIONS_PER_SETUP runs;
+ *   - among qualifying setups, aggregate each one's latest SCORING_WINDOW runs
+ *     and pick the highest Car Score (best race package, not a hot lap — the
+ *     score is already race-weighted);
+ *   - if NONE qualify (thin data, or all runs on one unspecified setup with
+ *     < MIN runs), fall back to blending the bucket's latest SCORING_WINDOW —
+ *     i.e. today's behaviour, so untagged setups collapse to the old model.
+ * The winning setup_version is recorded on the recommendation (null when blended
+ * or unspecified). No store writes — callers decide whether to persist (live
+ * recompute) or just serve the result (archived-era view).
  */
 export function scoreGroups(
   sessions: Session[],
@@ -64,6 +74,11 @@ export function scoreGroups(
   nowMs: number,
 ): GroupScores {
   const carById = new Map(cars.map((c) => [c.id, c]));
+
+  // Session Value Score is per-session quality (setup-independent), so compute
+  // it once for every in-range session — every one gets a fresh SVS on recompute.
+  const sessionValues = new Map<number, SvsResult>();
+  for (const s of sessions) sessionValues.set(s.id, sessionValueScore(s, nowMs));
 
   const groups = new Map<string, Session[]>();
   for (const s of sessions) {
@@ -77,41 +92,64 @@ export function scoreGroups(
   }
 
   const recommendations: NewRecommendation[] = [];
-  const sessionValues = new Map<number, SvsResult>();
 
   for (const [, groupSessions] of groups) {
-    // Latest N by created_at (listSessions already returns desc, but be safe).
-    const ordered = [...groupSessions].sort(
-      (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
-    );
-    const window = ordered.slice(0, SCORING_WINDOW);
-    if (window.length === 0) continue;
-
-    const first = window[0];
-    const car = carById.get(first.car_id);
+    const sample = groupSessions[0];
+    const car = carById.get(sample.car_id);
     if (!car) continue;
     const cls: RacingClass = categoryToClass(car.category);
-    const condition = first.condition_reported;
+    const condition = sample.condition_reported;
 
     // Benchmark for this combo; fall back to the Dry sheet if the condition
     // has no dedicated benchmark (we only seed Dry initially).
     const benchmark =
-      benchmarks.find((b) => b.track_id === first.track_id && b.class === cls && b.condition === condition) ??
-      benchmarks.find((b) => b.track_id === first.track_id && b.class === cls && b.condition === "Dry") ??
+      benchmarks.find((b) => b.track_id === sample.track_id && b.class === cls && b.condition === condition) ??
+      benchmarks.find((b) => b.track_id === sample.track_id && b.class === cls && b.condition === "Dry") ??
       null;
 
-    const scored = [];
-    for (const s of window) {
-      const svsResult = sessionValueScore(s, nowMs);
-      sessionValues.set(s.id, svsResult);
-      scored.push({ factors: scoreSession(s, benchmark), svs: svsResult.score });
+    // Aggregate a setup's (or the whole bucket's) latest SCORING_WINDOW runs.
+    const aggregateWindow = (list: Session[]) => {
+      const window = [...list]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)
+        .slice(0, SCORING_WINDOW);
+      const scored = window.map((s) => ({
+        factors: scoreSession(s, benchmark),
+        svs: sessionValues.get(s.id)?.score ?? 0,
+      }));
+      return { window, agg: aggregateCarScore(scored, config.weights) };
+    };
+
+    // Sub-group by setup (trimmed; "" = unspecified).
+    const bySetup = new Map<string, Session[]>();
+    for (const s of groupSessions) {
+      const key = (s.setup_version ?? "").trim();
+      const arr = bySetup.get(key);
+      if (arr) arr.push(s);
+      else bySetup.set(key, [s]);
     }
 
-    const agg = aggregateCarScore(scored, config.weights);
+    // Best qualifying setup wins; ties → higher score, then first seen.
+    let chosen: { window: Session[]; agg: ReturnType<typeof aggregateCarScore> } | null = null;
+    let bestSetup: string | null = null;
+    for (const [setup, list] of bySetup) {
+      if (list.length < MIN_SESSIONS_PER_SETUP) continue;
+      const res = aggregateWindow(list);
+      if (!chosen || res.agg.car_score > chosen.agg.car_score) {
+        chosen = res;
+        bestSetup = setup || null; // unspecified bucket → null
+      }
+    }
 
+    // No setup cleared the bar → blend the whole bucket (today's behaviour).
+    if (!chosen) {
+      chosen = aggregateWindow(groupSessions);
+      bestSetup = null;
+    }
+
+    const { window, agg } = chosen;
     recommendations.push({
-      car_id: first.car_id,
-      track_id: first.track_id,
+      car_id: sample.car_id,
+      track_id: sample.track_id,
       class: cls,
       condition,
       car_score: agg.car_score,
@@ -124,6 +162,7 @@ export function scoreGroups(
       session_ids: window.map((s) => s.id),
       confidence_score: agg.confidence_score,
       weights_preset: config.preset,
+      best_setup: bestSetup,
     });
   }
 

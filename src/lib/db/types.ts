@@ -80,6 +80,7 @@ export interface NewRecommendation {
   session_ids: number[];
   confidence_score: number;
   weights_preset?: string | null;
+  best_setup?: string | null;
 }
 
 /** Fields patchable on a race event (all optional; only present keys change). */
