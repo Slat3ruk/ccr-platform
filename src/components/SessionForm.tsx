@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
+import { sessionQualityWarnings } from "@/lib/quality";
 import { cleanLaps, stdDev } from "@/lib/scoring";
 import { formatLapTime, parseLapTime, parseLapTimes } from "@/lib/time";
-import { CONDITIONS, SESSION_TYPES, SETUP_TYPES, type Car, type Session, type Track } from "@/types";
+import { categoryToClass, CONDITIONS, SESSION_TYPES, SETUP_TYPES, type Benchmark, type Car, type Session, type Track } from "@/types";
 
 interface TyreState {
   fl: number;
@@ -27,6 +28,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
 
   const [cars, setCars] = useState<Car[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
 
   const [driverName, setDriverName] = useState(edit?.driverName ?? "");
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
@@ -97,7 +99,36 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   useEffect(() => {
     api.cars().then(setCars).catch(() => {});
     api.tracks().then(setTracks).catch(() => {});
+    api.benchmarks().then(setBenchmarks).catch(() => {});
   }, []);
+
+  // Soft, non-blocking data-quality flags (typos / dropped telemetry). Advisory
+  // only — the submit confirms rather than blocks. Uses the benchmark for the
+  // chosen car class + track + condition (Dry fallback) for the pace bracket.
+  const qualityWarnings = useMemo(() => {
+    const best = parseLapTime(bestLap);
+    const avg = parseLapTime(avgLap);
+    if (best == null || avg == null) return [];
+    const car = cars.find((c) => c.id === Number(carId));
+    const cls = car ? categoryToClass(car.category) : null;
+    const tid = Number(trackId);
+    const bm = cls
+      ? benchmarks.find((b) => b.track_id === tid && b.class === cls && b.condition === condition) ??
+        benchmarks.find((b) => b.track_id === tid && b.class === cls && b.condition === "Dry") ??
+        null
+      : null;
+    const avgWear = 100 - (tyres.fl + tyres.fr + tyres.rl + tyres.rr) / 4;
+    return sessionQualityWarnings(
+      {
+        best_lap_time: best,
+        avg_lap_time: avg,
+        lap_count: Number(lapCount) || 0,
+        avg_wear_pct: avgWear,
+        lap_times_count: parsedLaps.laps.length || null,
+      },
+      bm ? { alien_time: bm.alien_time, offline_time: bm.offline_time } : null,
+    );
+  }, [bestLap, avgLap, lapCount, tyres, carId, trackId, condition, cars, benchmarks, parsedLaps]);
 
   function reset(keepContext: boolean) {
     setBestLap("");
@@ -153,6 +184,14 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       tyre_rl_pct_remaining: tyres.rl,
       tyre_rr_pct_remaining: tyres.rr,
     };
+
+    // Soft data-quality gate: surface suspect values and let the user confirm.
+    if (qualityWarnings.length > 0) {
+      const ok = window.confirm(
+        `Heads up — ${qualityWarnings.length} possible issue${qualityWarnings.length > 1 ? "s" : ""} with this session:\n\n• ${qualityWarnings.join("\n\n• ")}\n\n${isEdit ? "Save" : "Log"} it anyway?`,
+      );
+      if (!ok) return;
+    }
 
     setBusy(true);
     try {
@@ -362,6 +401,17 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
         {setupWeatherMismatch && (
           <div className="lap-parse" style={{ color: "var(--yellow)", marginTop: -6 }}>
             ⚠ You picked a {setupIsWet ? "Wet" : "dry-weather"} setup but logged {condition} conditions — fine if that’s intended, just flagging it.
+          </div>
+        )}
+        {qualityWarnings.length > 0 && (
+          <div className="quality-warn">
+            <div className="qw-head">⚠ Sanity check — {qualityWarnings.length} thing{qualityWarnings.length > 1 ? "s" : ""} to double-check</div>
+            <ul>
+              {qualityWarnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+            <div className="qw-foot">Not blocking — you'll just be asked to confirm on {isEdit ? "save" : "log"}.</div>
           </div>
         )}
         <div className="field">

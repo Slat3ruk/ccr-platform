@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import SessionForm from "@/components/SessionForm";
 import { api } from "@/lib/api-client";
+import { sessionQualityWarnings } from "@/lib/quality";
 import { useRole } from "@/lib/role";
 import { formatLapTime } from "@/lib/time";
-import type { Car, Driver, Session, Track } from "@/types";
+import { categoryToClass, type Benchmark, type Car, type Driver, type Session, type Track } from "@/types";
 
 export default function SessionsPage() {
   const { role } = useRole();
@@ -16,22 +17,46 @@ export default function SessionsPage() {
   const [cars, setCars] = useState<Map<number, Car>>(new Map());
   const [tracks, setTracks] = useState<Map<number, Track>>(new Map());
   const [drivers, setDrivers] = useState<Map<number, Driver>>(new Map());
+  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Session | null>(null);
 
   const load = useCallback(async () => {
-    const [s, c, t, d] = await Promise.all([
+    const [s, c, t, d, bm] = await Promise.all([
       api.sessions({ limit: 200 }),
       api.cars(),
       api.tracks(),
       fetch("/api/drivers", { cache: "no-store" }).then((r) => r.json() as Promise<Driver[]>),
+      api.benchmarks().catch(() => [] as Benchmark[]),
     ]);
     setSessions(s);
     setCars(new Map(c.map((x) => [x.id, x])));
     setTracks(new Map(t.map((x) => [x.id, x])));
     setDrivers(new Map(d.map((x) => [x.id, x])));
+    setBenchmarks(bm);
     setLoading(false);
   }, []);
+
+  /** Soft data-quality flags for a logged row (same checks as the log form). */
+  function warningsFor(s: Session): string[] {
+    const car = cars.get(s.car_id);
+    const cls = car ? categoryToClass(car.category) : null;
+    const bm = cls
+      ? benchmarks.find((b) => b.track_id === s.track_id && b.class === cls && b.condition === s.condition_reported) ??
+        benchmarks.find((b) => b.track_id === s.track_id && b.class === cls && b.condition === "Dry") ??
+        null
+      : null;
+    return sessionQualityWarnings(
+      {
+        best_lap_time: s.best_lap_time,
+        avg_lap_time: s.avg_lap_time,
+        lap_count: s.lap_count,
+        avg_wear_pct: s.tyres.avg_wear_pct,
+        lap_times_count: s.lap_times?.length ?? null,
+      },
+      bm ? { alien_time: bm.alien_time, offline_time: bm.offline_time } : null,
+    );
+  }
 
   useEffect(() => {
     load().catch(() => setLoading(false));
@@ -108,10 +133,17 @@ export default function SessionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((s) => (
+                {sessions.map((s) => {
+                  const warns = warningsFor(s);
+                  return (
                   <tr key={s.id} style={{ cursor: "default" }}>
                     <td className="muted" style={{ whiteSpace: "nowrap" }}>
                       {new Date(s.created_at).toLocaleDateString()}
+                      {warns.length > 0 && (
+                        <span className="qflag" title={`Data-quality check:\n\n• ${warns.join("\n• ")}`}>
+                          ⚠
+                        </span>
+                      )}
                     </td>
                     <td>{drivers.get(s.driver_id)?.name ?? `#${s.driver_id}`}</td>
                     <td>{cars.get(s.car_id)?.name ?? `#${s.car_id}`}</td>
@@ -153,7 +185,8 @@ export default function SessionsPage() {
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
