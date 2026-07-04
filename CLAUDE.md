@@ -237,23 +237,29 @@ them. Postgres `init()` now runs additive `CREATE TABLE IF NOT EXISTS`
 weights_preset`, so an already-migrated prod DB self-heals without re-running
 `db/1_init_schema.sql` (which also carries the new DDL for fresh DBs).
 
+### Per-driver weighting (lens) + preset-winners strip (round 12, 2026-07-04)
+
+Both from one client-side primitive — `weightedFactorScore(factors, weights)` in
+scoring.ts: a recommendation stores its five factor scores, so `car_score =
+Σ factor×weight` can be re-computed in the browser, re-ranking the board under
+any preset with NO server recompute (non-destructive, instant).
+- **"My view" lens** (rankings toolbar, EVERYONE incl. drivers): "" = team
+  default (server order); a preset re-ranks the loaded rows client-side, tag +
+  score updated, re-sorted. Persisted per viewer in `localStorage` (`ccr-view-
+  lens`) → profile-backed with auth. Active-lens note + "back to team default".
+- **Global weighting is now the TEAM DEFAULT**: `WeightsControl` gated to
+  manager/admin (relabelled "Team default"); drivers no longer mutate everyone's
+  board — they get a personal lens. Supersedes round 11's driver-sets-global.
+- **Preset-winners strip** (`PresetWinners.tsx`): top car under each preset from
+  the loaded rows, scoped to the current filter; chips differing from Balanced
+  highlighted (purple), click a chip to apply/clear that lens.
+- Caveat: re-weights EXISTING factors, doesn't re-pick the best setup (weight-
+  dependent, server-side) — a faithful re-rank, close approximation for setup.
+- 75 tests (3 new: Balanced parity, a Tyre-saver-vs-Pace flip, normalisation).
+  Verified live both roles; driver sees lens+strip but not Team default.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **Per-driver weighting (requested 2026-07-04).** Each driver should see the
-  board under THEIR OWN chosen weighting, not the single global/shared one.
-  Recommended approach: **client-side re-weighting** — the persisted
-  recommendations already carry the five factor scores and
-  `car_score = Σ factor×weight`, so the board can be re-ranked under any preset
-  **in the browser from the loaded rows** — no recompute, no shared-state
-  mutation, instant. Persist each driver's pick in localStorage now → their
-  profile once auth lands. The global `weights` setting then becomes the **team
-  default** (fresh viewers + the persisted board). Caveat: best-setup selection
-  is weight-dependent, so client re-weighting is a close approximation, not
-  full-fidelity for which setup wins (acceptable for a per-driver lens). Same
-  mechanism as the **preset-winners strip** below — build them together.
-- **Preset-winners strip** — "who tops each preset" chips on rankings, computed
-  client-side from the loaded factor scores (cheap, non-destructive). Paired
-  with per-driver weighting above.
 - **Wet benchmarks per-track hand-tuning** — the round-11 wet layer is a uniform
   global %; allow overriding individual (track,class,Wet) rows for circuits that
   deviate (Le Mans skews higher).
