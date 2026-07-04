@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   driver_id                INT NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
   car_id                   INT NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
   track_id                 INT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-  session_type             VARCHAR(50) NOT NULL CHECK (session_type IN ('Practice', 'Quali', 'Race', 'Test')),
+  session_type             VARCHAR(50) NOT NULL CHECK (session_type IN ('Practice', 'Quali', 'Race')),
   condition_reported       VARCHAR(50) NOT NULL CHECK (condition_reported IN ('Dry', 'Wet', 'Mixed')),
   patch_version            VARCHAR(50),
   lap_count                INT NOT NULL CHECK (lap_count > 0),
