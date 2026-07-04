@@ -315,11 +315,22 @@ bypass channel send-permissions, so locking works).
 
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **Driver-board badge announcer (queued 2026-07-04, round-15 follow-up).**
-  Post badge/crown takeovers ("🏆 Mike takes Fastest Overall from Dal") to the
-  `board` webhook slot (#leader-board — already wired and testable). Needs a
-  last-holders snapshot in settings to diff against after each recompute; keep
-  it takeover-only (no spam on first-ever awards during early data).
+- **⭐ NEXT UP (user confirmed 2026-07-04, resuming after their 5h Claude reset)
+  — three loose ends from the webhook build (rounds 14–15):**
+  1. **Driver-board badge announcer.** Post badge/crown takeovers ("🏆 Mike
+     takes Fastest Overall from Dal") to the `board` webhook slot (#leader-board
+     — already wired and testable). Needs a last-holders snapshot in settings to
+     diff against after each recompute; keep it takeover-only (no spam on
+     first-ever awards during early data).
+  2. **Verify the #testdrivers session-logged ping fires for real.** All three
+     slots' TEST buttons were confirmed live (2026-07-04), but the actual
+     session-logged event (built round 15, `POST /api/sessions`) hasn't fired
+     from a real logged session yet — log one and confirm it lands with the
+     right SVS + "first data" flair when applicable.
+  3. **User still needs to paste webhook URLs into the `test` (#testdrivers) and
+     `board` (#leader-board) slots** in the control panel — only the `race`
+     slot (#race-announcements) is connected so far; the other two currently
+     fall back to it.
 - **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
   (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
   wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
