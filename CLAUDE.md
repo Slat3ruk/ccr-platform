@@ -294,8 +294,32 @@ hosted process; (3) an interactive bot (/rankings from Discord) would be the
 only thing needing more, can run serverless via an interactions endpoint, and
 is NOT queued — build only if the team actually asks for it.
 
+### Three-channel webhook routing + activity pings (round 15, 2026-07-04)
+
+The single webhook grew into **three purpose-labelled slots** mapped to the
+team's channels: `race` → #race-announcements (new eras · takeovers on tracks
+with an upcoming race — the race calendar decides), `test` → #testdrivers
+(session-logged pings · first-data flair · all other takeovers · new tracks
+from a sync), `board` → #leader-board (badge/crown takeovers — slot live,
+announcer queued). **Fallback:** an unconfigured slot posts to the first
+configured one (race → test → board); the `race` slot keeps the original
+setting key, so the already-connected webhook migrated untouched. New events:
+**session logged** (POST /api/sessions only — edits/deletes silent; SVS read
+back post-recompute) and **first data for a combo** (`RecomputeSummary.new_boards`
+via pure `newBoardKeys`, tested). Control panel card = three slots, each
+showing purpose, target channel, exact event routing, masked status, per-slot
+save/disconnect/Test — the test message NAMES its feed. 82 tests.
+**Channel-design decision:** banter feeds (#leader-board) stay OPEN so people
+can reply; #race-announcements is the one worth locking read-only (webhooks
+bypass channel send-permissions, so locking works).
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
+- **Driver-board badge announcer (queued 2026-07-04, round-15 follow-up).**
+  Post badge/crown takeovers ("🏆 Mike takes Fastest Overall from Dal") to the
+  `board` webhook slot (#leader-board — already wired and testable). Needs a
+  last-holders snapshot in settings to diff against after each recompute; keep
+  it takeover-only (no spam on first-ever awards during early data).
 - **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
   (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
   wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
