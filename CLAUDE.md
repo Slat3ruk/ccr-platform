@@ -373,10 +373,20 @@ spread) + races POST/PATCH (validated → UTC). Nullable — day-only races beha
 as before. Verified live: Imola LMP2 15:30Z → 16:30 BST, GT3 18:00Z → 19:00 BST
 here, 20:00 CEST for a simulated Berlin viewer. 94 tests.
 
+### Coverage v2 — test requests (round 20, 2026-07-04)
+
+The coverage map gained an action layer. A manager/admin clicks a cell to pin a
+(car, track, condition) combo as "testing wanted": purple 📌 on the map, a
+"Testing wanted" card on the briefing (race-week tracks ordered first), and a
+#testdrivers webhook ("📋 Testing wanted: McLaren @ Sebring · Dry"). Cleared
+from either surface. New `test_requests` entity (types + both stores: Postgres
+table + additive init() migration + schema file; JSON store array/seq,
+backward-compatible); POST de-dupes on the combo; DELETE by id. Role-gated (drivers
+see 📌 read-only). Closes the loop between the coverage map and directing drivers.
+Verified live (McLaren @ Sebring pin → ping → briefing → clear). 94 tests.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **Coverage v2 — test requests.** Manager pins a coverage cell as a test
-  request; it shows on the briefing page.
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
   Tauri app already captures lap times/tyre wear/off-tracks live; a "log this
   session to CCR platform" button POSTing to the existing API would kill manual
