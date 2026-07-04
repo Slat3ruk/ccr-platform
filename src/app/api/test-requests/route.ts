@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const request = await store.createTestRequest(input);
 
   await postDiscord(
-    `📋 **Testing wanted:** ${car.name} @ ${track.name} · ${condition}${input.note ? `\n${input.note}` : ""}\nHelp close the gap — log a run on #log-session.`,
+    `📋 **Testing wanted:** ${car.name} @ ${track.name} · ${condition}${input.note ? `\n${input.note}` : ""}\nHelp close the gap — log a run on #log-session within the data logging app.`,
     store,
     "test",
   );
