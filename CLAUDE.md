@@ -358,6 +358,21 @@ channels now fire from real events** (rounds 14–16). The three round-15 loose
 ends are all resolved: announcer built; #testdrivers session ping verified live
 (harry's Aston run + first-data flair); all three channel URLs connected.
 
+### Race start times in local timezone (round 19, 2026-07-04)
+
+Race weekends carry an optional start time, stored as an absolute UTC instant
+(`races.start_at`, TIMESTAMPTZ) and rendered in each viewer's OWN timezone via
+`toLocaleString` — a UK manager sets 19:00, a German driver sees 20:00, no
+per-user TZ setting. The add-race form has a "Start time (your local time)"
+field; `new Date(\`${date}T${time}\`).toISOString()` pins the manager's local
+wall-clock to UTC. Display: BLUF headline shows full local date+time + a "your
+local time" hint; each same-weekend sibling class shows its own local start
+time; Upcoming list shows local time by the countdown. start_at threaded through
+types + both stores (Postgres additive migration in init() + schema; JSON via
+spread) + races POST/PATCH (validated → UTC). Nullable — day-only races behave
+as before. Verified live: Imola LMP2 15:30Z → 16:30 BST, GT3 18:00Z → 19:00 BST
+here, 20:00 CEST for a simulated Berlin viewer. 94 tests.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
 - **Coverage v2 — test requests.** Manager pins a coverage cell as a test
