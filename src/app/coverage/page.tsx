@@ -6,14 +6,16 @@
 // answers "which car is best where we have data"; this page directs the team's
 // testing time at the combos the engine knows nothing about. Tracks with an
 // upcoming race on the calendar are pinned to the top — close those gaps first.
-// Read-only v1 (no test-request pinning yet); computed client-side from the
-// existing APIs, era-scoped exactly like the live board.
+// Managers/admins can PIN a cell as a test request (coverage v2) — it shows on
+// the briefing and pings #testdrivers. Computed client-side from the existing
+// APIs, era-scoped exactly like the live board.
 // ============================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
 import { currentEra, currentEraRange, inRange } from "@/lib/eras";
-import { categoryToClass, type Car, type Era, type RaceRow, type Session, type Track } from "@/types";
+import { useRole } from "@/lib/role";
+import { categoryToClass, type Car, type Era, type RaceRow, type Session, type TestRequest, type Track } from "@/types";
 
 const CLASSES = ["LMGT3", "LMH", "LMP3", "LMP2-ELMS"];
 const CONDITIONS = ["Dry", "Wet", "Mixed"];
@@ -43,9 +45,18 @@ export default function CoveragePage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [eras, setEras] = useState<Era[]>([]);
   const [races, setRaces] = useState<RaceRow[]>([]);
+  const [requests, setRequests] = useState<TestRequest[]>([]);
   const [cls, setCls] = useState<string>("LMGT3");
   const [condition, setCondition] = useState<string>("Dry");
   const [loading, setLoading] = useState(true);
+  const [pinBusy, setPinBusy] = useState<string | null>(null);
+
+  const { role } = useRole();
+  const canManage = role !== "driver";
+
+  const loadRequests = useCallback(async () => {
+    setRequests(await api.testRequests().catch(() => []));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -54,16 +65,43 @@ export default function CoveragePage() {
       api.sessions(),
       api.eras().catch(() => [] as Era[]),
       api.races().catch(() => [] as RaceRow[]),
+      api.testRequests().catch(() => [] as TestRequest[]),
     ])
-      .then(([c, t, s, e, r]) => {
+      .then(([c, t, s, e, r, tr]) => {
         setCars(c);
         setTracks(t);
         setSessions(s);
         setEras(e);
         setRaces(r);
+        setRequests(tr);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // (car|track|condition) → request, for O(1) pin lookup on each cell.
+  const requestByKey = useMemo(() => {
+    const m = new Map<string, TestRequest>();
+    for (const r of requests) m.set(`${r.car_id}|${r.track_id}|${r.condition}`, r);
+    return m;
+  }, [requests]);
+
+  const togglePin = useCallback(
+    async (carId: number, trackId: number) => {
+      if (!canManage) return;
+      const key = `${carId}|${trackId}|${condition}`;
+      if (pinBusy) return;
+      setPinBusy(key);
+      try {
+        const existing = requestByKey.get(key);
+        if (existing) await api.deleteTestRequest(existing.id);
+        else await api.createTestRequest({ car_id: carId, track_id: trackId, condition, created_by: "Team" });
+        await loadRequests();
+      } finally {
+        setPinBusy(null);
+      }
+    },
+    [canManage, condition, pinBusy, requestByKey, loadRequests],
+  );
 
   const nowMs = Date.now();
   const era = useMemo(() => currentEra(eras, nowMs), [eras, nowMs]);
@@ -188,6 +226,7 @@ export default function CoveragePage() {
           </strong>{" "}
           · {summary.thin} thin · {summary.empty} with no data — the empty cells are where the engine is guessing.
           Sessions from before the current era don’t count (same scoping as the live board). 📅 = upcoming race.
+          {canManage ? " Click a cell to flag a 📌 test request — it shows on the briefing and pings #testdrivers." : " 📌 = flagged for testing."}
         </div>
 
         {loading ? (
@@ -227,12 +266,24 @@ export default function CoveragePage() {
                         const cell = cells.get(`${c.id}|${t.id}`);
                         const n = cell?.count ?? 0;
                         const tr = tier(n);
-                        const title =
+                        const pinned = requestByKey.has(`${c.id}|${t.id}|${condition}`);
+                        const dataTitle =
                           n === 0
                             ? `${c.name} @ ${t.name} — no ${condition.toLowerCase()} data this era`
                             : `${c.name} @ ${t.name} — ${n} session${n === 1 ? "" : "s"} · ${cell!.drivers.size} driver${cell!.drivers.size === 1 ? "" : "s"} · last ${daysAgo(cell!.lastMs)} (${tr.label})`;
+                        const title = canManage
+                          ? `${dataTitle}\n\nClick to ${pinned ? "clear the" : "flag a"} test request.`
+                          : pinned
+                            ? `${dataTitle}\n\n📌 Flagged for testing.`
+                            : dataTitle;
                         return (
-                          <td key={c.id} className={`cov-cell ${tr.cls}`} title={title}>
+                          <td
+                            key={c.id}
+                            className={`cov-cell ${tr.cls}${pinned ? " cov-pinned" : ""}${canManage ? " cov-clickable" : ""}`}
+                            title={title}
+                            onClick={canManage ? () => togglePin(c.id, t.id) : undefined}
+                          >
+                            {pinned && <span className="cov-pin">📌</span>}
                             {n === 0 ? "·" : n}
                           </td>
                         );

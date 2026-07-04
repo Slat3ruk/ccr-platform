@@ -16,10 +16,12 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewTestRequestInput,
   RaceEvent,
   RacingClass,
   Recommendation,
   Session,
+  TestRequest,
   Track,
   ValueComponents,
 } from "@/types";
@@ -50,11 +52,12 @@ interface DbShape {
   settings: Record<string, unknown>;
   races: RaceEvent[];
   eras: Era[];
+  test_requests: TestRequest[];
 }
 
 function emptyDb(): DbShape {
   return {
-    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0, eras: 0 },
+    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0, eras: 0, test_requests: 0 },
     drivers: [],
     cars: [],
     tracks: [],
@@ -64,6 +67,7 @@ function emptyDb(): DbShape {
     settings: {},
     races: [],
     eras: [],
+    test_requests: [],
   };
 }
 
@@ -440,6 +444,37 @@ export class JsonStore implements Store {
     const before = this.db.races.length;
     this.db.races = this.db.races.filter((r) => r.id !== id);
     const removed = this.db.races.length < before;
+    if (removed) await this.persist();
+    return removed;
+  }
+
+  // test requests -------------------------------------------------------------
+  async listTestRequests(): Promise<TestRequest[]> {
+    await this.init();
+    return [...this.db.test_requests].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id);
+  }
+
+  async createTestRequest(input: NewTestRequestInput): Promise<TestRequest> {
+    await this.init();
+    const req: TestRequest = {
+      id: this.nextId("test_requests"),
+      car_id: input.car_id,
+      track_id: input.track_id,
+      condition: input.condition,
+      note: input.note ?? null,
+      created_by: input.created_by ?? null,
+      created_at: this.now(),
+    };
+    this.db.test_requests.push(req);
+    await this.persist();
+    return req;
+  }
+
+  async deleteTestRequest(id: number): Promise<boolean> {
+    await this.init();
+    const before = this.db.test_requests.length;
+    this.db.test_requests = this.db.test_requests.filter((r) => r.id !== id);
+    const removed = this.db.test_requests.length < before;
     if (removed) await this.persist();
     return removed;
   }

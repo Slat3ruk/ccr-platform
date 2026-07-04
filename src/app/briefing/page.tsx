@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client";
 import { countdownLabel, pickFeatured, type RaceWindow } from "@/lib/calendar";
 import { confidenceTitle, fmtPct, fmtScore, scoreColor } from "@/lib/format";
 import { ROLES, useRole } from "@/lib/role";
-import { RACING_CLASSES, type RaceRow, type RankingRow, type Track, type WeightsConfig } from "@/types";
+import { RACING_CLASSES, type Car, type RaceRow, type RankingRow, type TestRequest, type Track, type WeightsConfig } from "@/types";
 
 function verdict(score: number): string {
   if (score >= 85) return "Top pick";
@@ -51,6 +51,8 @@ export default function BriefingPage() {
 
   const [races, setRaces] = useState<RaceRow[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [testReqs, setTestReqs] = useState<TestRequest[]>([]);
   const [rankings, setRankings] = useState<RankingRow[]>([]);
   // Picks for the OTHER classes racing the same weekend (same track + date).
   const [siblingPicks, setSiblingPicks] = useState<{ race: RaceRow; top: RankingRow | null }[]>([]);
@@ -78,10 +80,22 @@ export default function BriefingPage() {
     setRaces(r);
   }, []);
 
+  const loadTestReqs = useCallback(async () => {
+    setTestReqs(await api.testRequests().catch(() => []));
+  }, []);
+
   const loadAll = useCallback(async () => {
-    const [r, tk, w] = await Promise.all([api.races(), api.tracks(), api.weights().catch(() => null)]);
+    const [r, tk, c, tr, w] = await Promise.all([
+      api.races(),
+      api.tracks(),
+      api.cars().catch(() => [] as Car[]),
+      api.testRequests().catch(() => [] as TestRequest[]),
+      api.weights().catch(() => null),
+    ]);
     setRaces(r);
     setTracks(tk);
+    setCars(c);
+    setTestReqs(tr);
     if (w) setWeights(w.active);
     setLoading(false);
   }, []);
@@ -196,6 +210,28 @@ export default function BriefingPage() {
     await api.deleteRace(id);
     await loadRaces();
   }
+
+  async function clearRequest(id: number) {
+    await api.deleteTestRequest(id).catch(() => {});
+    await loadTestReqs();
+  }
+
+  // "Testing wanted" list, resolved to names and ordered with combos for tracks
+  // that have an upcoming race first (close the race-relevant gaps first).
+  const wantedTests = useMemo(() => {
+    const carName = new Map(cars.map((c) => [c.id, c.name]));
+    const trackName = new Map(tracks.map((t) => [t.id, t.name]));
+    const today = new Date().toISOString().slice(0, 10);
+    const raceTracks = new Set(races.filter((r) => r.event_date >= today).map((r) => r.track_id));
+    return testReqs
+      .map((r) => ({
+        req: r,
+        car: carName.get(r.car_id) ?? `Car #${r.car_id}`,
+        track: trackName.get(r.track_id) ?? `Track #${r.track_id}`,
+        racing: raceTracks.has(r.track_id),
+      }))
+      .sort((a, b) => Number(b.racing) - Number(a.racing) || Date.parse(b.req.created_at) - Date.parse(a.req.created_at));
+  }, [testReqs, cars, tracks, races]);
 
   return (
     <>
@@ -420,6 +456,33 @@ export default function BriefingPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* ---- Testing wanted (from the coverage map) ---- */}
+        {wantedTests.length > 0 && (
+          <div className="card">
+            <h2>📋 Testing wanted</h2>
+            <div className="card-sub">
+              Flagged from the <a href="/coverage">#coverage</a> map — combos the engine needs data on. Race-week tracks first.
+            </div>
+            <div className="wanted-list">
+              {wantedTests.map(({ req, car, track, racing }) => (
+                <div className="wanted-row" key={req.id}>
+                  {racing && <span title="This track has an upcoming race">📅</span>}
+                  <span className="wanted-combo">
+                    <strong>{car}</strong> <span className="muted">@ {track}</span>
+                  </span>
+                  <span className="pill">{req.condition}</span>
+                  {req.note && <span className="muted" style={{ fontSize: 12 }}>{req.note}</span>}
+                  {canEdit && (
+                    <button className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => clearRequest(req.id)}>
+                      Clear
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ---- Add race (managers/admins) ---- */}

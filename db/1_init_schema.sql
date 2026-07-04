@@ -167,3 +167,14 @@ CREATE TABLE IF NOT EXISTS races (
 CREATE INDEX IF NOT EXISTS idx_races_event_date ON races(event_date);
 -- Additive column for DBs created before optional race start times.
 ALTER TABLE races ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ;
+
+-- Test requests ("please test this" pins on the coverage map — coverage v2) ---
+CREATE TABLE IF NOT EXISTS test_requests (
+  id         SERIAL PRIMARY KEY,
+  car_id     INT NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+  track_id   INT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  condition  VARCHAR(50) NOT NULL CHECK (condition IN ('Dry', 'Wet', 'Mixed')),
+  note       TEXT,
+  created_by VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

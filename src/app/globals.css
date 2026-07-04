@@ -934,6 +934,24 @@ table.rank tbody tr.expanded {
   font-size: 13px;
   cursor: help;
   min-width: 64px;
+  position: relative;
+}
+.cov-cell.cov-clickable {
+  cursor: pointer;
+}
+.cov-cell.cov-clickable:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.cov-cell.cov-pinned {
+  box-shadow: inset 0 0 0 2px var(--purple);
+}
+.cov-pin {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 9px;
+  line-height: 1;
 }
 .cov-none {
   color: var(--text-dim);
@@ -1004,6 +1022,26 @@ table.rank tbody tr.expanded {
 .qflag {
   cursor: help;
   margin-left: 6px;
+}
+
+/* --- Testing wanted (briefing) --------------------------------------------- */
+.wanted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wanted-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-card-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.wanted-combo {
+  font-size: 14px;
 }
 
 /* --- Webhook channel slots (control panel) --------------------------------- */

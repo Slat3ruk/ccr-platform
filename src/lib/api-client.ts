@@ -16,6 +16,7 @@ import type {
   RankingRow,
   Session,
   SessionInput,
+  TestRequest,
   Track,
   WeightsConfig,
 } from "@/types";
@@ -164,4 +165,12 @@ export const api = {
 
   // driver leaderboard --------------------------------------------------------
   driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
+
+  // test requests (coverage v2) -----------------------------------------------
+  testRequests: () => jget<TestRequest[]>("/api/test-requests"),
+
+  createTestRequest: (input: { car_id: number; track_id: number; condition: string; note?: string | null; created_by?: string | null }) =>
+    jsend<{ ok: true; request: TestRequest; existed?: boolean }>("/api/test-requests", "POST", input),
+
+  deleteTestRequest: (id: number) => jsend<{ ok: true }>(`/api/test-requests/${id}`, "DELETE"),
 };

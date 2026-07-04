@@ -13,11 +13,13 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewTestRequestInput,
   RaceEvent,
   RacingClass,
   Recommendation,
   Session,
   SessionType,
+  TestRequest,
   Track,
   ValueComponents,
 } from "@/types";
@@ -157,6 +159,11 @@ export interface Store {
   createRace(input: NewRaceInput): Promise<RaceEvent>;
   updateRace(id: number, patch: RacePatch): Promise<RaceEvent | null>;
   deleteRace(id: number): Promise<boolean>;
+
+  // test requests (coverage v2 — "please test this" pins)
+  listTestRequests(): Promise<TestRequest[]>;
+  createTestRequest(input: NewTestRequestInput): Promise<TestRequest>;
+  deleteTestRequest(id: number): Promise<boolean>;
 
   // meta
   counts(): Promise<{ drivers: number; cars: number; tracks: number; sessions: number; benchmarks: number; recommendations: number }>;

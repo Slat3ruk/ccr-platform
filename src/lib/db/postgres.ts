@@ -14,10 +14,12 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewTestRequestInput,
   RaceEvent,
   RacingClass,
   Recommendation,
   Session,
+  TestRequest,
   Track,
   ValueComponents,
 } from "@/types";
@@ -128,6 +130,18 @@ function rowToRecommendation(r: any): Recommendation {
   };
 }
 
+function rowToTestRequest(r: any): TestRequest {
+  return {
+    id: r.id,
+    car_id: r.car_id,
+    track_id: r.track_id,
+    condition: r.condition,
+    note: r.note ?? null,
+    created_by: r.created_by ?? null,
+    created_at: iso(r.created_at),
+  };
+}
+
 function rowToRace(r: any): RaceEvent {
   return {
     id: r.id,
@@ -197,6 +211,16 @@ export class PostgresStore implements Store {
         created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
     await pool.query("ALTER TABLE ccr.races ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ccr.test_requests (
+        id         SERIAL PRIMARY KEY,
+        car_id     INT NOT NULL REFERENCES ccr.cars(id) ON DELETE CASCADE,
+        track_id   INT NOT NULL REFERENCES ccr.tracks(id) ON DELETE CASCADE,
+        condition  VARCHAR(50) NOT NULL,
+        note       TEXT,
+        created_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
@@ -546,6 +570,26 @@ export class PostgresStore implements Store {
 
   async deleteRace(id: number): Promise<boolean> {
     const res = await this.q("DELETE FROM races WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  // test requests -------------------------------------------------------------
+  async listTestRequests(): Promise<TestRequest[]> {
+    const res = await this.q("SELECT * FROM test_requests ORDER BY created_at DESC, id DESC");
+    return res.rows.map(rowToTestRequest);
+  }
+
+  async createTestRequest(input: NewTestRequestInput): Promise<TestRequest> {
+    const res = await this.q(
+      `INSERT INTO test_requests (car_id, track_id, condition, note, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [input.car_id, input.track_id, input.condition, input.note ?? null, input.created_by ?? null],
+    );
+    return rowToTestRequest(res.rows[0]);
+  }
+
+  async deleteTestRequest(id: number): Promise<boolean> {
+    const res = await this.q("DELETE FROM test_requests WHERE id = $1", [id]);
     return (res.rowCount ?? 0) > 0;
   }
 

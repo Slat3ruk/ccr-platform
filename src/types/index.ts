@@ -304,6 +304,32 @@ export interface RaceRow extends RaceEvent {
   track_name: string;
 }
 
+// --- Test requests (coverage v2) ---------------------------------------------
+
+/**
+ * A manager's "please test this" pin on a (car, track, condition) combo — the
+ * coverage map's action layer. Directs testing time at the gaps the engine
+ * needs. Class is implied by the car. Cleared manually when the data lands.
+ */
+export interface TestRequest {
+  id: number;
+  car_id: number;
+  track_id: number;
+  condition: Condition;
+  note?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+/** Payload accepted by POST /api/test-requests. */
+export interface NewTestRequestInput {
+  car_id: number;
+  track_id: number;
+  condition: Condition;
+  note?: string | null;
+  created_by?: string | null;
+}
+
 /** A recommendation joined with car + track names for the dashboard. */
 export interface RankingRow extends Recommendation {
   car_name: string;
