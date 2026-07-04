@@ -257,6 +257,15 @@ weights_preset`, so an already-migrated prod DB self-heals without re-running
 - **Wet benchmarks per-track hand-tuning** — the round-11 wet layer is a uniform
   global %; allow overriding individual (track,class,Wet) rows for circuits that
   deviate (Le Mans skews higher).
+- **Production data store (release gate, flagged 2026-07-04).** Netlify runs the
+  app as serverless functions with an ephemeral, read-only filesystem — the
+  zero-config JSON store CANNOT persist writes there (session logs, benchmark
+  sync, eras, wet penalty all vanish on cold start). Before any real release,
+  wire a **Postgres `DATABASE_URL`** (the store auto-selects it) and run the
+  init migrations, then end-to-end write-test (log a session → survives refresh
+  + a cold start). Tested on Netlify 2026-07-04 and "looks good" — but that was
+  the read path; persistence is unconfirmed. `netlify.toml` / `DEPLOY.md` have
+  the setup notes.
 - **Auth hub** (release gate) — provider-agnostic identity + server-enforced
   roles; likely a separate Cloudflare hub. Everything ships behind this.
 - **GT3-wheel control-panel styling** — dress the functional panel with
