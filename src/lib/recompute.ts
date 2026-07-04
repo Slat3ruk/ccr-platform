@@ -20,6 +20,7 @@ import {
   type Session,
   type WeightsConfig,
 } from "@/types";
+import { announceFlips } from "./discord";
 import { currentEraRange, inRange, type EraRange } from "./eras";
 import { getStore } from "./db";
 import type { NewRecommendation, Store } from "./db/types";
@@ -204,6 +205,10 @@ export async function recomputeAll(
 
   const { recommendations, sessionValues } = scoreGroups(sessions, cars, benchmarks, config, nowMs);
 
+  // Snapshot the outgoing board so we can announce genuine #1 takeovers after
+  // the rebuild (Discord webhook; best-effort, no-op when unconfigured).
+  const beforeBoard = await store.listRecommendations();
+
   await store.clearRecommendations();
   for (const rec of recommendations) {
     await store.upsertRecommendation(rec);
@@ -211,6 +216,8 @@ export async function recomputeAll(
   for (const [sessionId, { score, components }] of sessionValues) {
     await store.setSessionValue(sessionId, score, components);
   }
+
+  await announceFlips(store, beforeBoard, recommendations, config.preset);
 
   return {
     recommendations: recommendations.length,

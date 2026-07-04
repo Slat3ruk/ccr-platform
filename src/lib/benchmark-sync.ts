@@ -36,6 +36,8 @@ export interface SyncResult {
   source: "google-sheets" | "cache";
   upserted: number;
   tracks_created: number;
+  /** Names of tracks auto-created this sync (new circuits/layouts on the sheet). */
+  created_tracks: string[];
   message: string;
 }
 
@@ -66,12 +68,12 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
     const res = await fetch(CSV_URL, { signal: controller.signal, redirect: "follow" });
     clearTimeout(timeout);
     if (!res.ok) {
-      return { ok: false, source: "cache", upserted: 0, tracks_created: 0, message: `Sheet fetch ${res.status} — kept cache.` };
+      return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sheet fetch ${res.status} — kept cache.` };
     }
     text = await res.text();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, source: "cache", upserted: 0, tracks_created: 0, message: `Sync error (${message}) — kept cache.` };
+    return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sync error (${message}) — kept cache.` };
   }
 
   const parsed = parseBenchmarkRows(parseCsv(text));
@@ -81,6 +83,7 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
       source: "cache",
       upserted: 0,
       tracks_created: 0,
+      created_tracks: [],
       message: "Fetched the sheet but parsed 0 benchmark rows — layout may have changed; kept cache.",
     };
   }
@@ -89,7 +92,7 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
   const trackByName = new Map(tracks.map((t) => [normalize(t.name), t.id]));
 
   let upserted = 0;
-  let tracksCreated = 0;
+  const createdTracks: string[] = [];
   for (const row of parsed) {
     let trackId = matchTrack(trackByName, row.trackName);
     if (!trackId) {
@@ -97,7 +100,7 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
       const created = await store.createTrack(row.trackName);
       trackId = created.id;
       trackByName.set(normalize(created.name), created.id);
-      tracksCreated++;
+      createdTracks.push(created.name);
     }
     await store.upsertBenchmark({
       track_id: trackId,
@@ -116,8 +119,15 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
   }
 
   const bits = [`Synced ${upserted} benchmark rows from the Ohne Speed sheet`];
-  if (tracksCreated > 0) bits.push(`created ${tracksCreated} new track${tracksCreated === 1 ? "" : "s"}`);
-  return { ok: true, source: "google-sheets", upserted, tracks_created: tracksCreated, message: `${bits.join(" · ")}.` };
+  if (createdTracks.length > 0) bits.push(`created ${createdTracks.length} new track${createdTracks.length === 1 ? "" : "s"}`);
+  return {
+    ok: true,
+    source: "google-sheets",
+    upserted,
+    tracks_created: createdTracks.length,
+    created_tracks: createdTracks,
+    message: `${bits.join(" · ")}.`,
+  };
 }
 
 /**

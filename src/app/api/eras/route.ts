@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
+import { postDiscord } from "@/lib/discord";
 import { recomputeAll } from "@/lib/recompute";
 
 export const runtime = "nodejs";
@@ -43,5 +44,9 @@ export async function POST(req: Request) {
   });
 
   const recompute = await recomputeAll(store);
+  await postDiscord(
+    `📢 **New era: ${era.name}**${era.reason ? ` — ${era.reason}` : ""}\nThe live board now scores sessions from this line onward; older data stays viewable from the era selector.`,
+    store,
+  );
   return NextResponse.json({ ok: true, era, recompute }, { status: 201 });
 }

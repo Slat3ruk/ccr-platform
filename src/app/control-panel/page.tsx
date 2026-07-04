@@ -50,18 +50,29 @@ export default function ControlPanelPage() {
   const [wetPct, setWetPct] = useState("");
   const [wetSaving, setWetSaving] = useState(false);
 
+  // Discord webhook
+  const [hookUrl, setHookUrl] = useState("");
+  const [hookConfigured, setHookConfigured] = useState(false);
+  const [hookHint, setHookHint] = useState<string | null>(null);
+  const [hookBusy, setHookBusy] = useState(false);
+
   const load = useCallback(async () => {
-    const [e, w, status, wet] = await Promise.all([
+    const [e, w, status, wet, hook] = await Promise.all([
       api.eras(),
       api.weights().catch(() => null),
       api.status(),
       api.wetPenalty().catch(() => null),
+      api.webhook().catch(() => null),
     ]);
     setEras(e);
     if (w) setWeights(w.active);
     setCounts(status.counts);
     setBackend(status.backend);
     if (wet) setWetPct(String(wet.penalty_pct));
+    if (hook) {
+      setHookConfigured(hook.configured);
+      setHookHint(hook.hint);
+    }
     setLoading(false);
   }, []);
 
@@ -164,6 +175,40 @@ export default function ControlPanelPage() {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to update wet penalty." });
     } finally {
       setWetSaving(false);
+    }
+  }
+
+  async function saveHook(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    setHookBusy(true);
+    try {
+      const res = await api.saveWebhook(hookUrl.trim());
+      setHookUrl("");
+      await load();
+      setMsg({
+        kind: "success",
+        text: res.configured
+          ? "Webhook saved — use “Send test message” to confirm it lands in the channel."
+          : "Webhook cleared — announcements are off.",
+      });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to save webhook." });
+    } finally {
+      setHookBusy(false);
+    }
+  }
+
+  async function testHook() {
+    setMsg(null);
+    setHookBusy(true);
+    try {
+      await api.testWebhook();
+      setMsg({ kind: "success", text: "Test message sent — check the Discord channel." });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Test failed." });
+    } finally {
+      setHookBusy(false);
     }
   }
 
@@ -330,6 +375,41 @@ export default function ControlPanelPage() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* ---- Discord announcements ---- */}
+            <div className="card">
+              <h2>Discord announcements</h2>
+              <div className="card-sub">
+                Paste a channel webhook URL (Discord → channel settings → Integrations → Webhooks) and the platform posts
+                on real changes: <strong>#1 takeovers</strong> on any board, a <strong>new era</strong>, and{" "}
+                <strong>new tracks</strong> appearing from a benchmark sync. Routine recomputes that change nothing stay
+                silent. Status:{" "}
+                {hookConfigured ? (
+                  <span style={{ color: "var(--green)", fontWeight: 700 }}>connected{hookHint ? ` (${hookHint})` : ""}</span>
+                ) : (
+                  <span className="muted">not configured</span>
+                )}
+              </div>
+              <form onSubmit={saveHook}>
+                <div className="flex" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    type="text"
+                    style={{ flex: 1, minWidth: 260 }}
+                    placeholder={hookConfigured ? "Paste a new URL to replace, or leave blank + Save to disconnect" : "https://discord.com/api/webhooks/…"}
+                    value={hookUrl}
+                    onChange={(e) => setHookUrl(e.target.value)}
+                  />
+                  <button className="btn" type="submit" disabled={hookBusy || (!hookUrl.trim() && !hookConfigured)}>
+                    {hookBusy ? "Working…" : hookUrl.trim() ? "Save" : hookConfigured ? "Disconnect" : "Save"}
+                  </button>
+                  {hookConfigured && (
+                    <button className="btn btn-ghost" type="button" disabled={hookBusy} onClick={testHook}>
+                      Send test message
+                    </button>
+                  )}
+                </div>
+              </form>
             </div>
 
             {/* ---- Danger zone ---- */}

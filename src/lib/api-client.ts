@@ -140,6 +140,14 @@ export const api = {
   purgeSessions: () =>
     jsend<{ ok: true; sessions_removed: number; recompute: unknown }>("/api/admin/purge", "POST", { confirm: "PURGE" }),
 
+  // Discord webhook -------------------------------------------------------------
+  webhook: () => jget<{ configured: boolean; hint: string | null }>("/api/admin/webhook"),
+
+  saveWebhook: (url: string) =>
+    jsend<{ ok: true; configured: boolean }>("/api/admin/webhook", "POST", { action: "save", url }),
+
+  testWebhook: () => jsend<{ ok: true; sent: boolean }>("/api/admin/webhook", "POST", { action: "test" }),
+
   // race calendar + briefing --------------------------------------------------
   races: () => jget<RaceRow[]>("/api/races"),
 
