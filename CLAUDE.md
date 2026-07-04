@@ -258,8 +258,36 @@ any preset with NO server recompute (non-destructive, instant).
 - 75 tests (3 new: Balanced parity, a Tyre-saver-vs-Pace flip, normalisation).
   Verified live both roles; driver sees lens+strip but not Team default.
 
+### Test coverage map (round 13, 2026-07-04)
+
+New `/coverage` page ("coverage" in the Engineering sidebar): tracks × cars grid
+per class + condition, coloured by CURRENT-ERA session volume — "where are we
+blind?" Directs testing time at the combos the engine knows nothing about.
+Tiers align with the model (0 none / 1–2 thin, below the 3-run bar / 3–5
+building / 6+ solid); tooltips show count · drivers · last-run age; tracks with
+an upcoming race pin to the top (📅 + accent bar); headline "N/total combos at
+the 3-run bar". Era-scoped like the live board. Entirely client-side from
+existing APIs — no new endpoints/schema. Read-only v1; test-request pinning
+(manager pins a cell → briefing) is a possible v2. Verified live: 290 GT3
+combos, 2 at the bar; Imola pinned via its race; Wet honestly all-zero.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
+- **Discord webhook announcements (agreed 2026-07-04).** A webhook URL in the
+  control panel (no OAuth needed); post to the team Discord on REAL changes
+  only: #1 flips on a board, new era drawn, benchmark sync found new data.
+  The motivation loop: rankings changing in the team's face pulls them back in.
+- **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
+  (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
+  wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
+  sessions in the log. Protects the numbers the team trusts.
+- **Coverage v2 — test requests.** Manager pins a coverage cell as a test
+  request; it shows on the briefing page.
+- **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
+  Tauri app already captures lap times/tyre wear/off-tracks live; a "log this
+  session to CCR platform" button POSTing to the existing API would kill manual
+  entry and typos. BOTH apps must stabilise first — building it now risks
+  breaking both. Revisit when the stint planner's feature work settles.
 - **Wet benchmarks per-track hand-tuning** — the round-11 wet layer is a uniform
   global %; allow overriding individual (track,class,Wet) rows for circuits that
   deviate (Le Mans skews higher).
