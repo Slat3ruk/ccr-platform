@@ -28,6 +28,8 @@ export default function BriefingPage() {
   const [races, setRaces] = useState<RaceRow[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [rankings, setRankings] = useState<RankingRow[]>([]);
+  // Picks for the OTHER classes racing the same weekend (same track + date).
+  const [siblingPicks, setSiblingPicks] = useState<{ race: RaceRow; top: RankingRow | null }[]>([]);
   const [weights, setWeights] = useState<WeightsConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [nowMs] = useState(() => Date.now());
@@ -79,6 +81,35 @@ export default function BriefingPage() {
       .then(setRankings)
       .catch(() => setRankings([]));
   }, [focus?.race?.id, focus?.race?.track_id, focus?.race?.class, focus?.race?.condition]);
+
+  // Load the top pick for every OTHER class racing the same weekend — a real
+  // endurance event runs several classes at once (GT3 + LMP2 + Hypercar).
+  useEffect(() => {
+    const race = focus?.race;
+    if (!race) {
+      setSiblingPicks([]);
+      return;
+    }
+    const siblings = races.filter((r) => r.id !== race.id && r.track_id === race.track_id && r.event_date === race.event_date);
+    if (siblings.length === 0) {
+      setSiblingPicks([]);
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      siblings.map((r) =>
+        api
+          .rankings({ track_id: r.track_id, class: r.class ?? undefined, condition: r.condition ?? undefined })
+          .then((rows) => ({ race: r, top: rows[0] ?? null }))
+          .catch(() => ({ race: r, top: null })),
+      ),
+    ).then((res) => {
+      if (!cancelled) setSiblingPicks(res);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [focus?.race?.id, focus?.race?.track_id, focus?.race?.event_date, races]);
 
   // Seed the note editor whenever the focused race changes.
   useEffect(() => {
@@ -224,6 +255,33 @@ export default function BriefingPage() {
                 </div>
               )}
 
+              {/* ---- Other classes racing the same weekend ---- */}
+              {siblingPicks.length > 0 && (
+                <div className="bluf-siblings">
+                  <span className="bluf-sib-label">Also racing this weekend</span>
+                  <div className="bluf-sib-list">
+                    {siblingPicks.map(({ race, top }) => (
+                      <div className="bluf-sib" key={race.id}>
+                        <span className="pill">{race.class ?? "Any"}</span>
+                        {top ? (
+                          <>
+                            <span className="bluf-sib-car">{top.car_name}</span>
+                            <span className="score-pill" style={{ background: scoreColor(top.car_score) }}>
+                              {fmtScore(top.car_score)}
+                            </span>
+                            <span className="muted" style={{ fontSize: 12 }}>
+                              {top.sessions_used} session{top.sessions_used === 1 ? "" : "s"}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="muted" style={{ fontSize: 13 }}>no ranked car yet — log sessions</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ---- Engineer note ---- */}
               <div className="bluf-note">
                 <div className="flex spread" style={{ marginBottom: 6 }}>
@@ -281,13 +339,17 @@ export default function BriefingPage() {
               </div>
             </div>
 
-            {/* ---- Upcoming races ---- */}
-            {result.upcoming.length > 0 && (
+            {/* ---- Upcoming races (excluding same-weekend siblings, shown above) ---- */}
+            {(() => {
+              const otherUpcoming = result.upcoming.filter(
+                (w) => !(focus && w.race.track_id === focus.race.track_id && w.race.event_date === focus.race.event_date),
+              );
+              return otherUpcoming.length > 0 ? (
               <div className="card">
                 <h2>Upcoming</h2>
                 <div className="card-sub">Races further out — the briefing features each one from 3 days before.</div>
                 <div className="race-list">
-                  {result.upcoming.map((w) => (
+                  {otherUpcoming.map((w) => (
                     <div className="race-row" key={w.race.id}>
                       <div className="race-when">
                         <span className="race-date">{fmtDate(w.race.event_date)}</span>
@@ -310,7 +372,8 @@ export default function BriefingPage() {
                   ))}
                 </div>
               </div>
-            )}
+              ) : null;
+            })()}
 
             {/* ---- Featured-race remove (managers) ---- */}
             {canEdit && (

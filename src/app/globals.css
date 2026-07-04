@@ -1335,6 +1335,36 @@ table.rank tbody tr.expanded {
   color: var(--text-muted);
 }
 
+.bluf-siblings {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-soft);
+}
+.bluf-sib-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.bluf-sib-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.bluf-sib {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bluf-sib-car {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
 .bluf-note {
   margin-top: 18px;
   background: var(--bg-card-2);
