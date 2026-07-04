@@ -20,7 +20,7 @@ import {
   type Session,
   type WeightsConfig,
 } from "@/types";
-import { announceFlips, newBoardKeys } from "./discord";
+import { announceBadges, announceFlips, newBoardKeys } from "./discord";
 import { currentEraRange, inRange, type EraRange } from "./eras";
 import { getStore } from "./db";
 import type { NewRecommendation, Store } from "./db/types";
@@ -192,11 +192,12 @@ export async function recomputeAll(
   // recompute path (session create/delete, seed, sync) picks it up automatically.
   const config = weightsConfig ?? (await store.getSetting<WeightsConfig>("weights")) ?? DEFAULT_WEIGHTS_CONFIG;
 
-  const [allSessions, cars, benchmarks, eras] = await Promise.all([
+  const [allSessions, cars, benchmarks, eras, drivers] = await Promise.all([
     store.listSessions(),
     store.listCars(),
     store.listBenchmarks(),
     store.listEras(),
+    store.listDrivers(),
   ]);
 
   // Live board = current era only. With no eras defined this is all data.
@@ -221,6 +222,9 @@ export async function recomputeAll(
   }
 
   await announceFlips(store, beforeBoard, recommendations, config.preset);
+  // Driver-board crown takeovers → #leader-board (era-scoped `sessions`, matching
+  // the /driver-stats board). Refreshes its own snapshot; posts only on a change.
+  await announceBadges(store, sessions, drivers, cars, benchmarks, nowMs);
 
   return {
     recommendations: recommendations.length,

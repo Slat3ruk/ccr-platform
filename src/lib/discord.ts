@@ -18,8 +18,10 @@
 // must NEVER break a recompute or an API route (timeouts swallowed).
 // ============================================================================
 
+import type { BadgeDef, Benchmark, Car, Driver, Session } from "@/types";
 import { getStore } from "./db";
 import type { Store } from "./db/types";
+import { computeBadges, computeDriverStats } from "./driverAnalytics";
 
 export type WebhookChannel = "race" | "test" | "board";
 
@@ -143,6 +145,78 @@ export async function postDiscord(
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// --- Driver-board badge takeovers (#leader-board) ----------------------------
+
+export const BADGE_HOLDERS_SETTING = "badge_gold_holders";
+
+export interface BadgeTakeover {
+  badgeId: string;
+  label: string;
+  emoji: string;
+  roast: boolean;
+  newId: number;
+  newName: string;
+  prevId: number;
+}
+
+/**
+ * Pure diff of GOLD badge holders vs the last-announced snapshot. A takeover is
+ * only reported when a badge HAD a holder and it changed — a first-ever award
+ * (no previous holder) is recorded silently, so early data doesn't spam. Returns
+ * the takeovers plus the fresh snapshot to persist. (Only gold is tracked — the
+ * crown changing hands is the news; silver/bronze shuffles aren't.)
+ */
+export function diffBadgeGold(prev: Record<string, number>, badges: BadgeDef[]): { takeovers: BadgeTakeover[]; next: Record<string, number> } {
+  const next: Record<string, number> = {};
+  const takeovers: BadgeTakeover[] = [];
+  for (const b of badges) {
+    const gold = b.holders.find((h) => h.tier === "gold");
+    if (!gold) continue; // badge unheld (too little data) — omit so a future award is "first-ever" again
+    next[b.id] = gold.driver_id;
+    const prevId = prev[b.id];
+    if (prevId != null && prevId !== gold.driver_id) {
+      takeovers.push({ badgeId: b.id, label: b.label, emoji: b.emoji, roast: b.roast, newId: gold.driver_id, newName: gold.driver_name, prevId });
+    }
+  }
+  return { takeovers, next };
+}
+
+/**
+ * Announce driver-board crown takeovers to #leader-board after a recompute.
+ * Always refreshes the stored snapshot (so it tracks truth even with no webhook);
+ * only POSTs when a webhook is reachable AND a crown actually changed hands.
+ * Never throws.
+ */
+export async function announceBadges(
+  store: Store,
+  sessions: Session[],
+  drivers: Driver[],
+  cars: Car[],
+  benchmarks: Benchmark[],
+  nowMs: number,
+): Promise<void> {
+  try {
+    const stats = computeDriverStats(sessions, drivers, cars, benchmarks, nowMs);
+    const badges = computeBadges(stats);
+    const prev = (await store.getSetting<Record<string, number>>(BADGE_HOLDERS_SETTING)) ?? {};
+    const { takeovers, next } = diffBadgeGold(prev, badges);
+    await store.setSetting(BADGE_HOLDERS_SETTING, next); // always persist the truth
+
+    if (takeovers.length === 0) return;
+    if (!(await getChannelUrl(store, "board"))) return; // snapshot updated; nothing to post
+
+    const nameOf = (id: number) => drivers.find((d) => d.id === id)?.name ?? `Driver #${id}`;
+    const lines = takeovers.map((t) =>
+      t.roast
+        ? `${t.emoji} **${t.newName}** grabs the **${t.label}** crown off **${nameOf(t.prevId)}** 😬`
+        : `${t.emoji} **${t.newName}** takes **${t.label}** from **${nameOf(t.prevId)}**`,
+    );
+    await postDiscord(`🏆 **Leader-board shakeup**\n${lines.join("\n")}`, store, "board");
+  } catch {
+    /* announcements never break the recompute */
   }
 }
 

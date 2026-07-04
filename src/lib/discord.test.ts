@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { diffTopCars, newBoardKeys, type BoardEntry } from "./discord";
+import type { BadgeDef, BadgeHolder } from "@/types";
+import { diffBadgeGold, diffTopCars, newBoardKeys, type BoardEntry } from "./discord";
 
 function row(track: number, car: number, score: number, cls = "LMGT3", condition = "Dry"): BoardEntry {
   return { track_id: track, class: cls, condition, car_id: car, car_score: score };
@@ -52,5 +53,43 @@ describe("newBoardKeys (first-data detection)", () => {
     const before = [row(1, 10, 90)];
     const after = [row(1, 10, 90), row(1, 10, 55, "LMGT3", "Wet")];
     expect([...newBoardKeys(before, after)]).toEqual(["10|1|Wet"]);
+  });
+});
+
+describe("diffBadgeGold (leader-board crown takeovers)", () => {
+  const holder = (tier: BadgeHolder["tier"], id: number, name: string): BadgeHolder => ({ tier, driver_id: id, driver_name: name, value: 0 });
+  const badge = (id: BadgeDef["id"], goldId: number, goldName: string, roast = false): BadgeDef => ({
+    id,
+    label: id,
+    emoji: "🏆",
+    hint: "",
+    roast,
+    holders: [holder("gold", goldId, goldName), holder("silver", 99, "Someone")],
+  });
+
+  it("reports a takeover when a badge's gold holder changes", () => {
+    const prev = { fastest: 1 };
+    const { takeovers, next } = diffBadgeGold(prev, [badge("fastest", 2, "the possum")]);
+    expect(takeovers).toHaveLength(1);
+    expect(takeovers[0]).toMatchObject({ badgeId: "fastest", newId: 2, newName: "the possum", prevId: 1 });
+    expect(next).toEqual({ fastest: 2 });
+  });
+
+  it("stays silent on a first-ever award (no previous holder)", () => {
+    const { takeovers, next } = diffBadgeGold({}, [badge("fastest", 2, "the possum")]);
+    expect(takeovers).toHaveLength(0); // recorded, not announced
+    expect(next).toEqual({ fastest: 2 });
+  });
+
+  it("no takeover when the same driver keeps the crown", () => {
+    const { takeovers } = diffBadgeGold({ fastest: 2 }, [badge("fastest", 2, "the possum")]);
+    expect(takeovers).toHaveLength(0);
+  });
+
+  it("omits an unheld badge so re-award is first-ever again (silent)", () => {
+    const empty: BadgeDef = { id: "fastest", label: "f", emoji: "🏆", hint: "", roast: false, holders: [] };
+    const { takeovers, next } = diffBadgeGold({ fastest: 1 }, [empty]);
+    expect(takeovers).toHaveLength(0);
+    expect(next).toEqual({}); // dropped — a later award won't false-fire as a takeover
   });
 });
