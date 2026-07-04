@@ -313,24 +313,27 @@ save/disconnect/Test — the test message NAMES its feed. 82 tests.
 can reply; #race-announcements is the one worth locking read-only (webhooks
 bypass channel send-permissions, so locking works).
 
+### Driver-board badge announcer (round 16, 2026-07-04)
+
+The third webhook channel now fires from a real event. `announceBadges()` (in
+discord.ts, wired into `recomputeAll` after `announceFlips`) computes the
+driver-board badges over the era-scoped sessions and diffs each badge's GOLD
+holder vs a stored snapshot (`badge_gold_holders` setting). Pure tested helper
+`diffBadgeGold(prev, badges)`: takeover only when a badge HAD a holder and it
+changed; first-ever awards recorded silently (no early-data spam); unheld badges
+dropped so a re-award doesn't false-fire. Always refreshes the snapshot (tracks
+truth even with no webhook); posts a batched "Leader-board shakeup" only when
+the board slot is reachable AND a crown moved (roast badges get banter
+phrasing). Weight-change recomputes don't move badges (raw factor averages), so
+no spam. 86 tests (4 new). **Verified live end-to-end:** primed the snapshot,
+pushed "the possum" over the 5-session bar → flipped Fastest Overall (from
+Pierre) + Tyre Killer (from Sam) in one #leader-board post. **All three webhook
+channels now fire from real events** (rounds 14–16). The three round-15 loose
+ends are all resolved: announcer built; #testdrivers session ping verified live
+(harry's Aston run + first-data flair); all three channel URLs connected.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **⭐ NEXT UP (user confirmed 2026-07-04, resuming after their 5h Claude reset)
-  — three loose ends from the webhook build (rounds 14–15):**
-  1. **Driver-board badge announcer.** Post badge/crown takeovers ("🏆 Mike
-     takes Fastest Overall from Dal") to the `board` webhook slot (#leader-board
-     — already wired and testable). Needs a last-holders snapshot in settings to
-     diff against after each recompute; keep it takeover-only (no spam on
-     first-ever awards during early data).
-  2. **Verify the #testdrivers session-logged ping fires for real.** All three
-     slots' TEST buttons were confirmed live (2026-07-04), but the actual
-     session-logged event (built round 15, `POST /api/sessions`) hasn't fired
-     from a real logged session yet — log one and confirm it lands with the
-     right SVS + "first data" flair when applicable.
-  3. **User still needs to paste webhook URLs into the `test` (#testdrivers) and
-     `board` (#leader-board) slots** in the control panel — only the `race`
-     slot (#race-announcements) is connected so far; the other two currently
-     fall back to it.
 - **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
   (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
   wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
