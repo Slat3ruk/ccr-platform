@@ -271,12 +271,31 @@ existing APIs — no new endpoints/schema. Read-only v1; test-request pinning
 (manager pins a cell → briefing) is a possible v2. Verified live: 290 GT3
 combos, 2 at the bar; Imola pinned via its race; Wet honestly all-zero.
 
+### Discord webhook announcements (round 14, 2026-07-04)
+
+One-way pushes into the team channel via a plain channel webhook — **no bot, no
+OAuth, no Discord application, nothing hosted**. Admin pastes the URL into the
+"Discord announcements" control-panel card (save / disconnect / send-test; URL
+shape validated; GET returns a masked hint only). Fires on REAL changes only:
+- **Board #1 takeovers** — `recomputeAll` snapshots the outgoing board, diffs
+  the #1 per (track,class,condition) via pure `diffTopCars` (lib/discord.ts),
+  posts ONE batched message (≤8 lines + "and N more") tagged with the preset.
+  New/vanished boards are not flips; no-change recomputes stay silent.
+- **New era** (with reason) · **new tracks from a benchmark sync**
+  (`SyncResult.created_tracks`); routine re-syncs stay quiet.
+All posting best-effort (4s timeout, errors swallowed, fast no-op when
+unconfigured) — a dead webhook can never break a recompute. 79 tests.
+
+**Discord architecture decision (2026-07-04): NO standing bot.** Three
+touchpoints, three different machines: (1) webhook = announcements, built
+above, zero infrastructure; (2) hub auth later = Discord *application* + OAuth,
+plus a bot *token* used purely for server-side REST role lookups — still no
+hosted process; (3) an interactive bot (/rankings from Discord) would be the
+only thing needing more, can run serverless via an interactions endpoint, and
+is NOT queued — build only if the team actually asks for it.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **Discord webhook announcements (agreed 2026-07-04).** A webhook URL in the
-  control panel (no OAuth needed); post to the team Discord on REAL changes
-  only: #1 flips on a board, new era drawn, benchmark sync found new data.
-  The motivation loop: rankings changing in the team's face pulls them back in.
 - **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
   (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
   wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
