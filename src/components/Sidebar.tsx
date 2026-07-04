@@ -35,7 +35,7 @@ export default function Sidebar() {
       : SECTIONS;
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">CrossCurrent Racing</div>
+      <div className="sidebar-header">Cross Current Racing</div>
       <div className="sidebar-nav">
         {sections.map((section) => (
           <div key={section.title}>
