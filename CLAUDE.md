@@ -313,6 +313,18 @@ save/disconnect/Test — the test message NAMES its feed. 82 tests.
 can reply; #race-announcements is the one worth locking read-only (webhooks
 bypass channel send-permissions, so locking works).
 
+### Briefing: multi-class weekend picks (round 17, 2026-07-04)
+
+The briefing featured only ONE race (one class's car pick); other classes racing
+the SAME weekend sat pick-less in "Upcoming". Now the featured card shows an
+"Also racing this weekend" strip — for every other race sharing the featured
+race's track + date, its top car per class (or "no ranked car yet"). Same-weekend
+siblings are filtered out of the Upcoming list to avoid double-listing. Contained
+change to `briefing/page.tsx` + CSS; verified live (Imola: LMP2 Oreca featured +
+LMGT3 McLaren 80.3 beneath). Note: a wedged Fast-Refresh mid-edit showed a stale
+compile error citing a line that didn't match disk — a preview server restart
+cleared it (tsc was clean throughout).
+
 ### Driver-board badge announcer (round 16, 2026-07-04)
 
 The third webhook channel now fires from a real event. `announceBadges()` (in
