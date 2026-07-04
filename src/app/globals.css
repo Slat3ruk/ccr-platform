@@ -903,6 +903,76 @@ table.rank tbody tr.expanded {
   color: var(--accent);
 }
 
+/* --- Test coverage map ------------------------------------------------------ */
+.cov-wrap {
+  overflow-x: auto;
+}
+.cov-table th {
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cov-track-col {
+  position: sticky;
+  left: 0;
+  background: var(--bg-card);
+  z-index: 1;
+  min-width: 180px;
+}
+.cov-track {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cov-race-row .cov-track-col {
+  border-left: 3px solid var(--accent);
+}
+.cov-cell {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: help;
+  min-width: 64px;
+}
+.cov-none {
+  color: var(--text-dim);
+  background: var(--bg-input);
+}
+.cov-thin {
+  color: #ffb3b5;
+  background: rgba(242, 63, 67, 0.16);
+}
+.cov-ok {
+  color: #f5d489;
+  background: rgba(240, 178, 50, 0.16);
+}
+.cov-good {
+  color: #7fd8a2;
+  background: rgba(35, 165, 90, 0.18);
+}
+.cov-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-faint);
+  align-self: flex-end;
+  padding-bottom: 8px;
+}
+.cov-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cov-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border-soft);
+}
+
 /* --- Personal-lens note --------------------------------------------------- */
 .lens-note {
   display: flex;

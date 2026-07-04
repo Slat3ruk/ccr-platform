@@ -17,6 +17,7 @@ const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = 
     title: "Engineering",
     items: [
       { href: "/", label: "rankings" },
+      { href: "/coverage", label: "coverage" },
       { href: "/log", label: "log-session" },
       { href: "/sessions", label: "session-log" },
       { href: "/benchmarks", label: "benchmarks" },
