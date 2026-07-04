@@ -28,6 +28,7 @@ export async function POST() {
     await postDiscord(
       `🆕 **New track${result.created_tracks.length === 1 ? "" : "s"} on the Ohne Speed sheet:** ${result.created_tracks.join(", ")}\nBenchmarks loaded — the coverage map has fresh gaps to close.`,
       store,
+      "test",
     );
   }
   return NextResponse.json(result, { status: result.ok ? 200 : 202 });

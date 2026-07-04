@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
+import { postDiscord } from "@/lib/discord";
 import { recomputeAll } from "@/lib/recompute";
 import { validateSessionInput } from "@/lib/validation";
 
@@ -66,5 +67,20 @@ export async function POST(req: Request) {
   });
 
   const recompute = await recomputeAll(store);
+
+  // #testdrivers activity ping — the motivation loop. Best-effort; edits and
+  // deletes stay silent (only fresh runs are news). "First data" flair when
+  // this session opened a brand-new (car,track,condition) board.
+  const fresh = await store.getSession(session.id); // recompute stamped its SVS
+  const svs = fresh?.session_value_score;
+  const firstData = recompute.new_boards.includes(`${input.car_id}|${input.track_id}|${input.condition_reported}`);
+  await postDiscord(
+    `🏎️ **${driver.name}** logged ${input.lap_count} laps · ${car.name} @ ${track.name} · ${input.condition_reported}` +
+      (svs != null ? ` (SVS ${Math.round(svs)})` : "") +
+      (firstData ? `\n🆕 First data for this combo — one more coverage gap closed.` : ""),
+    store,
+    "test",
+  );
+
   return NextResponse.json({ ok: true, session, recompute }, { status: 201 });
 }

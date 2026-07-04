@@ -47,6 +47,7 @@ export async function POST(req: Request) {
   await postDiscord(
     `📢 **New era: ${era.name}**${era.reason ? ` — ${era.reason}` : ""}\nThe live board now scores sessions from this line onward; older data stays viewable from the era selector.`,
     store,
+    "race",
   );
   return NextResponse.json({ ok: true, era, recompute }, { status: 201 });
 }

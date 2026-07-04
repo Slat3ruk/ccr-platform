@@ -26,6 +26,9 @@ export interface WeightsPreset {
   weights: FactorWeights;
 }
 
+/** The three Discord webhook slots (see lib/discord.ts). */
+export type WebhookChannelName = "race" | "test" | "board";
+
 async function jget<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`GET ${url} → ${res.status}`);
@@ -140,13 +143,14 @@ export const api = {
   purgeSessions: () =>
     jsend<{ ok: true; sessions_removed: number; recompute: unknown }>("/api/admin/purge", "POST", { confirm: "PURGE" }),
 
-  // Discord webhook -------------------------------------------------------------
-  webhook: () => jget<{ configured: boolean; hint: string | null }>("/api/admin/webhook"),
+  // Discord webhooks (three channel slots: race / test / board) -----------------
+  webhook: () => jget<Record<WebhookChannelName, { configured: boolean; hint: string | null }>>("/api/admin/webhook"),
 
-  saveWebhook: (url: string) =>
-    jsend<{ ok: true; configured: boolean }>("/api/admin/webhook", "POST", { action: "save", url }),
+  saveWebhook: (channel: WebhookChannelName, url: string) =>
+    jsend<{ ok: true; configured: boolean }>("/api/admin/webhook", "POST", { action: "save", channel, url }),
 
-  testWebhook: () => jsend<{ ok: true; sent: boolean }>("/api/admin/webhook", "POST", { action: "test" }),
+  testWebhook: (channel: WebhookChannelName) =>
+    jsend<{ ok: true; sent: boolean }>("/api/admin/webhook", "POST", { action: "test", channel }),
 
   // race calendar + briefing --------------------------------------------------
   races: () => jget<RaceRow[]>("/api/races"),

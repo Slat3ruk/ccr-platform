@@ -8,10 +8,32 @@
 // ============================================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api-client";
+import { api, type WebhookChannelName } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
 import { useRole } from "@/lib/role";
 import type { Era, WeightsConfig } from "@/types";
+
+/** The three webhook slots and what routes to each (mirrors lib/discord.ts). */
+const WEBHOOK_SLOTS: { channel: WebhookChannelName; label: string; channelHint: string; events: string }[] = [
+  {
+    channel: "race",
+    label: "Race announcements",
+    channelHint: "#race-announcements",
+    events: "new eras · #1 takeovers on tracks with an upcoming race",
+  },
+  {
+    channel: "test",
+    label: "Test drivers",
+    channelHint: "#testdrivers",
+    events: "session logged · first data for a combo · all other #1 takeovers · new tracks from a sync",
+  },
+  {
+    channel: "board",
+    label: "Leader board",
+    channelHint: "#leader-board",
+    events: "driver-board badge & crown takeovers (announcer coming next)",
+  },
+];
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -50,11 +72,15 @@ export default function ControlPanelPage() {
   const [wetPct, setWetPct] = useState("");
   const [wetSaving, setWetSaving] = useState(false);
 
-  // Discord webhook
-  const [hookUrl, setHookUrl] = useState("");
-  const [hookConfigured, setHookConfigured] = useState(false);
-  const [hookHint, setHookHint] = useState<string | null>(null);
-  const [hookBusy, setHookBusy] = useState(false);
+  // Discord webhooks — three channel slots (race / test / board)
+  const emptySlot = { configured: false, hint: null as string | null };
+  const [hooks, setHooks] = useState<Record<WebhookChannelName, { configured: boolean; hint: string | null }>>({
+    race: emptySlot,
+    test: emptySlot,
+    board: emptySlot,
+  });
+  const [hookUrls, setHookUrls] = useState<Record<WebhookChannelName, string>>({ race: "", test: "", board: "" });
+  const [hookBusy, setHookBusy] = useState<WebhookChannelName | null>(null);
 
   const load = useCallback(async () => {
     const [e, w, status, wet, hook] = await Promise.all([
@@ -69,10 +95,7 @@ export default function ControlPanelPage() {
     setCounts(status.counts);
     setBackend(status.backend);
     if (wet) setWetPct(String(wet.penalty_pct));
-    if (hook) {
-      setHookConfigured(hook.configured);
-      setHookHint(hook.hint);
-    }
+    if (hook) setHooks(hook);
     setLoading(false);
   }, []);
 
@@ -178,37 +201,36 @@ export default function ControlPanelPage() {
     }
   }
 
-  async function saveHook(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveHook(channel: WebhookChannelName) {
     setMsg(null);
-    setHookBusy(true);
+    setHookBusy(channel);
     try {
-      const res = await api.saveWebhook(hookUrl.trim());
-      setHookUrl("");
+      const res = await api.saveWebhook(channel, hookUrls[channel].trim());
+      setHookUrls((u) => ({ ...u, [channel]: "" }));
       await load();
       setMsg({
         kind: "success",
         text: res.configured
-          ? "Webhook saved — use “Send test message” to confirm it lands in the channel."
-          : "Webhook cleared — announcements are off.",
+          ? "Webhook saved — use “Test” to confirm it lands in the right channel."
+          : "Webhook cleared for this slot.",
       });
     } catch (err) {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to save webhook." });
     } finally {
-      setHookBusy(false);
+      setHookBusy(null);
     }
   }
 
-  async function testHook() {
+  async function testHook(channel: WebhookChannelName) {
     setMsg(null);
-    setHookBusy(true);
+    setHookBusy(channel);
     try {
-      await api.testWebhook();
-      setMsg({ kind: "success", text: "Test message sent — check the Discord channel." });
+      await api.testWebhook(channel);
+      setMsg({ kind: "success", text: "Test sent — the message names its feed, so check it landed in the right channel." });
     } catch (err) {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Test failed." });
     } finally {
-      setHookBusy(false);
+      setHookBusy(null);
     }
   }
 
@@ -377,39 +399,57 @@ export default function ControlPanelPage() {
               ))}
             </div>
 
-            {/* ---- Discord announcements ---- */}
+            {/* ---- Discord announcements (three channel slots) ---- */}
             <div className="card">
               <h2>Discord announcements</h2>
               <div className="card-sub">
-                Paste a channel webhook URL (Discord → channel settings → Integrations → Webhooks) and the platform posts
-                on real changes: <strong>#1 takeovers</strong> on any board, a <strong>new era</strong>, and{" "}
-                <strong>new tracks</strong> appearing from a benchmark sync. Routine recomputes that change nothing stay
-                silent. Status:{" "}
-                {hookConfigured ? (
-                  <span style={{ color: "var(--green)", fontWeight: 700 }}>connected{hookHint ? ` (${hookHint})` : ""}</span>
-                ) : (
-                  <span className="muted">not configured</span>
-                )}
+                One webhook per channel (Discord → channel settings → Integrations → Webhooks). Each slot below says
+                exactly which events route to it; the test message names its feed so you can confirm the URL landed in
+                the right channel. A slot left empty falls back to the first configured one — nothing goes missing.
+                Routine recomputes that change nothing stay silent.
               </div>
-              <form onSubmit={saveHook}>
-                <div className="flex" style={{ gap: 8, flexWrap: "wrap" }}>
-                  <input
-                    type="text"
-                    style={{ flex: 1, minWidth: 260 }}
-                    placeholder={hookConfigured ? "Paste a new URL to replace, or leave blank + Save to disconnect" : "https://discord.com/api/webhooks/…"}
-                    value={hookUrl}
-                    onChange={(e) => setHookUrl(e.target.value)}
-                  />
-                  <button className="btn" type="submit" disabled={hookBusy || (!hookUrl.trim() && !hookConfigured)}>
-                    {hookBusy ? "Working…" : hookUrl.trim() ? "Save" : hookConfigured ? "Disconnect" : "Save"}
-                  </button>
-                  {hookConfigured && (
-                    <button className="btn btn-ghost" type="button" disabled={hookBusy} onClick={testHook}>
-                      Send test message
-                    </button>
-                  )}
-                </div>
-              </form>
+              {WEBHOOK_SLOTS.map((slot) => {
+                const st = hooks[slot.channel];
+                const draft = hookUrls[slot.channel];
+                const busy = hookBusy != null;
+                return (
+                  <div className="hook-slot" key={slot.channel}>
+                    <div className="hook-head">
+                      <span className="hook-label">
+                        {slot.label} <span className="muted">→ {slot.channelHint}</span>
+                      </span>
+                      {st.configured ? (
+                        <span className="hook-status on" title={st.hint ?? undefined}>● connected</span>
+                      ) : (
+                        <span className="hook-status">○ not set</span>
+                      )}
+                    </div>
+                    <div className="hook-events">{slot.events}</div>
+                    <div className="flex" style={{ gap: 8, flexWrap: "wrap" }}>
+                      <input
+                        type="text"
+                        style={{ flex: 1, minWidth: 240 }}
+                        placeholder={st.configured ? "Paste a new URL to replace, or leave blank + Save to disconnect" : "https://discord.com/api/webhooks/…"}
+                        value={draft}
+                        onChange={(e) => setHookUrls((u) => ({ ...u, [slot.channel]: e.target.value }))}
+                      />
+                      <button
+                        className="btn btn-sm"
+                        type="button"
+                        disabled={busy || (!draft.trim() && !st.configured)}
+                        onClick={() => saveHook(slot.channel)}
+                      >
+                        {hookBusy === slot.channel ? "Working…" : draft.trim() ? "Save" : st.configured ? "Disconnect" : "Save"}
+                      </button>
+                      {st.configured && (
+                        <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={() => testHook(slot.channel)}>
+                          Test
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* ---- Danger zone ---- */}

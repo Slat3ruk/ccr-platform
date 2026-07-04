@@ -20,7 +20,7 @@ import {
   type Session,
   type WeightsConfig,
 } from "@/types";
-import { announceFlips } from "./discord";
+import { announceFlips, newBoardKeys } from "./discord";
 import { currentEraRange, inRange, type EraRange } from "./eras";
 import { getStore } from "./db";
 import type { NewRecommendation, Store } from "./db/types";
@@ -40,6 +40,9 @@ export interface RecomputeSummary {
   groups: number;
   weights_preset: string;
   era: string;
+  /** (car|track|condition) keys that gained their FIRST recommendation this
+   *  recompute — lets the sessions route flag "first data for this combo". */
+  new_boards: string[];
 }
 
 function groupKey(carId: number, trackId: number, condition: Condition): string {
@@ -225,5 +228,6 @@ export async function recomputeAll(
     groups: recommendations.length,
     weights_preset: config.preset,
     era: eraName,
+    new_boards: [...newBoardKeys(beforeBoard, recommendations)],
   };
 }

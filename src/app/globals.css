@@ -973,6 +973,40 @@ table.rank tbody tr.expanded {
   border: 1px solid var(--border-soft);
 }
 
+/* --- Webhook channel slots (control panel) --------------------------------- */
+.hook-slot {
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--bg-card-2);
+}
+.hook-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hook-label {
+  font-size: 13px;
+  font-weight: 700;
+}
+.hook-status {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.hook-status.on {
+  color: var(--green);
+  font-weight: 700;
+  cursor: help;
+}
+.hook-events {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 4px 0 8px;
+}
+
 /* --- Personal-lens note --------------------------------------------------- */
 .lens-note {
   display: flex;
