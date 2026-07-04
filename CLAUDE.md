@@ -313,6 +313,20 @@ save/disconnect/Test — the test message NAMES its feed. 82 tests.
 can reply; #race-announcements is the one worth locking read-only (webhooks
 bypass channel send-permissions, so locking works).
 
+### Data-quality flags (round 18, 2026-07-04)
+
+Soft, non-blocking sanity checks for plausible-but-suspect inputs (typos,
+dropped telemetry) — hard-impossible values stay in validation.ts. Pure module
+`src/lib/quality.ts` (`sessionQualityWarnings`, 8 tests): best lap quicker than
+the alien tier / slower than the offline tier (needs benchmark); no tyre wear
+(≤1%) over a real stint (≥8 laps); lap-times count ≠ lap count; average >15%
+slower than best over ≥5 laps. Wired both places from the one function: the log
+form loads benchmarks, shows a live yellow "Sanity check" panel, and CONFIRMS on
+submit ("log anyway?") rather than blocking; the session log shows a ⚠ per
+suspect row with a tooltip. 94 tests. Verified live — even caught a real mislog
+(a car logged as a Hypercar with GT3 pace). Benchmark resolved by car class +
+track + condition (Dry fallback), matching scoreGroups.
+
 ### Briefing: multi-class weekend picks (round 17, 2026-07-04)
 
 The briefing featured only ONE race (one class's car pick); other classes racing
@@ -346,10 +360,6 @@ ends are all resolved: announcer built; #testdrivers session ping verified live
 
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-- **Data-quality flags (agreed 2026-07-04).** Soft sanity warnings at log time
-  (confirm, don't block): best lap faster than the alien tier; avg < best; 0%
-  wear over a long run; lap_times count ≠ lap_count. Subtle ⚠ on suspect
-  sessions in the log. Protects the numbers the team trusts.
 - **Coverage v2 — test requests.** Manager pins a coverage cell as a test
   request; it shows on the briefing page.
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
