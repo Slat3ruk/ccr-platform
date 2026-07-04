@@ -202,7 +202,7 @@ export default function BriefingPage() {
       <div className="topbar">
         <span className="hash">#</span>
         <h1>briefing</h1>
-        <span className="sub">Bottom line, up front · {races.length} race{races.length === 1 ? "" : "s"} on the calendar</span>
+        <span className="sub">Cross Current Racing team has · {races.length} race{races.length === 1 ? "" : "s"} on the calendar</span>
       </div>
       <div className="content">
         {loading ? (
