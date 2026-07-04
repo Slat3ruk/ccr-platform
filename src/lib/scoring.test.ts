@@ -26,6 +26,7 @@ import {
   sessionValueScore,
   stdDev,
   tyreFactor,
+  weightedFactorScore,
   WEIGHT_PRESETS,
 } from "./scoring";
 
@@ -328,6 +329,31 @@ describe("aggregateCarScore", () => {
 describe("scoreSession", () => {
   it("falls back to a neutral pace when no benchmark exists", () => {
     expect(scoreSession(makeSession(), null).pace).toBe(50);
+  });
+});
+
+describe("weightedFactorScore (client-side lens re-ranking)", () => {
+  const factors = { pace: 80, consistency: 60, tyre: 40, drivability: 100, mistakes: 20 };
+
+  it("matches aggregateCarScore's Balanced maths for the same factors", () => {
+    // Same 66 as aggregateCarScore's Balanced test — the lens re-rank is consistent.
+    expect(weightedFactorScore(factors, FACTOR_WEIGHTS)).toBe(66);
+  });
+
+  it("re-ranks: a Tyre-saver lens flips a tyre-strong car above a pace-strong one", () => {
+    const paceCar = { pace: 95, consistency: 70, tyre: 30, drivability: 70, mistakes: 70 };
+    const tyreCar = { pace: 70, consistency: 70, tyre: 98, drivability: 70, mistakes: 70 };
+    const tyre = WEIGHT_PRESETS.find((p) => p.name === "Tyre-saver")!.weights;
+    const pace = WEIGHT_PRESETS.find((p) => p.name === "Pace-focused")!.weights;
+    // Pace lens favours the pace car; Tyre-saver lens flips the order.
+    expect(weightedFactorScore(paceCar, pace)).toBeGreaterThan(weightedFactorScore(tyreCar, pace));
+    expect(weightedFactorScore(tyreCar, tyre)).toBeGreaterThan(weightedFactorScore(paceCar, tyre));
+  });
+
+  it("normalises non-summing weights (stays 0–100)", () => {
+    // Double every weight → same result (normalised), still bounded.
+    const doubled = { pace: 0.7, consistency: 0.5, tyre: 0.3, drivability: 0.3, mistakes: 0.2 };
+    expect(weightedFactorScore(factors, doubled)).toBe(66);
   });
 });
 

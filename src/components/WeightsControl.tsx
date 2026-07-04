@@ -30,10 +30,12 @@ export default function WeightsControl({
   role,
   active,
   onApplied,
+  label = "Weighting",
 }: {
   role: Role;
   active: WeightsConfig | null;
   onApplied: () => void;
+  label?: string;
 }) {
   const [presets, setPresets] = useState<WeightsPreset[]>([]);
   const [open, setOpen] = useState(false);
@@ -93,7 +95,7 @@ export default function WeightsControl({
   return (
     <>
       <div className="field" style={{ minWidth: 168 }}>
-        <label>Weighting</label>
+        <label>{label}</label>
         <div className="flex" style={{ gap: 6 }}>
           <select
             value={selectValue}

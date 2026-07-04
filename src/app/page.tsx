@@ -5,14 +5,29 @@ import ExportButton from "@/components/ExportButton";
 import RankingsTable from "@/components/RankingsTable";
 import SetupBanner from "@/components/SetupBanner";
 import WeightsControl from "@/components/WeightsControl";
+import PresetWinners from "@/components/PresetWinners";
 import { api } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
 import { useRole } from "@/lib/role";
-import type { Era, RankingRow, Track, WeightsConfig } from "@/types";
+import { WEIGHT_PRESETS, weightedFactorScore } from "@/lib/scoring";
+import type { Era, FactorScores, RankingRow, Track, WeightsConfig } from "@/types";
 
 const CLASSES = ["LMGT3", "LMH", "LMP3", "LMP2-ELMS"];
 const CONDITIONS = ["Dry", "Wet", "Mixed"];
 const POLL_MS = 5000;
+
+/** Pull the five 0–100 factor scores off a ranking row. */
+function factorsOf(r: RankingRow): FactorScores {
+  return {
+    pace: r.pace_factor,
+    consistency: r.consistency_factor,
+    tyre: r.tyre_factor,
+    drivability: r.drivability_factor,
+    mistakes: r.mistakes_factor,
+  };
+}
+
+const LENS_KEY = "ccr-view-lens";
 
 export default function DashboardPage() {
   const { role } = useRole();
@@ -30,6 +45,28 @@ export default function DashboardPage() {
   const [eras, setEras] = useState<Era[]>([]);
   /** "" = live board (current era); "pre" or an era id = archived view. */
   const [eraView, setEraView] = useState<string>("");
+  /** Per-viewer weighting "lens": "" = team default (server order); else a preset
+   *  name that re-ranks the loaded board CLIENT-SIDE (no recompute, personal). */
+  const [lens, setLens] = useState<string>("");
+
+  // Restore this viewer's saved lens (personal, localStorage — becomes profile-backed with auth).
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LENS_KEY);
+      if (saved && WEIGHT_PRESETS.some((p) => p.name === saved)) setLens(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function changeLens(v: string) {
+    setLens(v);
+    try {
+      localStorage.setItem(LENS_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  }
 
   const filtersRef = useRef({ trackId, cls, condition, eraView });
   filtersRef.current = { trackId, cls, condition, eraView };
@@ -93,6 +130,40 @@ export default function DashboardPage() {
       setRecomputing(false);
     }
   }
+
+  const lensPreset = useMemo(() => WEIGHT_PRESETS.find((p) => p.name === lens) ?? null, [lens]);
+
+  // The board as displayed: team default = server order; a lens re-ranks the
+  // loaded rows client-side (re-weighted Car Score, re-sorted) — no server call.
+  const displayRows = useMemo(() => {
+    if (!lensPreset) return rows;
+    return [...rows]
+      .map((r) => ({
+        ...r,
+        car_score: weightedFactorScore(factorsOf(r), lensPreset.weights),
+        weights_preset: lensPreset.name,
+      }))
+      .sort((a, b) => b.car_score - a.car_score || a.car_name.localeCompare(b.car_name));
+  }, [rows, lensPreset]);
+
+  // Preset winners: the top car under EACH preset, from the loaded rows. Chips
+  // whose winner differs from Balanced are the interesting ones (a car hidden by
+  // the default weighting). Scoped to the current track/class/condition filter.
+  const presetWinners = useMemo(() => {
+    if (rows.length === 0) return [];
+    return WEIGHT_PRESETS.map((p) => {
+      let top: RankingRow | null = null;
+      let topScore = -1;
+      for (const r of rows) {
+        const s = weightedFactorScore(factorsOf(r), p.weights);
+        if (s > topScore) {
+          topScore = s;
+          top = r;
+        }
+      }
+      return { preset: p.name, car_name: top?.car_name ?? "—", car_id: top?.car_id ?? -1, score: topScore };
+    });
+  }, [rows]);
 
   const activeEra = useMemo(() => currentEra(eras, Date.now()), [eras]);
   const viewingArchived = eraView !== "";
@@ -174,14 +245,32 @@ export default function DashboardPage() {
               </select>
             </div>
           )}
-          <WeightsControl
-            role={role}
-            active={weights}
-            onApplied={() => {
-              loadWeights();
-              loadRankings();
-            }}
-          />
+          <div className="field" style={{ minWidth: 150 }}>
+            <label>My view</label>
+            <select
+              value={lens}
+              title="Re-rank the board under a weighting — personal to you, saved on this device. Doesn't change anyone else's board."
+              onChange={(e) => changeLens(e.target.value)}
+            >
+              <option value="">Team default{weights ? ` · ${weights.preset}` : ""}</option>
+              {WEIGHT_PRESETS.map((p) => (
+                <option key={p.name} value={p.name} title={p.hint}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {role !== "driver" && (
+            <WeightsControl
+              role={role}
+              active={weights}
+              label="Team default"
+              onApplied={() => {
+                loadWeights();
+                loadRankings();
+              }}
+            />
+          )}
           <div className="spacer" />
           <div className="field" style={{ minWidth: 0 }}>
             <label>Auto-refresh</label>
@@ -200,8 +289,21 @@ export default function DashboardPage() {
               {recomputing ? "Recomputing…" : "🔧 Recompute"}
             </button>
           )}
-          <ExportButton rows={rows} />
+          <ExportButton rows={displayRows} />
         </div>
+
+        {presetWinners.length > 0 && (
+          <PresetWinners winners={presetWinners} lens={lens} onPick={changeLens} />
+        )}
+
+        {lens && (
+          <div className="lens-note">
+            Viewing under your <strong>{lens}</strong> lens — personal to you, saved on this device.{" "}
+            <button className="btn btn-ghost btn-sm" onClick={() => changeLens("")}>
+              Back to team default
+            </button>
+          </div>
+        )}
 
         {viewingArchived && (
           <div className="msg" style={{ background: "rgba(240, 178, 50, 0.10)", border: "1px solid var(--yellow)", color: "#f5d489" }}>
@@ -221,7 +323,12 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <RankingsTable rows={rows} role={role} activeWeights={weights?.weights} archived={viewingArchived} />
+        <RankingsTable
+          rows={displayRows}
+          role={role}
+          activeWeights={lensPreset ? lensPreset.weights : weights?.weights}
+          archived={viewingArchived}
+        />
       </div>
     </>
   );

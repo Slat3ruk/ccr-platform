@@ -822,6 +822,102 @@ table.rank tbody tr.expanded {
   color: var(--text-muted);
 }
 
+/* --- Preset-winners strip ------------------------------------------------- */
+.preset-winners {
+  background: var(--bg-card-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.pw-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.pw-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pw-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.pw-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pw-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 128px;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s, transform 0.06s;
+}
+.pw-chip:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+.pw-chip .pw-preset {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-faint);
+}
+.pw-chip .pw-car {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pw-chip .pw-score {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+/* A winner the Balanced weighting hides — the interesting ones. */
+.pw-chip.differs {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 1px rgba(178, 119, 240, 0.25);
+}
+.pw-chip.differs .pw-preset {
+  color: var(--purple);
+}
+/* The lens currently applied to the board. */
+.pw-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.pw-chip.active .pw-preset {
+  color: var(--accent);
+}
+
+/* --- Personal-lens note --------------------------------------------------- */
+.lens-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .flex {
   display: flex;
   align-items: center;

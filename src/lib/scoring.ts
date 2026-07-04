@@ -86,6 +86,22 @@ export function normalizeWeights(w: FactorWeights): FactorWeights {
   };
 }
 
+/**
+ * Re-weight already-aggregated factor scores into a single 0–100 Car Score under
+ * an arbitrary weighting. This is the client-side re-ranking primitive: because
+ * a recommendation stores its five factor scores, the board can be re-ranked
+ * under ANY preset in the browser (a per-driver "lens", the preset-winners strip)
+ * without a server recompute. NOTE: it re-weights the EXISTING factors — it does
+ * not re-pick the best setup (that's weight-dependent and server-side), so it's a
+ * faithful re-rank of the current data, a close approximation for setup choice.
+ */
+export function weightedFactorScore(f: FactorScores, weights: FactorWeights): number {
+  const w = normalizeWeights(weights);
+  return round2(
+    clamp(f.pace * w.pace + f.consistency * w.consistency + f.tyre * w.tyre + f.drivability * w.drivability + f.mistakes * w.mistakes),
+  );
+}
+
 export const SVS_WEIGHTS = {
   completeness: 0.3,
   consistency: 0.25,
