@@ -1397,6 +1397,14 @@ table.rank tbody tr.expanded {
   font-size: 15px;
   color: var(--text);
 }
+.bluf-sib-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
 
 .bluf-note {
   margin-top: 18px;

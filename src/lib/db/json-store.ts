@@ -413,6 +413,7 @@ export class JsonStore implements Store {
       condition: input.condition ?? null,
       name: input.name ?? null,
       event_date: input.event_date,
+      start_at: input.start_at ?? null,
       note: null,
       note_by: null,
       note_updated_at: null,

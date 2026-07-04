@@ -136,6 +136,7 @@ function rowToRace(r: any): RaceEvent {
     condition: r.condition ?? null,
     name: r.name ?? null,
     event_date: typeof r.event_date === "string" ? r.event_date.slice(0, 10) : iso(r.event_date).slice(0, 10),
+    start_at: r.start_at ? iso(r.start_at) : null,
     note: r.note ?? null,
     note_by: r.note_by ?? null,
     note_updated_at: r.note_updated_at ? iso(r.note_updated_at) : null,
@@ -195,6 +196,7 @@ export class PostgresStore implements Store {
         created_by      VARCHAR(255),
         created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    await pool.query("ALTER TABLE ccr.races ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ");
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS weights_preset VARCHAR(50)");
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
@@ -521,15 +523,15 @@ export class PostgresStore implements Store {
 
   async createRace(input: NewRaceInput): Promise<RaceEvent> {
     const res = await this.q(
-      `INSERT INTO races (track_id, class, condition, name, event_date, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [input.track_id, input.class ?? null, input.condition ?? null, input.name ?? null, input.event_date, input.created_by ?? null],
+      `INSERT INTO races (track_id, class, condition, name, event_date, start_at, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [input.track_id, input.class ?? null, input.condition ?? null, input.name ?? null, input.event_date, input.start_at ?? null, input.created_by ?? null],
     );
     return rowToRace(res.rows[0]);
   }
 
   async updateRace(id: number, patch: RacePatch): Promise<RaceEvent | null> {
-    const cols: (keyof RacePatch)[] = ["track_id", "class", "condition", "name", "event_date", "note", "note_by"];
+    const cols: (keyof RacePatch)[] = ["track_id", "class", "condition", "name", "event_date", "start_at", "note", "note_by"];
     const sets: string[] = [];
     const params: unknown[] = [];
     for (const col of cols) {

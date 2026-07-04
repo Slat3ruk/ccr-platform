@@ -274,6 +274,12 @@ export interface RaceEvent {
   name?: string | null;
   /** ISO date (YYYY-MM-DD) of the main race day. */
   event_date: string;
+  /**
+   * Optional absolute start instant (full ISO UTC timestamp). Stored in UTC so
+   * every viewer's browser renders it in THEIR local time via toLocaleString —
+   * a UK manager sets 19:00, a German driver sees 20:00. Null = day-only (TBC).
+   */
+  start_at?: string | null;
   note?: string | null;
   note_by?: string | null;
   note_updated_at?: string | null;
@@ -288,6 +294,8 @@ export interface NewRaceInput {
   condition?: Condition | null;
   name?: string | null;
   event_date: string;
+  /** Optional full ISO UTC start instant (the form converts the manager's local time). */
+  start_at?: string | null;
   created_by?: string | null;
 }
 

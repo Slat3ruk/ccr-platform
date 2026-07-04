@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS races (
   condition       VARCHAR(50) CHECK (condition IS NULL OR condition IN ('Dry', 'Wet', 'Mixed')),
   name            VARCHAR(255),
   event_date      DATE NOT NULL,
+  start_at        TIMESTAMPTZ,
   note            TEXT,
   note_by         VARCHAR(255),
   note_updated_at TIMESTAMP,
@@ -164,3 +165,5 @@ CREATE TABLE IF NOT EXISTS races (
   created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_races_event_date ON races(event_date);
+-- Additive column for DBs created before optional race start times.
+ALTER TABLE races ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ;

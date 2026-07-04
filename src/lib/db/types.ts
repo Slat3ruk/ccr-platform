@@ -91,6 +91,7 @@ export interface RacePatch {
   condition?: Condition | null;
   name?: string | null;
   event_date?: string;
+  start_at?: string | null;
   note?: string | null;
   note_by?: string | null;
 }

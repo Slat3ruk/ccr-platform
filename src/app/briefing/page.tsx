@@ -20,6 +20,30 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
 
+/**
+ * When to show for a race. With a `start_at` (absolute UTC instant) we render
+ * the full date + time in the VIEWER's local timezone — a UK 19:00 shows as
+ * 20:00 CEST to a German driver. Without it, the day only (time TBC).
+ */
+function fmtRaceWhen(race: { event_date: string; start_at?: string | null }): string {
+  if (race.start_at) {
+    return new Date(race.start_at).toLocaleString(undefined, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  }
+  return fmtDate(race.event_date);
+}
+
+/** Short local time for compact spots (e.g. "20:00 CEST"). */
+function fmtLocalTime(startAt: string): string {
+  return new Date(startAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+}
+
 export default function BriefingPage() {
   const { role } = useRole();
   const canEdit = role !== "driver";
@@ -43,6 +67,7 @@ export default function BriefingPage() {
   // add-race form
   const [formTrack, setFormTrack] = useState("");
   const [formDate, setFormDate] = useState("");
+  const [formTime, setFormTime] = useState(""); // optional wall-clock in the manager's local TZ
   const [formClass, setFormClass] = useState("");
   const [formName, setFormName] = useState("");
   const [formBusy, setFormBusy] = useState(false);
@@ -141,15 +166,21 @@ export default function BriefingPage() {
     }
     setFormBusy(true);
     try {
+      // A time is entered as the manager's LOCAL wall-clock; `new Date("YYYY-MM-DDThh:mm")`
+      // reads it in this browser's timezone and .toISOString() pins it to an
+      // absolute UTC instant, so every viewer sees it in their own local time.
+      const start_at = formTime ? new Date(`${formDate}T${formTime}`).toISOString() : null;
       await api.createRace({
         track_id: Number(formTrack),
         event_date: formDate,
+        start_at,
         class: formClass ? (formClass as RaceRow["class"]) : null,
         name: formName.trim() || null,
         created_by: roleLabel,
       });
       setFormTrack("");
       setFormDate("");
+      setFormTime("");
       setFormClass("");
       setFormName("");
       await loadRaces();
@@ -192,7 +223,8 @@ export default function BriefingPage() {
                 </span>
                 <span className="muted">
                   {focus.race.name ? `${focus.race.name} · ` : ""}
-                  {fmtDate(focus.race.event_date)} · {countdownLabel(focus.daysUntil)}
+                  {fmtRaceWhen(focus.race)} · {countdownLabel(focus.daysUntil)}
+                  {focus.race.start_at && <span className="hint"> · your local time</span>}
                 </span>
               </div>
 
@@ -263,6 +295,7 @@ export default function BriefingPage() {
                     {siblingPicks.map(({ race, top }) => (
                       <div className="bluf-sib" key={race.id}>
                         <span className="pill">{race.class ?? "Any"}</span>
+                        {race.start_at && <span className="bluf-sib-time">{fmtLocalTime(race.start_at)}</span>}
                         {top ? (
                           <>
                             <span className="bluf-sib-car">{top.car_name}</span>
@@ -353,7 +386,10 @@ export default function BriefingPage() {
                     <div className="race-row" key={w.race.id}>
                       <div className="race-when">
                         <span className="race-date">{fmtDate(w.race.event_date)}</span>
-                        <span className="muted">{countdownLabel(w.daysUntil)}</span>
+                        <span className="muted">
+                          {w.race.start_at ? fmtLocalTime(w.race.start_at) + " · " : ""}
+                          {countdownLabel(w.daysUntil)}
+                        </span>
                       </div>
                       <div className="race-meta">
                         <span className="race-track">{w.race.track_name}</span>
@@ -411,6 +447,12 @@ export default function BriefingPage() {
                 <div className="field">
                   <label>Race day</label>
                   <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>
+                    Start time <span className="hint">optional · your local time</span>
+                  </label>
+                  <input type="time" value={formTime} onChange={(e) => setFormTime(e.target.value)} />
                 </div>
                 <div className="field">
                   <label>

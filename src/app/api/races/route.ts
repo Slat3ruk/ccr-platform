@@ -42,9 +42,19 @@ export async function POST(req: Request) {
   const condition =
     typeof body.condition === "string" && CONDITIONS.includes(body.condition as Condition) ? (body.condition as Condition) : null;
 
+  // Optional absolute start instant — the client sends a full ISO UTC timestamp
+  // (converted from the manager's local time). Normalise to canonical UTC.
+  let start_at: string | null = null;
+  if (typeof body.start_at === "string" && body.start_at.trim()) {
+    const ms = Date.parse(body.start_at);
+    if (!Number.isFinite(ms)) return NextResponse.json({ error: "start_at must be a valid ISO timestamp." }, { status: 400 });
+    start_at = new Date(ms).toISOString();
+  }
+
   const input: NewRaceInput = {
     track_id,
     event_date,
+    start_at,
     class: cls,
     condition,
     name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : null,

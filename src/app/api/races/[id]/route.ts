@@ -24,6 +24,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (typeof body.note_by === "string") patch.note_by = body.note_by.trim() || null;
   if (typeof body.name === "string") patch.name = body.name.trim() || null;
   if (typeof body.event_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.event_date)) patch.event_date = body.event_date;
+  if (body.start_at === null) patch.start_at = null;
+  else if (typeof body.start_at === "string" && body.start_at.trim()) {
+    const ms = Date.parse(body.start_at);
+    if (Number.isFinite(ms)) patch.start_at = new Date(ms).toISOString();
+  }
   if (body.class === null || (typeof body.class === "string" && RACING_CLASSES.includes(body.class as RacingClass)))
     patch.class = (body.class as RacingClass) ?? null;
   if (body.condition === null || (typeof body.condition === "string" && CONDITIONS.includes(body.condition as Condition)))
