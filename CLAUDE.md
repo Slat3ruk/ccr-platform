@@ -407,6 +407,17 @@ LABEL sits on top. `src/lib/patch.ts` parses/compares versions.
 104 tests. Verified live end-to-end (set patch, auto-stamp, smart toggle
 defaults, stale-setup flag + depreciation).
 
+### Wet per-track penalty overrides (round 22, 2026-07-05)
+
+The wet layer derived every track's Wet tiers from one global dry×(1+pct). Now
+`deriveWetBenchmarks(store, pct, overrides)` takes a `{track_id: pct}` map
+(setting `wet_penalty_overrides`) so circuits that deviate (Le Mans's long lap)
+use their own %; everything else the global. /api/benchmarks/wet GET returns the
+map, POST accepts `{penalty_pct?, overrides?}`. Control-panel "Wet pace penalty"
+card grew a "Per-track overrides" section (inline edit + add/remove). Verified
+live: Le Mans +12% → wet=dry×1.12, Spa +8% → dry×1.08. Left a realistic Le Mans
+override in place.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
@@ -414,9 +425,6 @@ defaults, stale-setup flag + depreciation).
   session to CCR platform" button POSTing to the existing API would kill manual
   entry and typos. BOTH apps must stabilise first — building it now risks
   breaking both. Revisit when the stint planner's feature work settles.
-- **Wet benchmarks per-track hand-tuning** — the round-11 wet layer is a uniform
-  global %; allow overriding individual (track,class,Wet) rows for circuits that
-  deviate (Le Mans skews higher).
 - **Production data store (release gate, flagged 2026-07-04).** Netlify runs the
   app as serverless functions with an ephemeral, read-only filesystem — the
   zero-config JSON store CANNOT persist writes there (session logs, benchmark
