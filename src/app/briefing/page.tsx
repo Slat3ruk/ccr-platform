@@ -241,9 +241,6 @@ export default function BriefingPage() {
         <span className="sub">Cross Current Racing team has · {races.length} race{races.length === 1 ? "" : "s"} on the calendar</span>
       </div>
       <div className="content">
-        {/* Team wordmark — the briefing is the page drivers see most. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="brand-banner" src="/logo.jpg" alt="Cross Current Racing" />
         {loading ? (
           <div className="empty">Loading…</div>
         ) : !focus ? (
