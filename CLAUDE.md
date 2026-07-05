@@ -418,6 +418,23 @@ card grew a "Per-track overrides" section (inline edit + add/remove). Verified
 live: Le Mans +12% → wet=dry×1.12, Spa +8% → dry×1.08. Left a realistic Le Mans
 override in place.
 
+### Scoring transparency + post-briefing-to-Discord (round 23, 2026-07-05)
+
+Both gated to **Team Manager + Admin** (user's explicit call — flip the
+`role !== "driver"` checks if drivers should ever see the scoring page).
+- **#how-scoring-works (`/scoring`)**: five factors with real weights/mechanics,
+  SVS components, n/(n+1) confidence, patch/benchmark/guardrail rules — must be
+  kept in sync with scoring.ts constants when they change. Sidebar link added
+  under Engineering for manager/admin; drivers get a lock state. The session
+  log's SVS column now shows a per-session component-breakdown tooltip
+  (manager/admin).
+- **POST /api/races/:id/announce + "📢 Post briefing to Discord"** (briefing
+  manager row): server-composed BLUF (when, per-class picks incl. same-weekend
+  siblings, engineer's note, weighting) → #race-announcements. Uses Discord
+  `<t:…:F>` timestamps so readers see their own local time. The manual button
+  covers the race-week reminder use-case without a scheduler.
+Verified live incl. a real post ("✅ Posted to #race-announcements"). 104 tests.
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
