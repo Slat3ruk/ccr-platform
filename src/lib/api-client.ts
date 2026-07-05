@@ -168,6 +168,8 @@ export const api = {
 
   deleteRace: (id: number) => jsend<{ ok: true }>(`/api/races/${id}`, "DELETE"),
 
+  announceRace: (id: number) => jsend<{ ok: true; sent: boolean }>(`/api/races/${id}/announce`, "POST"),
+
   // driver leaderboard --------------------------------------------------------
   driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
 

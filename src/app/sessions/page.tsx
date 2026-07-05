@@ -159,7 +159,23 @@ export default function SessionsPage() {
                     <td className="num">{s.off_track_count}</td>
                     <td className="num">{s.tyres.avg_wear_pct.toFixed(0)}%</td>
                     <td className="num">{s.confidence_rating}</td>
-                    <td className="num">{s.session_value_score != null ? s.session_value_score.toFixed(0) : "—"}</td>
+                    <td
+                      className="num"
+                      style={canManage && s.value_components ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : undefined}
+                      title={
+                        canManage && s.value_components
+                          ? `Session Value Score — why this session weighs what it does:\n\n` +
+                            `Completeness (30%): ${s.value_components.completeness.toFixed(0)}\n` +
+                            `Consistency (25%): ${s.value_components.consistency.toFixed(0)}\n` +
+                            `Cleanliness (20%): ${s.value_components.cleanliness.toFixed(0)}\n` +
+                            `Representativeness (15%): ${s.value_components.representativeness.toFixed(0)}\n` +
+                            `Recency (10%): ${s.value_components.recency.toFixed(0)}\n\n` +
+                            `Full maths: #how-scoring-works`
+                          : undefined
+                      }
+                    >
+                      {s.session_value_score != null ? s.session_value_score.toFixed(0) : "—"}
+                    </td>
                     <td className="muted">
                       {s.setup_type || s.setup_version ? (
                         <>

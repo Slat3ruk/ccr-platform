@@ -216,6 +216,23 @@ export default function BriefingPage() {
     await loadTestReqs();
   }
 
+  // Push the briefing BLUF to #race-announcements (manager/admin; server composes it).
+  const [announcing, setAnnouncing] = useState(false);
+  const [announceMsg, setAnnounceMsg] = useState<string | null>(null);
+  async function announce() {
+    if (!focus) return;
+    setAnnouncing(true);
+    setAnnounceMsg(null);
+    try {
+      await api.announceRace(focus.race.id);
+      setAnnounceMsg("✅ Posted to #race-announcements.");
+    } catch (err) {
+      setAnnounceMsg(`❌ ${err instanceof Error ? err.message : "Failed to post."}`);
+    } finally {
+      setAnnouncing(false);
+    }
+  }
+
   // "Testing wanted" list, resolved to names and ordered with combos for tracks
   // that have an upcoming race first (close the race-relevant gaps first).
   const wantedTests = useMemo(() => {
@@ -447,10 +464,18 @@ export default function BriefingPage() {
               ) : null;
             })()}
 
-            {/* ---- Featured-race remove (managers) ---- */}
+            {/* ---- Featured-race actions (managers) ---- */}
             {canEdit && (
-              <div className="flex" style={{ gap: 8, marginBottom: 16 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => removeRace(focus.race.id, focus.race.track_name)}>
+              <div className="flex" style={{ gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+                <button className="btn btn-sm" onClick={announce} disabled={announcing}>
+                  {announcing ? "Posting…" : "📢 Post briefing to Discord"}
+                </button>
+                {announceMsg && <span style={{ fontSize: 13 }}>{announceMsg}</span>}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginLeft: "auto" }}
+                  onClick={() => removeRace(focus.race.id, focus.race.track_name)}
+                >
                   Remove “{focus.race.track_name}” from calendar
                 </button>
               </div>
