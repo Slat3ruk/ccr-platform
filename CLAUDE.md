@@ -436,8 +436,10 @@ override in place.
   the setup notes.
 - **Auth hub** (release gate) — provider-agnostic identity + server-enforced
   roles; likely a separate Cloudflare hub. Everything ships behind this.
-- **GT3-wheel control-panel styling** — dress the functional panel with
-  `public/steering-wheel-logo.png` (static-first).
+- **GT3-wheel control-panel styling (LOW PRIORITY — user demoted 2026-07-05).**
+  Dress the functional panel with `public/steering-wheel-logo.png` (static-first).
+  User's read: "more of a gimmick than anything else" and concerned the concept
+  won't translate from brain to real life — keep queued, do last, don't push it.
 
 ### Wet benchmarks (derived, admin-tunable) + driver weighting (round 11, 2026-07-03/04)
 
