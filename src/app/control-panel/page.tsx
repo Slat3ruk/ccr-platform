@@ -70,8 +70,12 @@ export default function ControlPanelPage() {
   const [recomputing, setRecomputing] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
 
-  // wet benchmark penalty
+  // wet benchmark penalty (global %) + per-track overrides ({ track_id: pctString })
   const [wetPct, setWetPct] = useState("");
+  const [wetOverrides, setWetOverrides] = useState<Record<number, string>>({});
+  const [addWetTrack, setAddWetTrack] = useState("");
+  const [addWetPct, setAddWetPct] = useState("");
+  const [tracks, setTracks] = useState<{ id: number; name: string }[]>([]);
   const [wetSaving, setWetSaving] = useState(false);
 
   // Discord webhooks — three channel slots (race / test / board)
@@ -85,21 +89,26 @@ export default function ControlPanelPage() {
   const [hookBusy, setHookBusy] = useState<WebhookChannelName | null>(null);
 
   const load = useCallback(async () => {
-    const [e, w, status, wet, hook, patch] = await Promise.all([
+    const [e, w, status, wet, hook, patch, tk] = await Promise.all([
       api.eras(),
       api.weights().catch(() => null),
       api.status(),
       api.wetPenalty().catch(() => null),
       api.webhook().catch(() => null),
       api.patch().catch(() => null),
+      api.tracks().catch(() => [] as { id: number; name: string }[]),
     ]);
     setEras(e);
     if (w) setWeights(w.active);
     setCounts(status.counts);
     setBackend(status.backend);
-    if (wet) setWetPct(String(wet.penalty_pct));
+    if (wet) {
+      setWetPct(String(wet.penalty_pct));
+      setWetOverrides(Object.fromEntries(Object.entries(wet.overrides).map(([id, p]) => [Number(id), String(p)])));
+    }
     if (hook) setHooks(hook);
     if (patch) setCurrentPatch(patch.current_patch);
+    setTracks(tk);
     setLoading(false);
   }, []);
 
@@ -192,6 +201,30 @@ export default function ControlPanelPage() {
     }
   }
 
+  function addWetOverride() {
+    const id = Number(addWetTrack);
+    const pct = Number(addWetPct);
+    if (!Number.isInteger(id) || id <= 0) {
+      setMsg({ kind: "error", text: "Pick a track to override." });
+      return;
+    }
+    if (!Number.isFinite(pct) || pct < 0 || pct > 30) {
+      setMsg({ kind: "error", text: "Override % must be between 0 and 30." });
+      return;
+    }
+    setWetOverrides((o) => ({ ...o, [id]: String(pct) }));
+    setAddWetTrack("");
+    setAddWetPct("");
+  }
+
+  function removeWetOverride(id: number) {
+    setWetOverrides((o) => {
+      const next = { ...o };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function saveWetPenalty(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
@@ -200,11 +233,21 @@ export default function ControlPanelPage() {
       setMsg({ kind: "error", text: "Wet penalty must be a number between 0 and 30 (%)." });
       return;
     }
+    // Build a clean numeric override map (drop blanks/junk).
+    const overrides: Record<string, number> = {};
+    for (const [id, p] of Object.entries(wetOverrides)) {
+      const v = Number(p);
+      if (String(p).trim() !== "" && Number.isFinite(v) && v >= 0 && v <= 30) overrides[id] = v;
+    }
     setWetSaving(true);
     try {
-      const res = await api.setWetPenalty(pct);
+      const res = await api.setWetPenalty({ penalty_pct: pct, overrides });
       await load();
-      setMsg({ kind: "success", text: `Wet penalty set to +${res.penalty_pct}% — regenerated ${res.derived} wet benchmark rows from the dry sheets.` });
+      const nOv = Object.keys(res.overrides).length;
+      setMsg({
+        kind: "success",
+        text: `Wet penalty set to +${res.penalty_pct}%${nOv ? ` (${nOv} per-track override${nOv === 1 ? "" : "s"})` : ""} — regenerated ${res.derived} wet benchmark rows from the dry sheets.`,
+      });
     } catch (err) {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to update wet penalty." });
     } finally {
@@ -379,25 +422,76 @@ export default function ControlPanelPage() {
                 Changing this regenerates every wet tier and recomputes wet rankings.
               </div>
               <form onSubmit={saveWetPenalty}>
-                <div className="row">
-                  <div className="field" style={{ maxWidth: 160, flex: "0 0 auto" }}>
-                    <label>Penalty %</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={30}
-                      step={0.5}
-                      value={wetPct}
-                      onChange={(e) => setWetPct(e.target.value)}
-                      placeholder="8"
-                    />
-                  </div>
-                  <div className="field" style={{ justifyContent: "flex-end" }}>
-                    <button className="btn" type="submit" disabled={wetSaving}>
-                      {wetSaving ? "Regenerating…" : "Save & regenerate wet"}
-                    </button>
-                  </div>
+                <div className="field" style={{ maxWidth: 200 }}>
+                  <label>Global penalty %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    step={0.5}
+                    value={wetPct}
+                    onChange={(e) => setWetPct(e.target.value)}
+                    placeholder="8"
+                  />
                 </div>
+
+                {/* Per-track overrides */}
+                <div className="nav-section" style={{ padding: "6px 0 4px" }}>Per-track overrides</div>
+                <div className="card-sub" style={{ marginBottom: 8 }}>
+                  Some circuits lose more in the wet — e.g. Le Mans’s long lap. Override a track’s % here; every other
+                  track uses the global.
+                </div>
+                {Object.keys(wetOverrides).length > 0 && (
+                  <div className="wet-ov-list">
+                    {Object.entries(wetOverrides).map(([id, p]) => (
+                      <div className="wet-ov-row" key={id}>
+                        <span className="wet-ov-track">{tracks.find((t) => t.id === Number(id))?.name ?? `Track #${id}`}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={30}
+                          step={0.5}
+                          value={p}
+                          onChange={(e) => setWetOverrides((o) => ({ ...o, [Number(id)]: e.target.value }))}
+                          style={{ maxWidth: 90 }}
+                        />
+                        <span className="muted">%</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeWetOverride(Number(id))}>
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex" style={{ gap: 8, alignItems: "flex-end", margin: "8px 0 14px", flexWrap: "wrap" }}>
+                  <select value={addWetTrack} onChange={(e) => setAddWetTrack(e.target.value)} style={{ maxWidth: 220 }}>
+                    <option value="">Add a track override…</option>
+                    {tracks
+                      .filter((t) => !(t.id in wetOverrides))
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    step={0.5}
+                    value={addWetPct}
+                    onChange={(e) => setAddWetPct(e.target.value)}
+                    placeholder="%"
+                    style={{ maxWidth: 90 }}
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={addWetOverride} disabled={!addWetTrack}>
+                    Add
+                  </button>
+                </div>
+
+                <button className="btn" type="submit" disabled={wetSaving}>
+                  {wetSaving ? "Regenerating…" : "Save & regenerate wet"}
+                </button>
               </form>
             </div>
 

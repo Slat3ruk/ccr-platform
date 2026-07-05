@@ -117,11 +117,16 @@ export const api = {
     return res.json();
   },
 
-  // wet benchmarks (derived from dry × penalty) ------------------------------
-  wetPenalty: () => jget<{ penalty_pct: number; default_pct: number }>("/api/benchmarks/wet"),
+  // wet benchmarks (derived from dry × penalty; per-track overrides) ----------
+  wetPenalty: () =>
+    jget<{ penalty_pct: number; default_pct: number; overrides: Record<string, number> }>("/api/benchmarks/wet"),
 
-  setWetPenalty: (penalty_pct: number) =>
-    jsend<{ ok: true; penalty_pct: number; derived: number }>("/api/benchmarks/wet", "POST", { penalty_pct }),
+  setWetPenalty: (input: { penalty_pct?: number; overrides?: Record<string, number> }) =>
+    jsend<{ ok: true; penalty_pct: number; overrides: Record<string, number>; derived: number }>(
+      "/api/benchmarks/wet",
+      "POST",
+      input,
+    ),
 
   async recompute() {
     const res = await fetch("/api/rankings/recompute", { method: "POST" });

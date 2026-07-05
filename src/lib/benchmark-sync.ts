@@ -30,6 +30,9 @@ import type { Store } from "./db/types";
 // The factor is admin-tunable (control panel, stored setting "wet_penalty").
 export const DEFAULT_WET_PENALTY_PCT = 8;
 export const WET_PENALTY_SETTING = "wet_penalty";
+// Per-track wet-penalty overrides: { [track_id]: pct }. A track listed here uses
+// its own % instead of the global one (e.g. Le Mans's long lap loses more).
+export const WET_PENALTY_OVERRIDES_SETTING = "wet_penalty_overrides";
 
 export interface SyncResult {
   ok: boolean;
@@ -133,15 +136,21 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
 /**
  * Regenerate Wet benchmark tiers from the current Dry sheets, scaling every tier
  * by (1 + pct/100). Upsert-keyed on (track, class, Wet), so re-running just
- * overwrites — no stale rows. Returns how many wet rows were written. A uniform
- * global penalty for now; per-track hand-tuning can layer on later.
+ * overwrites — no stale rows. Returns how many wet rows were written. `overrides`
+ * ({ track_id: pct }) lets individual circuits use their own penalty — a track
+ * listed there uses its %, everything else uses the global `pct`.
  */
-export async function deriveWetBenchmarks(store: Store = getStore(), pct: number = DEFAULT_WET_PENALTY_PCT): Promise<number> {
+export async function deriveWetBenchmarks(
+  store: Store = getStore(),
+  pct: number = DEFAULT_WET_PENALTY_PCT,
+  overrides: Record<string, number> = {},
+): Promise<number> {
   await store.init();
-  const factor = 1 + pct / 100;
   const dry = (await store.listBenchmarks()).filter((b) => b.condition === "Dry");
   let n = 0;
   for (const d of dry) {
+    const trackPct = overrides[d.track_id] ?? pct;
+    const factor = 1 + trackPct / 100;
     await store.upsertBenchmark({
       track_id: d.track_id,
       class: d.class,
@@ -153,7 +162,7 @@ export async function deriveWetBenchmarks(store: Store = getStore(), pct: number
       tail_ender_time: d.tail_ender_time * factor,
       offline_time: d.offline_time * factor,
       data_readiness_pct: d.data_readiness_pct,
-      patch_version: d.patch_version ? `${d.patch_version} (wet +${pct}%)` : `wet +${pct}%`,
+      patch_version: d.patch_version ? `${d.patch_version} (wet +${trackPct}%)` : `wet +${trackPct}%`,
     });
     n++;
   }

@@ -1039,6 +1039,24 @@ table.rank tbody tr.expanded {
   cursor: help;
 }
 
+/* --- Wet per-track overrides (control panel) ------------------------------- */
+.wet-ov-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.wet-ov-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wet-ov-track {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* --- Control-panel checkbox (draw-line toggle) ----------------------------- */
 .cp-check {
   display: flex;
