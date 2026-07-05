@@ -5,10 +5,9 @@
 // session worth less than his?", this page (and the SVS breakdown tooltips on
 // the session log) answers instead of an argument. Everything here documents
 // the REAL constants in src/lib/scoring.ts — update both together.
-// Manager/Team-Manager + Admin only (user call, 2026-07-05).
+// Visible to ALL roles incl. drivers (user call, 2026-07-05 — transparency is
+// the point).
 // ============================================================================
-
-import { useRole } from "@/lib/role";
 
 const FACTOR_ROWS: { name: string; weight: string; what: string; how: string }[] = [
   {
@@ -56,27 +55,6 @@ const SVS_ROWS: { name: string; weight: string; how: string }[] = [
 ];
 
 export default function ScoringPage() {
-  const { role } = useRole();
-  const canView = role !== "driver";
-
-  if (!canView) {
-    return (
-      <>
-        <div className="topbar">
-          <span className="hash">#</span>
-          <h1>how-scoring-works</h1>
-        </div>
-        <div className="content">
-          <div className="empty">
-            <div className="big">🔒</div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Team Managers &amp; Admins only</div>
-            <div>Ask a Team Manager if you want the scoring maths walked through.</div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <div className="topbar">

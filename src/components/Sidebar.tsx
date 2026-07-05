@@ -23,6 +23,7 @@ const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = 
       { href: "/log", label: "log-session" },
       { href: "/sessions", label: "session-log" },
       { href: "/benchmarks", label: "benchmarks" },
+      { href: "/scoring", label: "how-scoring-works" },
     ],
   },
 ];
@@ -38,16 +39,10 @@ export default function Sidebar() {
     api.patch().then((p) => setPatch(p.current_patch)).catch(() => {});
   }, [pathname]);
   const current = ROLES.find((r) => r.value === role) ?? ROLES[1];
-  let sections = SECTIONS;
-  if (role !== "driver") {
-    // Managers/admins also get the scoring transparency page (user call 2026-07-05).
-    sections = sections.map((s) =>
-      s.title === "Engineering" ? { ...s, items: [...s.items, { href: "/scoring", label: "how-scoring-works" }] } : s,
-    );
-  }
-  if (role === "admin") {
-    sections = [...sections, { title: "Admin", items: [{ href: "/control-panel", label: "control-panel" }] }];
-  }
+  const sections =
+    role === "admin"
+      ? [...SECTIONS, { title: "Admin", items: [{ href: "/control-panel", label: "control-panel" }] }]
+      : SECTIONS;
   return (
     <aside className="sidebar">
       <div className="sidebar-header">

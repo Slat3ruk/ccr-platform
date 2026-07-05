@@ -161,9 +161,9 @@ export default function SessionsPage() {
                     <td className="num">{s.confidence_rating}</td>
                     <td
                       className="num"
-                      style={canManage && s.value_components ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : undefined}
+                      style={s.value_components ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : undefined}
                       title={
-                        canManage && s.value_components
+                        s.value_components
                           ? `Session Value Score — why this session weighs what it does:\n\n` +
                             `Completeness (30%): ${s.value_components.completeness.toFixed(0)}\n` +
                             `Consistency (25%): ${s.value_components.consistency.toFixed(0)}\n` +
