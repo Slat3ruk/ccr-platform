@@ -6,6 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Cross Current Racing — Car/Track Intel",
   description: "Data-driven car-to-track recommendation engine for Le Mans Ultimate.",
+  icons: { icon: "/favicon.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="app">
             <nav className="rail" aria-label="Servers">
               <div className="rail-logo" title="Cross Current Racing">
-                CC
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-square.png" alt="Cross Current Racing" />
               </div>
               <div className="rail-divider" />
               <div className="rail-icon" title="LMU Intel">
