@@ -385,6 +385,28 @@ backward-compatible); POST de-dupes on the combo; DELETE by id. Role-gated (driv
 see 📌 read-only). Closes the loop between the coverage map and directing drivers.
 Verified live (McLaren @ Sebring pin → ping → briefing → clear). 94 tests.
 
+### Patch system — "era" reframed as the LMU patch (round 21, 2026-07-04)
+
+The abstract "era" is now surfaced as the **patch** the team actually thinks in
+(`version.patch.hotfix`, e.g. `1.3.4`). Eras table untouched; a current-patch
+LABEL sits on top. `src/lib/patch.ts` parses/compares versions.
+- **Phase 1 (commit 6eeda21):** `current_patch` setting + `/api/patch`; sessions
+  auto-stamp `patch_version` from it (the dead column is now populated). Control
+  panel "Current patch" card = version field + smart-defaulted "draw a
+  comparability line" checkbox (`shouldDrawLineByDefault`: hotfix off / patch|
+  version on, overridable) — ticking it creates an era via the existing flow.
+  Global sidebar patch badge; status + rankings selector reworded era→patch
+  (internals stay "era").
+- **Phase 2 (commit 6ea2865):** the old ambiguous "Setup version" field ("1.3.3
+  or GMR001") is now unambiguously **"Setup patch"**. A session whose setup patch
+  is OLDER than its logged patch gets **depreciated Representativeness** (×0.7,
+  `OLD_SETUP_REPRESENTATIVENESS_FACTOR`) → less weight in the car score, plus a ⚠
+  flag at log time + in the session log. Comparison is self-contained
+  (setup_version vs the session's own patch_version) so archived data isn't
+  unfairly hit by later patches.
+104 tests. Verified live end-to-end (set patch, auto-stamp, smart toggle
+defaults, stale-setup flag + depreciation).
+
 ### 🔭 Action points — queued, not yet built (most recent first)
 
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
