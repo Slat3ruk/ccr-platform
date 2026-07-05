@@ -53,6 +53,8 @@ export default function SessionsPage() {
         lap_count: s.lap_count,
         avg_wear_pct: s.tyres.avg_wear_pct,
         lap_times_count: s.lap_times?.length ?? null,
+        setup_version: s.setup_version,
+        patch_version: s.patch_version,
       },
       bm ? { alien_time: bm.alien_time, offline_time: bm.offline_time } : null,
     );

@@ -6,6 +6,7 @@
 // (confirm, don't block) and the session log flags suspect rows with a ⚠.
 // ============================================================================
 
+import { isOlderSetupPatch } from "./patch";
 import { formatLapTime } from "./time";
 
 export interface QualityCheckInput {
@@ -16,6 +17,10 @@ export interface QualityCheckInput {
   avg_wear_pct: number;
   /** How many individual lap times were entered (≥2 = provided), else null. */
   lap_times_count?: number | null;
+  /** The patch the setup was built on (form field). */
+  setup_version?: string | null;
+  /** The patch this session is/was logged under (current patch in the form; stored value in the log). */
+  patch_version?: string | null;
 }
 
 /** Only the two extreme tiers are needed to bracket a plausible lap. */
@@ -59,6 +64,12 @@ export function sessionQualityWarnings(s: QualityCheckInput, benchmark?: Quality
   if (s.best_lap_time > 0 && s.avg_lap_time > s.best_lap_time * SLOW_AVG_RATIO && s.lap_count >= SLOW_AVG_MIN_LAPS) {
     warnings.push(
       `Average lap is more than ${Math.round((SLOW_AVG_RATIO - 1) * 100)}% slower than the best — traffic or an out-lap, or a typo?`,
+    );
+  }
+
+  if (isOlderSetupPatch(s.setup_version, s.patch_version)) {
+    warnings.push(
+      `Setup patch (${s.setup_version}) is older than the current patch (${s.patch_version}) — may not reflect current handling; its weight is reduced.`,
     );
   }
 

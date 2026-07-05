@@ -270,6 +270,16 @@ describe("sessionValueScore", () => {
     );
   });
 
+  it("discounts representativeness when the setup predates the session's patch", () => {
+    const nowMs = Date.parse("2026-07-01T00:00:00.000Z");
+    const current = makeSession({ patch_version: "1.3.4", setup_version: "1.3.4", created_at: "2026-07-01T00:00:00.000Z" });
+    const stale = makeSession({ patch_version: "1.3.4", setup_version: "1.2.9", created_at: "2026-07-01T00:00:00.000Z" });
+    const r0 = sessionValueScore(current, nowMs).components.representativeness;
+    const r1 = sessionValueScore(stale, nowMs).components.representativeness;
+    expect(r1).toBeCloseTo(r0 * 0.7, 5); // OLD_SETUP_REPRESENTATIVENESS_FACTOR
+    expect(sessionValueScore(stale, nowMs).score).toBeLessThan(sessionValueScore(current, nowMs).score);
+  });
+
   it("treats a legacy 'Test' session type as Practice (no NaN, full representativeness)", () => {
     const nowMs = Date.parse("2026-07-01T00:00:00.000Z");
     // Cast: "Test" is no longer a valid SessionType, but old rows may still carry it.

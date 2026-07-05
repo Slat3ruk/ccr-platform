@@ -29,6 +29,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [cars, setCars] = useState<Car[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
+  const [currentPatch, setCurrentPatch] = useState<string | null>(null);
 
   const [driverName, setDriverName] = useState(edit?.driverName ?? "");
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
@@ -100,6 +101,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     api.cars().then(setCars).catch(() => {});
     api.tracks().then(setTracks).catch(() => {});
     api.benchmarks().then(setBenchmarks).catch(() => {});
+    api.patch().then((p) => setCurrentPatch(p.current_patch)).catch(() => {});
   }, []);
 
   // Soft, non-blocking data-quality flags (typos / dropped telemetry). Advisory
@@ -125,10 +127,13 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
         lap_count: Number(lapCount) || 0,
         avg_wear_pct: avgWear,
         lap_times_count: parsedLaps.laps.length || null,
+        setup_version: setupVersion.trim() || null,
+        // a new session will be stamped with the current patch; compare against it
+        patch_version: isEdit ? s?.patch_version ?? null : currentPatch,
       },
       bm ? { alien_time: bm.alien_time, offline_time: bm.offline_time } : null,
     );
-  }, [bestLap, avgLap, lapCount, tyres, carId, trackId, condition, cars, benchmarks, parsedLaps]);
+  }, [bestLap, avgLap, lapCount, tyres, carId, trackId, condition, cars, benchmarks, parsedLaps, setupVersion, currentPatch, isEdit, s]);
 
   function reset(keepContext: boolean) {
     setBestLap("");
@@ -394,8 +399,8 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
             </select>
           </div>
           <div className="field">
-            <label>Setup version <span className="hint">(optional)</span></label>
-            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder="e.g. 1.3.3 or GMR001" />
+            <label>Setup patch <span className="hint">(which patch the setup was built on)</span></label>
+            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder={currentPatch ? `e.g. ${currentPatch}` : "e.g. 1.3.4"} />
           </div>
         </div>
         {setupWeatherMismatch && (

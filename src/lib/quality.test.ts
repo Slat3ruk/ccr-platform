@@ -42,4 +42,14 @@ describe("sessionQualityWarnings", () => {
     const w = sessionQualityWarnings({ ...clean, best_lap_time: 100, avg_lap_time: 120, lap_count: 8 }, bench);
     expect(w.some((m) => /slower than the best/i.test(m))).toBe(true);
   });
+
+  it("flags a setup built on an older patch than the session's", () => {
+    const w = sessionQualityWarnings({ ...clean, setup_version: "1.2.9", patch_version: "1.3.4" }, bench);
+    expect(w.some((m) => /Setup patch \(1\.2\.9\) is older/i.test(m))).toBe(true);
+  });
+
+  it("does not flag a current-patch setup or unparseable versions", () => {
+    expect(sessionQualityWarnings({ ...clean, setup_version: "1.3.4", patch_version: "1.3.4" }, bench)).toEqual([]);
+    expect(sessionQualityWarnings({ ...clean, setup_version: "GMR001", patch_version: "1.3.4" }, bench)).toEqual([]);
+  });
 });

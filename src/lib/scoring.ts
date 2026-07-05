@@ -28,6 +28,12 @@ import type {
   ValueComponents,
   WeightsConfig,
 } from "@/types";
+import { isOlderSetupPatch } from "./patch";
+
+// A session run on a setup built for an EARLIER patch than the one it was logged
+// under is less representative of current-build performance — it still counts,
+// but its Representativeness (and thus its weight in the car score) is discounted.
+export const OLD_SETUP_REPRESENTATIVENESS_FACTOR = 0.7;
 
 // --- weights ----------------------------------------------------------------
 
@@ -269,9 +275,10 @@ const CONDITION_REPRESENTATIVENESS: Record<Condition, number> = {
   Wet: 0.9,
 };
 
-function representativenessScore(type: SessionType, condition: Condition): number {
+function representativenessScore(type: SessionType, condition: Condition, oldSetup: boolean): number {
   const typeScore = SESSION_TYPE_REPRESENTATIVENESS[type] ?? 100; // unknown/legacy (e.g. "Test") → treat as Practice
-  return clamp(typeScore * CONDITION_REPRESENTATIVENESS[condition]);
+  const base = clamp(typeScore * CONDITION_REPRESENTATIVENESS[condition]);
+  return oldSetup ? clamp(base * OLD_SETUP_REPRESENTATIVENESS_FACTOR) : base;
 }
 
 function recencyScore(daysSince: number): number {
@@ -298,7 +305,13 @@ export function sessionValueScore(session: Session, nowMs: number): SvsResult {
     consistency: round2(sessionConsistency(session)),
     cleanliness: round2(mistakesFactor(session.off_track_count, session.lap_count)),
     representativeness: round2(
-      representativenessScore(session.session_type, session.condition_reported),
+      // setup_version = the patch the setup was built on; older than the session's
+      // logged patch → discounted (a stale setup is less representative).
+      representativenessScore(
+        session.session_type,
+        session.condition_reported,
+        isOlderSetupPatch(session.setup_version, session.patch_version),
+      ),
     ),
     recency: round2(recencyScore(daysSince)),
   };
