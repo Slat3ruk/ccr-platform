@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { api } from "@/lib/api-client";
 import { ROLES, useRole } from "@/lib/role";
 
 const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = [
@@ -28,6 +30,13 @@ const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = 
 export default function Sidebar() {
   const pathname = usePathname();
   const { role, setRole } = useRole();
+  const [patch, setPatch] = useState<string | null>(null);
+
+  // Show the current LMU patch globally; refresh on navigation (cheap) so it
+  // updates after an admin sets it in the control panel.
+  useEffect(() => {
+    api.patch().then((p) => setPatch(p.current_patch)).catch(() => {});
+  }, [pathname]);
   const current = ROLES.find((r) => r.value === role) ?? ROLES[1];
   const sections =
     role === "admin"
@@ -35,7 +44,10 @@ export default function Sidebar() {
       : SECTIONS;
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">Cross Current Racing</div>
+      <div className="sidebar-header">
+        Cross Current Racing
+        {patch && <span className="patch-badge" title={`LMU patch ${patch} — set in the control panel`}>{patch}</span>}
+      </div>
       <div className="sidebar-nav">
         {sections.map((section) => (
           <div key={section.title}>

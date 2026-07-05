@@ -166,6 +166,12 @@ export const api = {
   // driver leaderboard --------------------------------------------------------
   driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
 
+  // current patch -------------------------------------------------------------
+  patch: () => jget<{ current_patch: string | null }>("/api/patch"),
+
+  setPatch: (input: { version: string; draw_line?: boolean; reason?: string | null }) =>
+    jsend<{ ok: true; current_patch: string; drew_line: boolean }>("/api/patch", "POST", input),
+
   // test requests (coverage v2) -----------------------------------------------
   testRequests: () => jget<TestRequest[]>("/api/test-requests"),
 

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type WebhookChannelName } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
+import { patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
 import { useRole } from "@/lib/role";
 import type { Era, WeightsConfig } from "@/types";
 
@@ -56,11 +57,12 @@ export default function ControlPanelPage() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
-  // new-era form
-  const [eraName, setEraName] = useState("");
-  const [eraReason, setEraReason] = useState("");
-  const [eraStart, setEraStart] = useState(""); // datetime-local; empty = now
-  const [busy, setBusy] = useState(false);
+  // current patch + "set patch" form
+  const [currentPatch, setCurrentPatch] = useState<string | null>(null);
+  const [patchDraft, setPatchDraft] = useState("");
+  const [patchReason, setPatchReason] = useState("");
+  const [drawOverride, setDrawOverride] = useState<boolean | null>(null); // null = follow the smart default
+  const [patchBusy, setPatchBusy] = useState(false);
 
   // purge confirmation
   const [purgeText, setPurgeText] = useState("");
@@ -83,12 +85,13 @@ export default function ControlPanelPage() {
   const [hookBusy, setHookBusy] = useState<WebhookChannelName | null>(null);
 
   const load = useCallback(async () => {
-    const [e, w, status, wet, hook] = await Promise.all([
+    const [e, w, status, wet, hook, patch] = await Promise.all([
       api.eras(),
       api.weights().catch(() => null),
       api.status(),
       api.wetPenalty().catch(() => null),
       api.webhook().catch(() => null),
+      api.patch().catch(() => null),
     ]);
     setEras(e);
     if (w) setWeights(w.active);
@@ -96,6 +99,7 @@ export default function ControlPanelPage() {
     setBackend(status.backend);
     if (wet) setWetPct(String(wet.penalty_pct));
     if (hook) setHooks(hook);
+    if (patch) setCurrentPatch(patch.current_patch);
     setLoading(false);
   }, []);
 
@@ -107,30 +111,37 @@ export default function ControlPanelPage() {
   const active = useMemo(() => currentEra(eras, nowMs), [eras, nowMs]);
   const history = useMemo(() => sortEras(eras).reverse(), [eras]);
 
-  async function startEra(e: React.FormEvent) {
+  // Smart default: a version/patch bump draws a line; a hotfix just relabels.
+  // `drawOverride` lets the admin override; null = follow the suggestion.
+  const changeKind = patchChangeKind(currentPatch, patchDraft);
+  const suggestDrawLine = shouldDrawLineByDefault(currentPatch, patchDraft);
+  const drawLine = drawOverride ?? suggestDrawLine;
+
+  async function savePatch(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    if (!eraName.trim()) {
-      setMsg({ kind: "error", text: "Give the era a name (e.g. “Patch 1.4”)." });
+    const version = patchDraft.trim();
+    if (!version) {
+      setMsg({ kind: "error", text: "Enter the version, e.g. 1.3.4." });
       return;
     }
-    setBusy(true);
+    setPatchBusy(true);
     try {
-      await api.createEra({
-        name: eraName.trim(),
-        reason: eraReason.trim() || null,
-        starts_at: eraStart ? new Date(eraStart).toISOString() : undefined,
-        created_by: "Admin",
-      });
-      setEraName("");
-      setEraReason("");
-      setEraStart("");
+      const res = await api.setPatch({ version, draw_line: drawLine, reason: patchReason.trim() || null });
+      setPatchDraft("");
+      setPatchReason("");
+      setDrawOverride(null);
       await load();
-      setMsg({ kind: "success", text: "New era started — the live board now scores only sessions from this line onward. Older data is preserved and viewable from the rankings era selector." });
+      setMsg({
+        kind: "success",
+        text: res.drew_line
+          ? `Now on ${version} — a comparability line was drawn, so the live board scores only sessions from here on. Older data stays viewable from the patch selector.`
+          : `Now on ${version} — label updated and stamped onto new sessions. Existing data kept (no line drawn).`,
+      });
     } catch (err) {
-      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to create era." });
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to set the patch." });
     } finally {
-      setBusy(false);
+      setPatchBusy(false);
     }
   }
 
@@ -273,9 +284,11 @@ export default function ControlPanelPage() {
               <div className="card-sub">The live state every recompute runs under.</div>
               <div className="cp-stats">
                 <div className="cp-stat">
-                  <div className="k">Current era</div>
-                  <div className="v">{active ? active.name : "All data"}</div>
-                  <div className="s">{active ? `since ${fmtWhen(active.starts_at)}` : "no line drawn yet"}</div>
+                  <div className="k">Current patch</div>
+                  <div className="v">{currentPatch ?? "—"}</div>
+                  <div className="s">
+                    {active ? `last line: ${active.name} · ${fmtWhen(active.starts_at)}` : "no line drawn yet"}
+                  </div>
                 </div>
                 <div className="cp-stat">
                   <div className="k">Weighting</div>
@@ -299,39 +312,60 @@ export default function ControlPanelPage() {
               </div>
             </div>
 
-            {/* ---- New era ---- */}
+            {/* ---- Set current patch ---- */}
             <div className="card">
-              <h2>Draw a line in the sand</h2>
+              <h2>Current patch</h2>
               <div className="card-sub">
-                Start a new era when a patch/BoP change makes older data non-comparable. Nothing is deleted — the live
-                board simply scores from the line onward, and older eras stay viewable from the rankings era selector.
+                The LMU build the app is on (<code>version.patch.hotfix</code>, e.g. <code>1.3.4</code>). It’s stamped
+                onto every new session and shown across the app. A <strong>version</strong> or <strong>patch</strong> bump
+                usually resets data comparability (draws a line — older data drops off the live board); a{" "}
+                <strong>hotfix</strong> usually doesn’t. We default the toggle for you; override if you know better.
               </div>
-              <form onSubmit={startEra}>
+              <form onSubmit={savePatch}>
                 <div className="row">
-                  <div className="field">
-                    <label>Era name</label>
-                    <input type="text" value={eraName} placeholder="e.g. Patch 1.4" onChange={(e) => setEraName(e.target.value)} />
+                  <div className="field" style={{ maxWidth: 200, flex: "0 0 auto" }}>
+                    <label>New version</label>
+                    <input
+                      type="text"
+                      value={patchDraft}
+                      placeholder={currentPatch ? `now on ${currentPatch}` : "e.g. 1.3.4"}
+                      onChange={(e) => {
+                        setPatchDraft(e.target.value);
+                        setDrawOverride(null); // re-follow the smart default as they retype
+                      }}
+                    />
                   </div>
-                  <div className="field">
-                    <label>
-                      Starts <span className="hint">(blank = now; backdate if the patch already dropped)</span>
-                    </label>
-                    <input type="datetime-local" value={eraStart} onChange={(e) => setEraStart(e.target.value)} />
-                  </div>
+                  {drawLine && (
+                    <div className="field">
+                      <label>
+                        Reason <span className="hint">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={patchReason}
+                        placeholder="e.g. BoP shakeup — GT3 times reset"
+                        onChange={(e) => setPatchReason(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="field">
-                  <label>
-                    Reason <span className="hint">(optional)</span>
+                {patchDraft.trim() && changeKind !== "same" && (
+                  <label className="cp-check">
+                    <input type="checkbox" checked={drawLine} onChange={(e) => setDrawOverride(e.target.checked)} />
+                    <span>
+                      Draw a comparability line <span className="muted">— older data drops off the live board</span>
+                      <span className="hint" style={{ display: "block" }}>
+                        {changeKind === "hotfix"
+                          ? "Detected a hotfix — off by default (keeps existing data)."
+                          : changeKind === "unknown"
+                            ? "Couldn’t read the version tiers — your call."
+                            : `Detected a ${changeKind} bump — on by default (resets comparability).`}
+                      </span>
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    value={eraReason}
-                    placeholder="e.g. BoP shakeup — GT3 times reset"
-                    onChange={(e) => setEraReason(e.target.value)}
-                  />
-                </div>
-                <button className="btn" type="submit" disabled={busy}>
-                  {busy ? "Starting…" : "Start new era"}
+                )}
+                <button className="btn" type="submit" disabled={patchBusy}>
+                  {patchBusy ? "Saving…" : drawLine ? "Set patch & draw line" : "Set patch"}
                 </button>
               </form>
             </div>
@@ -367,13 +401,13 @@ export default function ControlPanelPage() {
               </form>
             </div>
 
-            {/* ---- Era history ---- */}
+            {/* ---- Patch history (comparability lines) ---- */}
             <div className="card">
-              <h2>Era history</h2>
+              <h2>Patch history</h2>
               <div className="card-sub">
                 {eras.length === 0
-                  ? "No eras yet — every session counts toward the live board."
-                  : "Newest first. Deleting a line merges its sessions back into the previous era (fully recallable)."}
+                  ? "No patch lines drawn yet — every session counts toward the live board."
+                  : "Newest first. Each line is a patch that reset comparability. Deleting one merges its sessions back into the previous patch (fully recallable)."}
               </div>
               {history.map((e) => (
                 <div className="era-row" key={e.id}>

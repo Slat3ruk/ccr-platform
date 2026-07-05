@@ -168,7 +168,7 @@ export default function DashboardPage() {
   const activeEra = useMemo(() => currentEra(eras, Date.now()), [eras]);
   const viewingArchived = eraView !== "";
   const archivedLabel =
-    eraView === "pre" ? "pre-era data" : eras.find((e) => String(e.id) === eraView)?.name ?? "archived era";
+    eraView === "pre" ? "pre-patch data" : eras.find((e) => String(e.id) === eraView)?.name ?? "archived patch";
 
   return (
     <>
@@ -177,7 +177,7 @@ export default function DashboardPage() {
         <h1>rankings</h1>
         <span className="sub">
           {backend} store · {rows.length} cars
-          {activeEra && !viewingArchived ? ` · era: ${activeEra.name}` : ""}
+          {activeEra && !viewingArchived ? ` · patch: ${activeEra.name}` : ""}
           {updatedAt ? ` · updated ${updatedAt}` : ""}
         </span>
       </div>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
           </div>
           {role !== "driver" && eras.length > 0 && (
             <div className="field">
-              <label>Era</label>
+              <label>Patch</label>
               <select value={eraView} onChange={(e) => setEraView(e.target.value)}>
                 <option value="">Current{activeEra ? ` (${activeEra.name})` : ""}</option>
                 {sortEras(eras)
@@ -241,7 +241,7 @@ export default function DashboardPage() {
                       {e.name} (archived)
                     </option>
                   ))}
-                <option value="pre">Before first era</option>
+                <option value="pre">Before first patch</option>
               </select>
             </div>
           )}
@@ -307,7 +307,7 @@ export default function DashboardPage() {
 
         {viewingArchived && (
           <div className="msg" style={{ background: "rgba(240, 178, 50, 0.10)", border: "1px solid var(--yellow)", color: "#f5d489" }}>
-            <strong>Viewing archived era: {archivedLabel}</strong> — scored on demand from that era’s sessions (read-only
+            <strong>Viewing archived patch: {archivedLabel}</strong> — scored on demand from that patch’s sessions (read-only
             history; the live board isn’t affected).{" "}
             <button className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={() => setEraView("")}>
               Back to current

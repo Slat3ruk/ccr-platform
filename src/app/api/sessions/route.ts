@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
 import { postDiscord } from "@/lib/discord";
+import { CURRENT_PATCH_SETTING } from "@/lib/patch";
 import { recomputeAll } from "@/lib/recompute";
 import { validateSessionInput } from "@/lib/validation";
 
@@ -43,13 +44,17 @@ export async function POST(req: Request) {
 
   const driver = await store.getOrCreateDriver(input.driver_name);
 
+  // Auto-stamp the session with the patch the app is currently on, so every
+  // session carries a durable record of the build it was logged under.
+  const currentPatch = (await store.getSetting<string>(CURRENT_PATCH_SETTING)) ?? null;
+
   const session = await store.createSession({
     driver_id: driver.id,
     car_id: input.car_id,
     track_id: input.track_id,
     session_type: input.session_type,
     condition_reported: input.condition_reported,
-    patch_version: input.patch_version ?? null,
+    patch_version: input.patch_version ?? currentPatch,
     lap_count: input.lap_count,
     best_lap_time: input.best_lap_time,
     avg_lap_time: input.avg_lap_time,

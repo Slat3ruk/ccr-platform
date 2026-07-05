@@ -1,0 +1,63 @@
+// ============================================================================
+// Patch versions — the LMU build the app is currently on, e.g. "1.3.4" =
+// version 1 · patch 3 · hotfix 4. Two jobs:
+//   1. Deciding, when the current patch changes, whether it RESETS data
+//      comparability (a version/patch bump draws an era line) or is just a
+//      hotfix relabel (keeps the data).
+//   2. Flagging a session whose SETUP was built on an older patch than the one
+//      it was logged under (→ depreciated Representativeness + a ⚠, phase 2).
+// Free-text tolerant: anything unparseable returns null and the callers no-op.
+// ============================================================================
+
+/** Settings key holding the current LMU patch string (e.g. "1.3.4"). */
+export const CURRENT_PATCH_SETTING = "current_patch";
+
+export type PatchTuple = [number, number, number];
+
+/** Parse "1.3.4" (or "v1.3", "1.3.4 (wet)") → [1,3,4]; missing parts = 0. Null if no leading number. */
+export function parsePatch(s: string | null | undefined): PatchTuple | null {
+  if (!s) return null;
+  const m = s.trim().match(/^v?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?/i);
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2] ?? 0), Number(m[3] ?? 0)];
+}
+
+/** -1 if a<b, 0 if equal, 1 if a>b; null if either is unparseable. */
+export function comparePatch(a: string | null | undefined, b: string | null | undefined): number | null {
+  const pa = parsePatch(a);
+  const pb = parsePatch(b);
+  if (!pa || !pb) return null;
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
+  }
+  return 0;
+}
+
+export type PatchChangeKind = "same" | "hotfix" | "patch" | "version" | "unknown";
+
+/**
+ * Which tier changed moving prev → next. Drives the smart default for
+ * "draw a comparability line": a `version` or `patch` change usually resets data
+ * (draw the line), a `hotfix` usually doesn't (just relabel).
+ */
+export function patchChangeKind(prev: string | null | undefined, next: string | null | undefined): PatchChangeKind {
+  const a = parsePatch(prev);
+  const b = parsePatch(next);
+  if (!b) return "unknown";
+  if (!a) return "version"; // first patch ever set — treat as a fresh line
+  if (a[0] !== b[0]) return "version";
+  if (a[1] !== b[1]) return "patch";
+  if (a[2] !== b[2]) return "hotfix";
+  return "same";
+}
+
+/** True when a version/patch (not hotfix) bump — i.e. the default should draw a line. */
+export function shouldDrawLineByDefault(prev: string | null | undefined, next: string | null | undefined): boolean {
+  const kind = patchChangeKind(prev, next);
+  return kind === "version" || kind === "patch";
+}
+
+/** True when `setup` is a strictly older patch than `current` (both parseable). */
+export function isOlderSetupPatch(setup: string | null | undefined, current: string | null | undefined): boolean {
+  return comparePatch(setup, current) === -1;
+}
