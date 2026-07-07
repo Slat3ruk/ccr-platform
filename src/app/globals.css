@@ -1104,41 +1104,6 @@ table.rank tbody tr.expanded {
   margin-top: 2px;
 }
 
-/* --- Same-weekend race boxes (briefing) ------------------------------------ */
-.sib-race-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.sib-race {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 12px;
-  background: var(--bg-card-2);
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  flex-wrap: wrap;
-}
-.sib-race-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sib-race-pick {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 180px;
-}
-.sib-race-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
 /* --- Testing wanted (briefing) --------------------------------------------- */
 .wanted-list {
   display: flex;
@@ -1565,6 +1530,16 @@ table.rank tbody tr.expanded {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 14px 16px;
+}
+
+.bluf-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
 .bluf-note-body {
