@@ -40,39 +40,32 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "No Discord webhook configured — connect one in the control panel first." }, { status: 400 });
   }
 
-  const [tracks, cars, recs, races, weights] = await Promise.all([
+  const [tracks, cars, recs, weights] = await Promise.all([
     store.listTracks(),
     store.listCars(),
     store.listRecommendations(),
-    store.listRaces(),
     store.getSetting<WeightsConfig>("weights"),
   ]);
   const trackName = tracks.find((t) => t.id === race.track_id)?.name ?? `Track #${race.track_id}`;
   const carName = (cid: number) => cars.find((c) => c.id === cid)?.name ?? `Car #${cid}`;
 
   // When: Discord timestamp renders in each reader's local TZ; date-only otherwise.
+  // Each race is posted on its OWN time (managers pick which to post per box).
   const when = race.start_at
     ? `<t:${Math.floor(Date.parse(race.start_at) / 1000)}:F>`
     : new Date(`${race.event_date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  // The featured race's pick + one line per OTHER class racing the same weekend.
-  const pickLine = (cls: string | null | undefined, condition: string | null | undefined, prefix: string) => {
-    const top = topFor(recs, race.track_id, cls, condition);
-    if (!top) return `${prefix} no ranked car yet — log sessions!`;
-    return `${prefix} **${carName(top.car_id)}** — ${top.car_score.toFixed(1)} (${top.sessions_used} session${top.sessions_used === 1 ? "" : "s"}, ${Math.round(top.confidence_score * 100)}% confidence)`;
-  };
+  const top = topFor(recs, race.track_id, race.class, race.condition);
+  const pick = top
+    ? `🏎️ Run the **${carName(top.car_id)}** — ${top.car_score.toFixed(1)} (${top.sessions_used} session${top.sessions_used === 1 ? "" : "s"}, ${Math.round(top.confidence_score * 100)}% confidence)`
+    : `🏎️ No ranked car yet — log sessions!`;
 
   const lines: string[] = [
     `📋 **Race briefing — ${race.name?.trim() || trackName}**`,
     `📅 ${when}${race.start_at ? " (your local time)" : ""}`,
     `📍 ${trackName} · ${race.class ?? "all classes"} · ${race.condition ?? "Dry"}`,
-    pickLine(race.class, race.condition, "🏎️ Run the"),
+    pick,
   ];
-
-  const siblings = races.filter((r) => r.id !== race.id && r.track_id === race.track_id && r.event_date === race.event_date);
-  for (const s of siblings) {
-    lines.push(pickLine(s.class, s.condition, `▪️ ${s.class ?? "Any"} →`));
-  }
 
   if (race.note?.trim()) {
     lines.push(`📝 ${race.note.trim()}${race.note_by ? ` — *${race.note_by}*` : ""}`);

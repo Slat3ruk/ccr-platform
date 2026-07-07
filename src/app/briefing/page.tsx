@@ -216,21 +216,32 @@ export default function BriefingPage() {
     await loadTestReqs();
   }
 
-  // Push the briefing BLUF to #race-announcements (manager/admin; server composes it).
-  const [announcing, setAnnouncing] = useState(false);
-  const [announceMsg, setAnnounceMsg] = useState<string | null>(null);
-  async function announce() {
-    if (!focus) return;
-    setAnnouncing(true);
-    setAnnounceMsg(null);
+  // Post a SINGLE race's briefing to #race-announcements — each race is posted on
+  // its own start time (manager/admin picks which via a button per race box).
+  const [announcingId, setAnnouncingId] = useState<number | null>(null);
+  const [announceResult, setAnnounceResult] = useState<{ id: number; msg: string } | null>(null);
+  async function announce(raceId: number) {
+    setAnnouncingId(raceId);
+    setAnnounceResult(null);
     try {
-      await api.announceRace(focus.race.id);
-      setAnnounceMsg("✅ Posted to #race-announcements.");
+      await api.announceRace(raceId);
+      setAnnounceResult({ id: raceId, msg: "✅ Posted to #race-announcements." });
     } catch (err) {
-      setAnnounceMsg(`❌ ${err instanceof Error ? err.message : "Failed to post."}`);
+      setAnnounceResult({ id: raceId, msg: `❌ ${err instanceof Error ? err.message : "Failed to post."}` });
     } finally {
-      setAnnouncing(false);
+      setAnnouncingId(null);
     }
+  }
+  function PostButton({ raceId }: { raceId: number }) {
+    if (!canEdit) return null;
+    return (
+      <span className="flex" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <button className="btn btn-sm" onClick={() => announce(raceId)} disabled={announcingId != null}>
+          {announcingId === raceId ? "Posting…" : "📢 Post to Discord"}
+        </button>
+        {announceResult?.id === raceId && <span style={{ fontSize: 13 }}>{announceResult.msg}</span>}
+      </span>
+    );
   }
 
   // "Testing wanted" list, resolved to names and ordered with combos for tracks
@@ -340,34 +351,6 @@ export default function BriefingPage() {
                 </div>
               )}
 
-              {/* ---- Other classes racing the same weekend ---- */}
-              {siblingPicks.length > 0 && (
-                <div className="bluf-siblings">
-                  <span className="bluf-sib-label">Also racing this weekend</span>
-                  <div className="bluf-sib-list">
-                    {siblingPicks.map(({ race, top }) => (
-                      <div className="bluf-sib" key={race.id}>
-                        <span className="pill">{race.class ?? "Any"}</span>
-                        {race.start_at && <span className="bluf-sib-time">{fmtLocalTime(race.start_at)}</span>}
-                        {top ? (
-                          <>
-                            <span className="bluf-sib-car">{top.car_name}</span>
-                            <span className="score-pill" style={{ background: scoreColor(top.car_score) }}>
-                              {fmtScore(top.car_score)}
-                            </span>
-                            <span className="muted" style={{ fontSize: 12 }}>
-                              {top.sessions_used} session{top.sessions_used === 1 ? "" : "s"}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="muted" style={{ fontSize: 13 }}>no ranked car yet — log sessions</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* ---- Engineer note ---- */}
               <div className="bluf-note">
                 <div className="flex spread" style={{ marginBottom: 6 }}>
@@ -467,10 +450,7 @@ export default function BriefingPage() {
             {/* ---- Featured-race actions (managers) ---- */}
             {canEdit && (
               <div className="flex" style={{ gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-                <button className="btn btn-sm" onClick={announce} disabled={announcing}>
-                  {announcing ? "Posting…" : "📢 Post briefing to Discord"}
-                </button>
-                {announceMsg && <span style={{ fontSize: 13 }}>{announceMsg}</span>}
+                <PostButton raceId={focus.race.id} />
                 <button
                   className="btn btn-ghost btn-sm"
                   style={{ marginLeft: "auto" }}
@@ -478,6 +458,55 @@ export default function BriefingPage() {
                 >
                   Remove “{focus.race.track_name}” from calendar
                 </button>
+              </div>
+            )}
+
+            {/* ---- Other classes racing the same weekend (own entities, each postable) ---- */}
+            {siblingPicks.length > 0 && (
+              <div className="card">
+                <h2>Also racing this weekend</h2>
+                <div className="card-sub">
+                  Other classes at {focus.race.track_name} on the same day — each has its own start time and posts to
+                  Discord on its own.
+                </div>
+                <div className="sib-race-list">
+                  {siblingPicks.map(({ race, top }) => (
+                    <div className="sib-race" key={race.id}>
+                      <div className="sib-race-head">
+                        <span className="pill">{race.class ?? "Any"}</span>
+                        {race.start_at ? (
+                          <span className="bluf-sib-time">{fmtLocalTime(race.start_at)}</span>
+                        ) : (
+                          <span className="muted" style={{ fontSize: 12 }}>time TBC</span>
+                        )}
+                        {race.condition && <span className="muted" style={{ fontSize: 12 }}>{race.condition}</span>}
+                      </div>
+                      <div className="sib-race-pick">
+                        {top ? (
+                          <>
+                            <strong>{top.car_name}</strong>
+                            <span className="score-pill" style={{ background: scoreColor(top.car_score) }}>
+                              {fmtScore(top.car_score)}
+                            </span>
+                            <span className="muted" style={{ fontSize: 12 }}>
+                              {top.sessions_used} session{top.sessions_used === 1 ? "" : "s"}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="muted" style={{ fontSize: 13 }}>no ranked car yet — log sessions</span>
+                        )}
+                      </div>
+                      <div className="sib-race-actions">
+                        <PostButton raceId={race.id} />
+                        {canEdit && (
+                          <button className="btn btn-ghost btn-sm" onClick={() => removeRace(race.id, race.track_name)}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>

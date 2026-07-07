@@ -1039,6 +1039,39 @@ table.rank tbody tr.expanded {
   cursor: help;
 }
 
+/* --- Tyre-wear wheel (log-session) ----------------------------------------- */
+.tyre-wear-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.tyre-wheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.tyre-wheel-corners {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tw-corner {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tw-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 /* --- Wet per-track overrides (control panel) ------------------------------- */
 .wet-ov-list {
   display: flex;
@@ -1069,6 +1102,41 @@ table.rank tbody tr.expanded {
 .cp-check input {
   width: auto;
   margin-top: 2px;
+}
+
+/* --- Same-weekend race boxes (briefing) ------------------------------------ */
+.sib-race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sib-race {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  background: var(--bg-card-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+.sib-race-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sib-race-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+}
+.sib-race-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* --- Testing wanted (briefing) --------------------------------------------- */

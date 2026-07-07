@@ -39,6 +39,9 @@ export const SETUP_TYPES: { value: string; code: string }[] = [
   { value: "Race · Wet", code: "WET R" },
   { value: "Quali · Wet", code: "WET Q" },
   { value: "Endurance", code: "Endu" },
+  // In-game default setups — poor baselines, but some drivers run them, so track it.
+  { value: "LMU Default", code: "LMU" },
+  { value: "Coach Dave Default", code: "CDA" },
 ];
 
 /**

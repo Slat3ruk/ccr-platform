@@ -16,6 +16,58 @@ interface TyreState {
 
 const initialTyres: TyreState = { fl: 100, fr: 100, rl: 100, rr: 100 };
 
+/** Wear severity → the LMU tyre-phase palette (low wear green, high wear red). */
+function wearColor(wear: number): string {
+  if (wear <= 20) return "var(--green)";
+  if (wear <= 50) return "var(--yellow)";
+  return "var(--red)";
+}
+
+/**
+ * Live tyre-wear wheel — a ring gauge of the AVERAGE wear (mirrors the
+ * driver-board gauge) plus a per-corner readout, updating as the driver drags
+ * the four sliders. Gives immediate feedback on what they're entering.
+ */
+function TyreWearGauge({ tyres }: { tyres: TyreState }) {
+  const wear = (remaining: number) => Math.max(0, Math.min(100, 100 - remaining));
+  const avg = (wear(tyres.fl) + wear(tyres.fr) + wear(tyres.rl) + wear(tyres.rr)) / 4;
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const dash = (avg / 100) * c;
+  return (
+    <div className="tyre-wheel">
+      <svg viewBox="0 0 80 80" width={104} height={104}>
+        <circle cx={40} cy={40} r={r} fill="none" stroke="var(--bg-active)" strokeWidth={8} />
+        <circle
+          cx={40}
+          cy={40}
+          r={r}
+          fill="none"
+          stroke={wearColor(avg)}
+          strokeWidth={8}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c - dash}`}
+          transform="rotate(-90 40 40)"
+        />
+        <text x={40} y={38} textAnchor="middle" fontSize={16} fontWeight={700} fill="var(--text)">
+          {Math.round(avg)}%
+        </text>
+        <text x={40} y={51} textAnchor="middle" fontSize={7} fill="var(--text-faint)">
+          avg wear
+        </text>
+      </svg>
+      <div className="tyre-wheel-corners">
+        {(["fl", "fr", "rl", "rr"] as const).map((pos) => (
+          <div className="tw-corner" key={pos}>
+            <span className="tw-dot" style={{ background: wearColor(wear(tyres[pos])) }} />
+            {pos.toUpperCase()} <span className="muted">{wear(tyres[pos])}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** When `edit` is passed the form updates that session (PUT); otherwise it creates one. */
 export interface EditContext {
   session: Session;
@@ -344,21 +396,24 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       <div className="card">
         <h2>Tyre wear</h2>
         <div className="card-sub">% remaining at the end of the run (100 = fresh).</div>
-        <div className="tyre-grid">
-          {(["fl", "fr", "rl", "rr"] as const).map((pos) => (
-            <div className="field" key={pos} style={{ marginBottom: 4 }}>
-              <label>
-                {pos.toUpperCase()} — <span className="hint">{tyres[pos]}%</span>
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={tyres[pos]}
-                onChange={(e) => setTyres((t) => ({ ...t, [pos]: Number(e.target.value) }))}
-              />
-            </div>
-          ))}
+        <div className="tyre-wear-layout">
+          <div className="tyre-grid" style={{ flex: 1 }}>
+            {(["fl", "fr", "rl", "rr"] as const).map((pos) => (
+              <div className="field" key={pos} style={{ marginBottom: 4 }}>
+                <label>
+                  {pos.toUpperCase()} — <span className="hint">{tyres[pos]}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={tyres[pos]}
+                  onChange={(e) => setTyres((t) => ({ ...t, [pos]: Number(e.target.value) }))}
+                />
+              </div>
+            ))}
+          </div>
+          <TyreWearGauge tyres={tyres} />
         </div>
       </div>
 
