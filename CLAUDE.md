@@ -436,6 +436,17 @@ button stays Manager + Admin**.
   covers the race-week reminder use-case without a scheduler.
 Verified live incl. a real post ("✅ Posted to #race-announcements"). 104 tests.
 
+### Briefing: identical RaceCard per race (round 25, 2026-07-08)
+
+Follow-up to round 24: the "Also racing this weekend" entries were a compact
+one-line box; user wants each to be a FULL card identical to the featured one.
+Extracted the BLUF into `src/components/RaceCard.tsx` (eyebrow with its own local
+time · track/class · pick+alts+confidence · self-contained note editor ·
+Post-to-Discord + Remove footer) and render it for BOTH the featured race AND
+every sibling — identical by construction. Briefing now loads FULL rankings per
+sibling. If you touch the featured card layout, edit RaceCard (one source for
+all race cards). Verified live (Imola LMP2 16:30 + GT3 19:00 as twin cards).
+
 ### Briefing race-split + default setups + tyre wheel (round 24, 2026-07-08)
 
 Three brain-dumped items built. (1) **Same-weekend races are now their own
