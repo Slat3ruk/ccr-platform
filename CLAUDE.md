@@ -438,6 +438,32 @@ Verified live incl. a real post ("✅ Posted to #race-announcements"). 104 tests
 
 ### 🔭 Action points — queued, not yet built (most recent first)
 
+**⭐ NEXT SESSION (brain-dumped 2026-07-05, likely Tuesday — user near weekly limit, nothing built yet):**
+
+- **Briefing: split same-weekend races into their own entities + pick-what-to-post.**
+  Problem found: a weekend's races each have their OWN start time, but "📢 Post
+  briefing to Discord" posts only the FEATURED race's time (the announce route
+  composes per-class sibling *picks* but stamps a single `<t:…:F>` from the
+  featured race's `start_at`). Fix idea (user's words): move the "other races"
+  out of the featured card into their **own boxes/entities** (keep the layout
+  feel), and when posting, let the manager **pick which race(s) to post** — each
+  race is independently postable with its OWN time. Touches
+  `briefing/page.tsx` (layout) + `api/races/[id]/announce` (already per-race, so
+  wire a button per race box) — maybe a multi-select or a post button per race.
+- **Log-session setup dropdown: add "LMU" and "Coach Dave".** Two in-game DEFAULT
+  setups (both poor, but people do runs on them). Add to `SETUP_TYPES` in
+  `src/types` (with codes) so they appear in the setup dropdown on `/log`.
+- **Log-session tyre-wear wheel visual.** On the tyre-wear section of `/log`,
+  add a wheel/car visual on the RIGHT showing the average wear live as the four
+  tyre %s are entered — same style as the driver-board's wheel display. Interactive
+  feedback ("data given back as they input"). Reuse the driver-board wheel component
+  if one exists; else a small SVG 4-corner wear diagram.
+- *Also on the table (Claude's recs from 2026-07-05, user hasn't picked yet):*
+  **mobile responsive pass** (the Discord pings open on phones — the app is
+  desktop-3-column; top rec) and a **sheet-patch nudge** (benchmark sync already
+  reads the sheet's patch version → compare to current patch, nudge "draw a new
+  line?" — closes the patch loop cheaply).
+
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
   Tauri app already captures lap times/tyre wear/off-tracks live; a "log this
   session to CCR platform" button POSTing to the existing API would kill manual
