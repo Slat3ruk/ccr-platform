@@ -228,7 +228,7 @@ car_score = (pace_final × 0.35) + (consistency_final × 0.25) + ...
 **Approach:** Manual testing only for MVP.
 
 **Process:**
-1. Build → deploy to Netlify
+1. Build → deploy to the VPS (subdomain of the team website)
 2. User + beta testers manually log sessions, check rankings
 3. **Feedback document** listing bugs, UI issues, feature requests
 4. I read feedback doc → fix/improve → iterate
@@ -241,23 +241,21 @@ car_score = (pace_final × 0.35) + (consistency_final × 0.25) + ...
 
 ## Deployment Strategy
 
-**Phase 1 (MVP):** Netlify
-- Auto-deploy on GitHub push
-- Free tier, zero ops
-- 5-minute setup
-- Live at `ccr-platform.netlify.app`
+**LOCKED (2026-07-08): self-hosted VPS, apps as subdomains of the team website.**
+(An earlier serverless-MVP hosting plan was dropped.) The team website is the
+auth hub, apps live on subdomains of its domain, so hosting stays on one VPS.
 
-**Phase 2 (Staging):** Docker Compose
-- Local dev environment (all devs can spin up locally)
-- Staging VPS for beta testing (multi-project coordination)
-- All cars, tracks, sessions synced across team
+- **Host:** a VPS running the Next.js app (persistent Node process) + Postgres on
+  the same box. Reverse proxy (Caddy → auto-HTTPS) routes subdomains.
+- **This app:** `data.crosscurrentracing.com`; the team website at the apex.
+- **Auth:** the website does Discord OAuth and sets a cookie scoped to the parent
+  domain; the app (a subdomain) receives it and just verifies (see the ⭐ release
+  plan in CLAUDE.md). Replaces the client-side view-as toggle.
+- **Data:** real filesystem + real Postgres, so the JSON dev store's ephemeral
+  limitation never applies in production.
 
-**Phase 3 (Production):** Self-hosted VPS + nginx
-- Buy `CrossCurrentRacing.com`
-- Multi-project routing (data platform at `/data`, strategy tool at `/strategy`, docs at `/docs`, etc.)
-- Full control, can host everything
-
-**Rationale:** Start simple (Netlify), scale to full infrastructure as needed. Clear migration path, no vendor lock-in.
+**Rationale:** one box, one domain, one Discord sign-in across every app; full
+control, no serverless-disk persistence problem, no per-app auth.
 
 ---
 
@@ -298,7 +296,7 @@ car_score = (pace_final × 0.35) + (consistency_final × 0.25) + ...
 | 2026-06-30 | Benchmark sync: daily automated, fallback to cache, admin manual | Grill session |
 | 2026-06-30 | Session Value Score: weights each session (Completeness 30%, etc.) | Grill session |
 | 2026-06-30 | Real-time: polling (auto-refresh dashboard every 5s) | Grill session |
-| 2026-06-30 | Deployment: Netlify MVP → Docker staging → self-hosted VPS | Grill session |
+| 2026-07-08 | Deployment: self-hosted VPS, apps as subdomains of the team-website hub (dropped the earlier serverless-MVP plan) | Release planning |
 | 2026-06-30 | UI: Discord-inspired dark theme | Grill session |
 | 2026-06-30 | Testing: manual only, feedback doc for iteration | Grill session |
 | 2026-06-30 | Auth: Phase 2 (Discord OAuth + RBAC) | Grill session |

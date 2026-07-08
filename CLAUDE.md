@@ -12,9 +12,9 @@
 
 - **Frontend:** Next.js (React 19, TypeScript, Vite)
 - **Backend:** Next.js API routes
-- **Database:** PostgreSQL (Netlify Postgres or external)
-- **Hosting:** Netlify (frontend + API)
-- **Auth:** Discord OAuth (Phase 2)
+- **Database:** PostgreSQL (self-hosted on the VPS, or a managed provider)
+- **Hosting:** self-hosted VPS, served as a **subdomain of the team website** (e.g. `data.crosscurrentracing.com`)
+- **Auth:** Discord OAuth via the team-website hub (shared parent-domain cookie; this app just verifies) — see the ⭐ release plan in Action points
 - **Benchmark data:** Google Sheets API (daily sync)
 
 ## Key Design Decisions (Grilled & Locked)
@@ -71,7 +71,7 @@ Completeness 30% + Consistency 25% + Cleanliness 20% + Representativeness 15% + 
 1. ✅ Design spec locked (this document)
 2. Database schema + PostgreSQL setup
 3. Next.js scaffold + API endpoints
-4. Session logging form (UI matching the Netlify app prototype)
+4. Session logging form (UI matching the original prototype)
 5. Scoring engine (5-factor calculation)
 6. Rankings dashboard (cars per track, sortable)
 7. JSON/CSV export
@@ -135,8 +135,8 @@ was verified end-to-end. Structure:
   seconds consistency regression, tyre/mistakes, SVS, the n/(n+1) confidence
   curve, and the weights presets/normalisation). `npm run migrate`
   (`scripts/migrate.mjs`) applies `db/1_init_schema.sql` via `DATABASE_URL` with
-  no psql needed; DEPLOY.md opens with an ⚡ Quick start for the Neon + Netlify
-  path (pooled connection, migrate, seed via the UI banner).
+  no psql needed; DEPLOY.md covers the VPS deploy (Postgres on the box, migrate,
+  seed via the UI banner).
 - **Quick wins (round 4):** (1) **Session editing** — `/sessions` rows have an
   Edit button that opens `SessionForm` in edit mode (prefilled via an `edit`
   prop, saves through `api.updateSession` → `PUT /api/sessions/[id]`, which now
@@ -153,7 +153,7 @@ was verified end-to-end. Structure:
 ### Three pragmatic build decisions (not in the original spec — flag if revisiting)
 
 1. **Dual store (idiot-proof local dev):** Postgres when `DATABASE_URL` is set
-   (production/Netlify, per the locked design), else a zero-config JSON store at
+   (production, per the locked design), else a zero-config JSON store at
    `.data/store.json`. Same engine/UI either way. Docker isn't installed on this
    machine, so requiring Postgres to test locally would have blocked the manual
    feedback loop.
@@ -494,9 +494,10 @@ cheaply).
     the subdomain and skips the site).
   - **Discord = the roster:** site's OAuth gates on CCR-server membership + maps
     Discord roles → driver/manager/admin, baked into the cookie/session.
-  - **Still collapses BOTH gates:** auth (above) + **Postgres persistence** — a
-    real host (VPS/real FS) runs real Postgres, killing the ephemeral-Netlify-disk
-    problem (wire `DATABASE_URL`, run init migrations, write-test survives restart).
+  - **Still collapses BOTH gates:** auth (above) + **Postgres persistence** — the
+    VPS has a real filesystem and runs real Postgres, so the JSON dev store's
+    ephemeral-disk limitation is a non-issue in production (wire `DATABASE_URL`,
+    run init migrations, write-test survives a restart).
   - The **Tauri stint planner is a desktop download, NOT a subdomain** — it auths
     THROUGH the site (browser Discord login → token back), not hosted there.
   - Website roadmap card also promises **data mirroring** (races → stint planner)

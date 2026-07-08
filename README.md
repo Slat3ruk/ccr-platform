@@ -42,7 +42,7 @@ npm run dev
 #      (or, with the server running, `npm run seed` in another terminal)
 ```
 
-### With PostgreSQL (production / Netlify)
+### With PostgreSQL (production)
 
 ```bash
 # Create the schema once
@@ -54,8 +54,8 @@ DATABASE_URL=postgres://… npm run dev
 
 > **Stack note:** this is **Next.js (App Router) + React 19 + TypeScript** with
 > Next.js API route handlers. Next.js uses its own bundler — there is no Vite in
-> this app (the original spec's "Vite" mention was a slip). Deployment is Netlify
-> via `@netlify/plugin-nextjs`.
+> this app (the original spec's "Vite" mention was a slip). Deployment is a
+> self-hosted VPS, served as a subdomain of the team website (see DEPLOY.md).
 
 ---
 
@@ -186,7 +186,7 @@ See `SCHEMA.md` for full details.
 Create `.env.local`:
 
 ```env
-# Database (Netlify Postgres or external)
+# Database (self-hosted Postgres on the VPS, or a managed provider)
 DATABASE_URL=postgres://user:password@localhost:5432/ccr_platform
 
 # Google Sheets (benchmark sync)
@@ -204,7 +204,7 @@ NODE_ENV=development
 
 ### Phase 1: MVP (Core App) — Weeks 1–4
 - [ ] Next.js scaffold + Tailwind CSS
-- [ ] PostgreSQL setup (local dev, Netlify for prod)
+- [ ] PostgreSQL setup (local dev, self-hosted on the VPS for prod)
 - [ ] Database migrations
 - [ ] Session logging form (frontend + API)
 - [ ] Scoring engine (5 factors + aggregation)
@@ -213,7 +213,7 @@ NODE_ENV=development
 - [ ] Benchmark sync (Google Sheets API)
 - [ ] JSON/CSV export
 - [ ] Basic validation & error handling
-- [ ] Deploy to Netlify
+- [ ] Deploy to the VPS (subdomain of the team website)
 
 **Success:** 10+ sessions logged, rankings computed, no bugs on sample data.
 

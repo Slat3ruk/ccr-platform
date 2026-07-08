@@ -361,7 +361,7 @@ INSERT INTO benchmarks (track_id, class, condition, alien_time, competitive_time
 
 ## 5. Frontend UX (MVP Phase 1)
 
-### 5.1 Session Logging Form (reuse Netlify app layout)
+### 5.1 Session Logging Form (reuse the original prototype layout)
 
 **Fields:**
 - Driver name (text input)
@@ -480,6 +480,5 @@ INSERT INTO benchmarks (track_id, class, condition, alien_time, competitive_time
 ## References
 
 - **Ohne Speed LMU Laptimes:** https://docs.google.com/spreadsheets/d/e/2PACX-1vTN03UvJDm99byA6vQPZHKOCYVvfxLu1zkJAzdaKyROykzEKY2-Xl1rl1q5znZEf36m88dxMKsY2eaO/pubhtml
-- **Netlify Prototype App:** https://ccrtestinglog.netlify.app/
 - **Original Spec (v1.0):** `crosscurrent_racing_spec.md`
 

@@ -33,7 +33,6 @@ build/
 
 # Next.js
 next-env.d.ts
-.netlify/
 *.tsbuildinfo
 
 # Saved "Ohne Speed" sheet download — source for scripts/parse-ohne-speed.mjs.
