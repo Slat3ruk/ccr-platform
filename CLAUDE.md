@@ -474,17 +474,29 @@ cheaply).
   session to CCR platform" button POSTing to the existing API would kill manual
   entry and typos. BOTH apps must stabilise first — building it now risks
   breaking both. Revisit when the stint planner's feature work settles.
-- **Production data store (release gate, flagged 2026-07-04).** Netlify runs the
-  app as serverless functions with an ephemeral, read-only filesystem — the
-  zero-config JSON store CANNOT persist writes there (session logs, benchmark
-  sync, eras, wet penalty all vanish on cold start). Before any real release,
-  wire a **Postgres `DATABASE_URL`** (the store auto-selects it) and run the
-  init migrations, then end-to-end write-test (log a session → survives refresh
-  + a cold start). Tested on Netlify 2026-07-04 and "looks good" — but that was
-  the read path; persistence is unconfirmed. `netlify.toml` / `DEPLOY.md` have
-  the setup notes.
-- **Auth hub** (release gate) — provider-agnostic identity + server-enforced
-  roles; likely a separate Cloudflare hub. Everything ships behind this.
+- **⭐ RELEASE PLAN — VPS + domain hub (direction agreed 2026-07-08, not started;
+  the two gates below collapse into this one move).** User's plan: get a **VPS +
+  a domain**, host everything on subdomains of the one box. Shape discussed:
+  - `crosscurrentracing.com` = **hub** (Discord OAuth login lives here);
+    `data.<domain>` = this platform; `planner.<domain>` = (future).
+  - **Caddy** reverse-proxy in front routing subdomains → local ports, with
+    automatic Let's Encrypt HTTPS. A session cookie scoped to `.<domain>` is
+    **shared across subdomains** → log in once at the hub, every app sees it.
+  - **Discord IS the roster:** OAuth at the hub, gate on CCR-server membership,
+    map Discord roles → driver/manager/admin, bake into the session. Replaces the
+    client-side view-as toggle; API routes enforce roles **server-side**.
+  - **This solves BOTH release gates at once:** (a) auth hub, and (b) Postgres
+    persistence — a VPS has a real FS + can run real Postgres, so the ephemeral-
+    Netlify-disk problem just disappears (wire `DATABASE_URL`, run the init
+    migrations, write-test: log a session → survives refresh + restart).
+  - Tradeoff flagged: user now owns the box (updates/backups/uptime; ~$5–10/mo).
+  - The **Tauri stint planner is a desktop download, NOT a subdomain** — it auths
+    THROUGH the hub (browser Discord login → token back) but isn't hosted there.
+  - **Sequence when the VPS is in hand:** VPS+domain → DNS → Caddy+subdomains →
+    build hub (Discord OAuth) → move platform role-check from toggle to real
+    session + wire Postgres → end-to-end write-test.
+  - Superseded framing: "provider-agnostic identity, likely a separate Cloudflare
+    hub" — now a self-hosted VPS hub per the 2026-07-08 discussion.
 - **GT3-wheel control-panel styling (LOW PRIORITY — user demoted 2026-07-05).**
   Dress the functional panel with `public/steering-wheel-logo.png` (static-first).
   User's read: "more of a gimmick than anything else" and concerned the concept
