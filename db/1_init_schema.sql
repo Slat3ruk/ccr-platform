@@ -178,3 +178,19 @@ CREATE TABLE IF NOT EXISTS test_requests (
   created_by VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Race results (prediction accuracy — how the engine's pick actually went) ----
+CREATE TABLE IF NOT EXISTS race_results (
+  id                 SERIAL PRIMARY KEY,
+  track_id           INT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  class              VARCHAR(50) NOT NULL,
+  raced_on           DATE NOT NULL,
+  recommended_car_id INT REFERENCES cars(id) ON DELETE SET NULL,
+  raced_car_id       INT NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+  verdict            VARCHAR(20) NOT NULL CHECK (verdict IN ('nailed', 'solid', 'missed')),
+  position           VARCHAR(100),
+  note               TEXT,
+  created_by         VARCHAR(255),
+  created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_race_results_raced_on ON race_results(raced_on);

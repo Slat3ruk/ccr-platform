@@ -14,8 +14,10 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewRaceResultInput,
   NewTestRequestInput,
   RaceEvent,
+  RaceResult,
   RacingClass,
   Recommendation,
   Session,
@@ -142,6 +144,22 @@ function rowToTestRequest(r: any): TestRequest {
   };
 }
 
+function rowToRaceResult(r: any): RaceResult {
+  return {
+    id: r.id,
+    track_id: r.track_id,
+    class: r.class,
+    raced_on: typeof r.raced_on === "string" ? r.raced_on.slice(0, 10) : iso(r.raced_on).slice(0, 10),
+    recommended_car_id: r.recommended_car_id ?? null,
+    raced_car_id: r.raced_car_id,
+    verdict: r.verdict,
+    position: r.position ?? null,
+    note: r.note ?? null,
+    created_by: r.created_by ?? null,
+    created_at: iso(r.created_at),
+  };
+}
+
 function rowToRace(r: any): RaceEvent {
   return {
     id: r.id,
@@ -225,6 +243,20 @@ export class PostgresStore implements Store {
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS setup_type VARCHAR(100)");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ccr.race_results (
+        id                 SERIAL PRIMARY KEY,
+        track_id           INT NOT NULL REFERENCES ccr.tracks(id) ON DELETE CASCADE,
+        class              VARCHAR(50) NOT NULL,
+        raced_on           DATE NOT NULL,
+        recommended_car_id INT REFERENCES ccr.cars(id) ON DELETE SET NULL,
+        raced_car_id       INT NOT NULL REFERENCES ccr.cars(id) ON DELETE CASCADE,
+        verdict            VARCHAR(20) NOT NULL,
+        position           VARCHAR(100),
+        note               TEXT,
+        created_by         VARCHAR(255),
+        created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ccr.eras (
         id         SERIAL PRIMARY KEY,
@@ -590,6 +622,36 @@ export class PostgresStore implements Store {
 
   async deleteTestRequest(id: number): Promise<boolean> {
     const res = await this.q("DELETE FROM test_requests WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  // race results (prediction accuracy) -----------------------------------------
+  async listRaceResults(): Promise<RaceResult[]> {
+    const res = await this.q("SELECT * FROM race_results ORDER BY raced_on DESC, id DESC");
+    return res.rows.map(rowToRaceResult);
+  }
+
+  async createRaceResult(input: NewRaceResultInput): Promise<RaceResult> {
+    const res = await this.q(
+      `INSERT INTO race_results (track_id, class, raced_on, recommended_car_id, raced_car_id, verdict, position, note, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [
+        input.track_id,
+        input.class,
+        input.raced_on,
+        input.recommended_car_id ?? null,
+        input.raced_car_id,
+        input.verdict,
+        input.position ?? null,
+        input.note ?? null,
+        input.created_by ?? null,
+      ],
+    );
+    return rowToRaceResult(res.rows[0]);
+  }
+
+  async deleteRaceResult(id: number): Promise<boolean> {
+    const res = await this.q("DELETE FROM race_results WHERE id = $1", [id]);
     return (res.rowCount ?? 0) > 0;
   }
 

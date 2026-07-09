@@ -492,6 +492,36 @@ scale via viewBox. Next.js emits the viewport meta automatically.
 2026-07-09):** keep the idea, but the vision-to-execution risk is high; do not
 start it ahead of anything else without asking.
 
+**Engine accuracy (prediction tracking) — BUILT (2026-07-09):** "how often was
+the pick right" scoreboard at the BOTTOM of the briefing — visible to ALL roles
+including drivers (trust is the point); the log/remove controls are
+Manager/Admin only (user's explicit gating). New `race_results` entity (dual
+store + schema + additive PG migration): track/class/date, `raced_car_id`,
+3-way verdict (nailed/solid/missed), optional position/note, and
+`recommended_car_id` = a SNAPSHOT of the board's #1 for the combo taken at
+logging time (so recomputes can't rewrite history; the car-raced dropdown
+filters by class). `src/lib/accuracy.ts` `summarizeAccuracy` = hit% (nailed+
+solid), verdict counts, and "ran the pick X/Y" follow rate. API
+`/api/race-results` (GET/POST/DELETE). Verified end-to-end in-browser both
+lenses. 111 tests.
+
+**Patch-diff report — QUEUED (user picked 2026-07-09):** once a new patch era
+accumulates data, auto-compare car ranks vs the previous era ("BoP moved:
+Ferrari +4, Porsche −2"). Data already exists (recallable archived eras) —
+this is a surfacing feature.
+
+**Test rota — REJECTED (user call 2026-07-09):** no scheduled per-driver test
+assignments; testing stays voluntary ("it's up to people if they want to test
+and give data or not"). Test-request pins remain the right ceiling — don't
+propose rota-style features again.
+
+**Companion-app data ideas (discussed 2026-07-09, for the post-release
+telemetry phase):** auto-logged sessions (the stint-planner bridge, still
+deferred), per-lap tyre/fuel degradation curves, objective track-temp/wetness
+per session, objective off-track counts, setup-file verification. Not action
+points yet — they ride on the companion/relay phase in the stint-planner
+CLAUDE.md.
+
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
   Tauri app already captures lap times/tyre wear/off-tracks live; a "log this
   session to CCR platform" button POSTing to the existing API would kill manual

@@ -16,8 +16,10 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewRaceResultInput,
   NewTestRequestInput,
   RaceEvent,
+  RaceResult,
   RacingClass,
   Recommendation,
   Session,
@@ -53,11 +55,12 @@ interface DbShape {
   races: RaceEvent[];
   eras: Era[];
   test_requests: TestRequest[];
+  race_results: RaceResult[];
 }
 
 function emptyDb(): DbShape {
   return {
-    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0, eras: 0, test_requests: 0 },
+    seq: { drivers: 0, cars: 0, tracks: 0, sessions: 0, benchmarks: 0, recommendations: 0, races: 0, eras: 0, test_requests: 0, race_results: 0 },
     drivers: [],
     cars: [],
     tracks: [],
@@ -68,6 +71,7 @@ function emptyDb(): DbShape {
     races: [],
     eras: [],
     test_requests: [],
+    race_results: [],
   };
 }
 
@@ -475,6 +479,43 @@ export class JsonStore implements Store {
     const before = this.db.test_requests.length;
     this.db.test_requests = this.db.test_requests.filter((r) => r.id !== id);
     const removed = this.db.test_requests.length < before;
+    if (removed) await this.persist();
+    return removed;
+  }
+
+  // race results (prediction accuracy) -----------------------------------------
+  async listRaceResults(): Promise<RaceResult[]> {
+    await this.init();
+    return [...this.db.race_results].sort(
+      (a, b) => Date.parse(b.raced_on) - Date.parse(a.raced_on) || b.id - a.id,
+    );
+  }
+
+  async createRaceResult(input: NewRaceResultInput): Promise<RaceResult> {
+    await this.init();
+    const result: RaceResult = {
+      id: this.nextId("race_results"),
+      track_id: input.track_id,
+      class: input.class,
+      raced_on: input.raced_on,
+      recommended_car_id: input.recommended_car_id ?? null,
+      raced_car_id: input.raced_car_id,
+      verdict: input.verdict,
+      position: input.position ?? null,
+      note: input.note ?? null,
+      created_by: input.created_by ?? null,
+      created_at: this.now(),
+    };
+    this.db.race_results.push(result);
+    await this.persist();
+    return result;
+  }
+
+  async deleteRaceResult(id: number): Promise<boolean> {
+    await this.init();
+    const before = this.db.race_results.length;
+    this.db.race_results = this.db.race_results.filter((r) => r.id !== id);
+    const removed = this.db.race_results.length < before;
     if (removed) await this.persist();
     return removed;
   }

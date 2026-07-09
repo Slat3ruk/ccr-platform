@@ -12,6 +12,8 @@ import type {
   FactorWeights,
   NewEraInput,
   NewRaceInput,
+  NewRaceResultInput,
+  RaceResult,
   RaceRow,
   RankingRow,
   Session,
@@ -186,4 +188,12 @@ export const api = {
     jsend<{ ok: true; request: TestRequest; existed?: boolean }>("/api/test-requests", "POST", input),
 
   deleteTestRequest: (id: number) => jsend<{ ok: true }>(`/api/test-requests/${id}`, "DELETE"),
+
+  // race results (prediction accuracy) ------------------------------------------
+  raceResults: () => jget<RaceResult[]>("/api/race-results"),
+
+  createRaceResult: (input: NewRaceResultInput) =>
+    jsend<{ ok: true; result: RaceResult }>("/api/race-results", "POST", input),
+
+  deleteRaceResult: (id: number) => jsend<{ ok: true }>(`/api/race-results/${id}`, "DELETE"),
 };

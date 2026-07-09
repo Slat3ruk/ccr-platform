@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AccuracyCard from "@/components/AccuracyCard";
 import RaceCard from "@/components/RaceCard";
 import { api } from "@/lib/api-client";
 import { countdownLabel, pickFeatured, type RaceWindow } from "@/lib/calendar";
@@ -398,6 +399,9 @@ export default function BriefingPage() {
             </form>
           </div>
         )}
+
+        {/* ---- Engine accuracy (visible to everyone; input manager/admin) ---- */}
+        <AccuracyCard tracks={tracks} cars={cars} canEdit={canEdit} roleLabel={roleLabel} />
       </div>
     </>
   );

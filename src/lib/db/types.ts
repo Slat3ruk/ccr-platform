@@ -13,8 +13,10 @@ import type {
   Era,
   NewEraInput,
   NewRaceInput,
+  NewRaceResultInput,
   NewTestRequestInput,
   RaceEvent,
+  RaceResult,
   RacingClass,
   Recommendation,
   Session,
@@ -164,6 +166,11 @@ export interface Store {
   listTestRequests(): Promise<TestRequest[]>;
   createTestRequest(input: NewTestRequestInput): Promise<TestRequest>;
   deleteTestRequest(id: number): Promise<boolean>;
+
+  // race results (prediction accuracy — how the pick actually went)
+  listRaceResults(): Promise<RaceResult[]>;
+  createRaceResult(input: NewRaceResultInput): Promise<RaceResult>;
+  deleteRaceResult(id: number): Promise<boolean>;
 
   // meta
   counts(): Promise<{ drivers: number; cars: number; tracks: number; sessions: number; benchmarks: number; recommendations: number }>;

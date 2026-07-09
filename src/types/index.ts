@@ -333,6 +333,50 @@ export interface NewTestRequestInput {
   created_by?: string | null;
 }
 
+// --- Race results (prediction accuracy) ---------------------------------------
+
+/**
+ * How the engine's pick actually went on race day — logged by a manager after
+ * the race. Feeds the accuracy scoreboard on the briefing (visible to all
+ * roles; input is manager/admin). `recommended_car_id` is a snapshot of the
+ * board's #1 for the combo at logging time, so later recomputes can't rewrite
+ * history.
+ */
+export const RESULT_VERDICTS = [
+  { value: "nailed", label: "Nailed it", hint: "the pick delivered — right call" },
+  { value: "solid", label: "Solid", hint: "competitive, no regrets" },
+  { value: "missed", label: "Missed", hint: "wrong call — another car was the answer" },
+] as const;
+
+export type ResultVerdict = (typeof RESULT_VERDICTS)[number]["value"];
+
+export interface RaceResult {
+  id: number;
+  track_id: number;
+  class: RacingClass;
+  raced_on: string; // YYYY-MM-DD
+  recommended_car_id: number | null; // the board's pick when logged (null = no data at the time)
+  raced_car_id: number; // what the team actually ran
+  verdict: ResultVerdict;
+  position?: string | null; // free text, e.g. "P3 in class"
+  note?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+/** Payload accepted by POST /api/race-results. */
+export interface NewRaceResultInput {
+  track_id: number;
+  class: RacingClass;
+  raced_on: string;
+  recommended_car_id?: number | null;
+  raced_car_id: number;
+  verdict: ResultVerdict;
+  position?: string | null;
+  note?: string | null;
+  created_by?: string | null;
+}
+
 /** A recommendation joined with car + track names for the dashboard. */
 export interface RankingRow extends Recommendation {
   car_name: string;
