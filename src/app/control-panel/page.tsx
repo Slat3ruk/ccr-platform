@@ -120,7 +120,7 @@ export default function ControlPanelPage() {
   const active = useMemo(() => currentEra(eras, nowMs), [eras, nowMs]);
   const history = useMemo(() => sortEras(eras).reverse(), [eras]);
 
-  // Smart default: a version/patch bump draws a line; a hotfix just relabels.
+  // Smart default: a version/update/patch bump draws a line; a hotfix just relabels.
   // `drawOverride` lets the admin override; null = follow the suggestion.
   const changeKind = patchChangeKind(currentPatch, patchDraft);
   const suggestDrawLine = shouldDrawLineByDefault(currentPatch, patchDraft);
@@ -131,7 +131,7 @@ export default function ControlPanelPage() {
     setMsg(null);
     const version = patchDraft.trim();
     if (!version) {
-      setMsg({ kind: "error", text: "Enter the version, e.g. 1.3.4." });
+      setMsg({ kind: "error", text: "Enter the version, e.g. 1.3.3.4." });
       return;
     }
     setPatchBusy(true);
@@ -359,8 +359,9 @@ export default function ControlPanelPage() {
             <div className="card">
               <h2>Current patch</h2>
               <div className="card-sub">
-                The LMU build the app is on (<code>version.patch.hotfix</code>, e.g. <code>1.3.4</code>). It’s stamped
-                onto every new session and shown across the app. A <strong>version</strong> or <strong>patch</strong> bump
+                The LMU build the app is on (<code>version.update.patch.hotfix</code>, e.g. <code>1.3.3.4</code> = Update
+                3, Patch 3, Hotfix 4 — matches Steam’s patch titles). It’s stamped onto every new session and shown
+                across the app. A <strong>version</strong>, <strong>update</strong>, or <strong>patch</strong> bump
                 usually resets data comparability (draws a line — older data drops off the live board); a{" "}
                 <strong>hotfix</strong> usually doesn’t. We default the toggle for you; override if you know better.
               </div>
@@ -371,7 +372,7 @@ export default function ControlPanelPage() {
                     <input
                       type="text"
                       value={patchDraft}
-                      placeholder={currentPatch ? `now on ${currentPatch}` : "e.g. 1.3.4"}
+                      placeholder={currentPatch ? `now on ${currentPatch}` : "e.g. 1.3.3.4"}
                       onChange={(e) => {
                         setPatchDraft(e.target.value);
                         setDrawOverride(null); // re-follow the smart default as they retype
@@ -402,7 +403,7 @@ export default function ControlPanelPage() {
                           ? "Detected a hotfix — off by default (keeps existing data)."
                           : changeKind === "unknown"
                             ? "Couldn’t read the version tiers — your call."
-                            : `Detected a ${changeKind} bump — on by default (resets comparability).`}
+                            : `Detected ${changeKind === "update" ? "an" : "a"} ${changeKind} bump — on by default (resets comparability).`}
                       </span>
                     </span>
                   </label>

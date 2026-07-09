@@ -455,7 +455,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
           </div>
           <div className="field">
             <label>Setup patch <span className="hint">(which patch the setup was built on)</span></label>
-            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder={currentPatch ? `e.g. ${currentPatch}` : "e.g. 1.3.4"} />
+            <input type="text" value={setupVersion} onChange={(e) => setSetupVersion(e.target.value)} placeholder={currentPatch ? `e.g. ${currentPatch}` : "e.g. 1.3.3.4"} />
           </div>
         </div>
         {setupWeatherMismatch && (

@@ -19,13 +19,13 @@ export async function GET() {
  * POST /api/patch → set the current patch. Body: { version, draw_line?, reason? }.
  * Always updates the label (auto-stamped onto new sessions + shown in the header).
  * When `draw_line` is true it ALSO draws an era line so older data drops off the
- * live board — the caller decides (a version/patch bump usually should, a hotfix
- * usually shouldn't). (Phase 1: gated client-side to Admin.)
+ * live board — the caller decides (a version/update/patch bump usually should, a
+ * hotfix usually shouldn't). (Phase 1: gated client-side to Admin.)
  */
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const version = typeof body.version === "string" ? body.version.trim() : "";
-  if (!version) return NextResponse.json({ error: "A version is required (e.g. 1.3.4)." }, { status: 400 });
+  if (!version) return NextResponse.json({ error: "A version is required (e.g. 1.3.3.4)." }, { status: 400 });
 
   const store = getStore();
   await store.init();

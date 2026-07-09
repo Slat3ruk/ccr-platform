@@ -387,9 +387,16 @@ Verified live (McLaren @ Sebring pin → ping → briefing → clear). 94 tests.
 
 ### Patch system — "era" reframed as the LMU patch (round 21, 2026-07-04)
 
-The abstract "era" is now surfaced as the **patch** the team actually thinks in
-(`version.patch.hotfix`, e.g. `1.3.4`). Eras table untouched; a current-patch
-LABEL sits on top. `src/lib/patch.ts` parses/compares versions.
+The abstract "era" is now surfaced as the **patch** the team actually thinks in.
+Eras table untouched; a current-patch LABEL sits on top. `src/lib/patch.ts`
+parses/compares versions.
+**⚠ CORRECTED to FOUR tiers (2026-07-09):** LMU actually numbers builds
+`version.update.patch.hotfix` — confirmed against SteamDB ("V1.3.3.4 - Update 3,
+Patch 3, Hotfix 4"). The original 3-part model silently dropped the 4th number
+(two different hotfixes compared as equal). `PatchTuple` is now 4 numbers,
+`patchChangeKind` gained an `"update"` tier, and the draw-line default is
+**everything except a hotfix draws a line** (version/update/patch = on, hotfix =
+off). Legacy short strings still parse (pad with zeros: "1.3" → [1,3,0,0]).
 - **Phase 1 (commit 6eeda21):** `current_patch` setting + `/api/patch`; sessions
   auto-stamp `patch_version` from it (the dead column is now populated). Control
   panel "Current patch" card = version field + smart-defaulted "draw a

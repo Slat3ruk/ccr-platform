@@ -148,9 +148,9 @@ export default function ScoringPage() {
           <h2>Patches, benchmarks &amp; guardrails</h2>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7 }}>
             <li>
-              <strong style={{ color: "var(--text)" }}>Patch scoping:</strong> a version/patch bump draws a line — the
-              live board only scores sessions logged after it. Hotfixes usually just relabel. Every session is stamped
-              with the patch it was logged under.
+              <strong style={{ color: "var(--text)" }}>Patch scoping:</strong> a version, update, or patch bump draws a
+              line — the live board only scores sessions logged after it. Hotfixes (the 4th number, e.g. 1.3.3.
+              <strong>4</strong>) usually just relabel. Every session is stamped with the patch it was logged under.
             </li>
             <li>
               <strong style={{ color: "var(--text)" }}>Stale setups:</strong> a session run on a setup built for an older
