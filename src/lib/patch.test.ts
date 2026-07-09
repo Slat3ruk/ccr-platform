@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { comparePatch, isOlderSetupPatch, parsePatch, patchChangeKind, shouldDrawLineByDefault } from "./patch";
+import {
+  comparePatch,
+  isOlderSetupPatch,
+  newestPatchIn,
+  normalizeSheetPatchLabel,
+  parsePatch,
+  patchChangeKind,
+  shouldDrawLineByDefault,
+} from "./patch";
 
 // LMU versions are FOUR-tier (SteamDB: "V1.3.3.4 - Update 3, Patch 3, Hotfix 4"):
 // version.update.patch.hotfix. Shorter strings pad with zeros.
@@ -52,6 +60,35 @@ describe("patchChangeKind / shouldDrawLineByDefault", () => {
     expect(shouldDrawLineByDefault("1.3.3.4", "1.4.0.0")).toBe(true); // update
     expect(shouldDrawLineByDefault("1.3.3.4", "2.0.0.0")).toBe(true); // version
     expect(shouldDrawLineByDefault("1.3.3.4", "1.3.3.4")).toBe(false); // no change
+  });
+});
+
+describe("normalizeSheetPatchLabel", () => {
+  it("expands Ohne Speed shorthand (real observed labels)", () => {
+    expect(normalizeSheetPatchLabel("1.3 +")).toBe("1.3");
+    expect(normalizeSheetPatchLabel("1.24+")).toBe("1.2.4"); // digits concatenated on the sheet
+    expect(normalizeSheetPatchLabel("1.23+")).toBe("1.2.3");
+    expect(normalizeSheetPatchLabel("1.2 +")).toBe("1.2");
+    expect(normalizeSheetPatchLabel("1.1 + (wet +8%)")).toBe("1.1");
+  });
+  it("passes dotted labels through and rejects junk", () => {
+    expect(normalizeSheetPatchLabel("1.3.3.4")).toBe("1.3.3.4");
+    expect(normalizeSheetPatchLabel("v1.3.3.4")).toBe("1.3.3.4");
+    expect(normalizeSheetPatchLabel("GMR001")).toBeNull();
+    expect(normalizeSheetPatchLabel(null)).toBeNull();
+  });
+});
+
+describe("newestPatchIn", () => {
+  it("finds the newest parseable patch, ignoring junk and suffixes", () => {
+    expect(newestPatchIn(["1.3.3.4", "1.3.3.5", "1.3.2.0"])).toBe("1.3.3.5");
+    expect(newestPatchIn(["1.3.3.4 (wet +8%)", "1.3.3.4"])).toBe("1.3.3.4"); // wet suffix parses
+    expect(newestPatchIn(["v1.3.3.4", "1.4"])).toBe("1.4"); // short form can still win
+    expect(newestPatchIn(["GMR001", null, undefined, "1.3.3.4"])).toBe("1.3.3.4");
+  });
+  it("returns null when nothing parses", () => {
+    expect(newestPatchIn(["GMR001", null, ""])).toBeNull();
+    expect(newestPatchIn([])).toBeNull();
   });
 });
 

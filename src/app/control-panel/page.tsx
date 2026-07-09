@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type WebhookChannelName } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
-import { patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
+import { comparePatch, newestPatchIn, normalizeSheetPatchLabel, patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
 import { useRole } from "@/lib/role";
 import type { Era, WeightsConfig } from "@/types";
 
@@ -59,6 +59,7 @@ export default function ControlPanelPage() {
 
   // current patch + "set patch" form
   const [currentPatch, setCurrentPatch] = useState<string | null>(null);
+  const [sheetPatch, setSheetPatch] = useState<string | null>(null); // newest patch label on the synced benchmark sheet
   const [patchDraft, setPatchDraft] = useState("");
   const [patchReason, setPatchReason] = useState("");
   const [drawOverride, setDrawOverride] = useState<boolean | null>(null); // null = follow the smart default
@@ -89,7 +90,7 @@ export default function ControlPanelPage() {
   const [hookBusy, setHookBusy] = useState<WebhookChannelName | null>(null);
 
   const load = useCallback(async () => {
-    const [e, w, status, wet, hook, patch, tk] = await Promise.all([
+    const [e, w, status, wet, hook, patch, tk, bm] = await Promise.all([
       api.eras(),
       api.weights().catch(() => null),
       api.status(),
@@ -97,6 +98,7 @@ export default function ControlPanelPage() {
       api.webhook().catch(() => null),
       api.patch().catch(() => null),
       api.tracks().catch(() => [] as { id: number; name: string }[]),
+      api.benchmarks().catch(() => []),
     ]);
     setEras(e);
     if (w) setWeights(w.active);
@@ -108,6 +110,7 @@ export default function ControlPanelPage() {
     }
     if (hook) setHooks(hook);
     if (patch) setCurrentPatch(patch.current_patch);
+    setSheetPatch(newestPatchIn(bm.map((b) => normalizeSheetPatchLabel(b.patch_version))));
     setTracks(tk);
     setLoading(false);
   }, []);
@@ -125,6 +128,11 @@ export default function ControlPanelPage() {
   const changeKind = patchChangeKind(currentPatch, patchDraft);
   const suggestDrawLine = shouldDrawLineByDefault(currentPatch, patchDraft);
   const drawLine = drawOverride ?? suggestDrawLine;
+
+  // Sheet-patch nudge (admin-only by construction — this whole page is): the Ohne
+  // Speed benchmark sheet carries a patch label per row; when its newest label is
+  // NEWER than the app's current patch, LMU has probably updated and we prompt.
+  const sheetIsNewer = sheetPatch != null && (currentPatch == null || comparePatch(sheetPatch, currentPatch) === 1);
 
   async function savePatch(e: React.FormEvent) {
     e.preventDefault();
@@ -365,6 +373,41 @@ export default function ControlPanelPage() {
                 usually resets data comparability (draws a line — older data drops off the live board); a{" "}
                 <strong>hotfix</strong> usually doesn’t. We default the toggle for you; override if you know better.
               </div>
+              {sheetIsNewer && (
+                <div
+                  className="lap-parse"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    color: "var(--yellow)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                    padding: "8px 12px",
+                    marginBottom: 12,
+                  }}
+                >
+                  <span>
+                    📄 The Ohne Speed benchmark sheet is labelled <strong>{sheetPatch}</strong>
+                    {currentPatch ? (
+                      <> — newer than the app’s <strong>{currentPatch}</strong>. LMU has probably updated.</>
+                    ) : (
+                      <> but no current patch is set here yet.</>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setPatchDraft(sheetPatch!);
+                      setDrawOverride(null); // follow the smart default for this bump
+                    }}
+                  >
+                    Use {sheetPatch}
+                  </button>
+                </div>
+              )}
               <form onSubmit={savePatch}>
                 <div className="row">
                   <div className="field" style={{ maxWidth: 200, flex: "0 0 auto" }}>

@@ -66,3 +66,38 @@ export function shouldDrawLineByDefault(prev: string | null | undefined, next: s
 export function isOlderSetupPatch(setup: string | null | undefined, current: string | null | undefined): boolean {
   return comparePatch(setup, current) === -1;
 }
+
+/**
+ * Normalise an Ohne Speed sheet patch label to dotted form. The sheet writes
+ * "1.24+" meaning LMU 1.2.4 (digits concatenated) and "1.3 +" meaning 1.3 —
+ * observed labels: "1.1 +", "1.2 +", "1.23+", "1.24+", "1.3 +". A two-segment
+ * label whose second segment has 2+ digits gets its digits split ("1.24" →
+ * "1.2.4"); already-dotted labels ("1.3.3.4") pass through. Null if no number.
+ * (Ambiguity note: this reads a future "1.10" as 1.1.0 — that's the sheet's
+ * own shorthand ambiguity; revisit if LMU ever ships an update ≥ 10.)
+ */
+export function normalizeSheetPatchLabel(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const m = s.trim().match(/^v?\s*(\d+(?:\.\d+)*)/i);
+  if (!m) return null;
+  const segs = m[1].split(".");
+  if (segs.length === 2 && segs[1].length > 1) return [segs[0], ...segs[1].split("")].join(".");
+  return m[1];
+}
+
+/**
+ * The newest parseable patch among `strings` (e.g. benchmark rows' patch labels —
+ * wet rows carry suffixes like "1.3.3.4 (wet +8%)", which parse fine). Returns
+ * the bare numeric prefix ("1.3.3.4"), ready to prefill the set-patch form.
+ * Null when nothing parses. Drives the control-panel sheet-patch nudge.
+ */
+export function newestPatchIn(strings: Array<string | null | undefined>): string | null {
+  let best: string | null = null;
+  for (const s of strings) {
+    const m = s?.trim().match(/^v?\s*(\d+(?:\.\d+){0,3})/i);
+    if (!m) continue;
+    const candidate = m[1];
+    if (best === null || comparePatch(candidate, best) === 1) best = candidate;
+  }
+  return best;
+}
