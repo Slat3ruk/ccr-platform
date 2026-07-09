@@ -144,7 +144,7 @@ export default function ControlPanelPage() {
       setMsg({
         kind: "success",
         text: res.drew_line
-          ? `Now on ${version} — a comparability line was drawn, so the live board scores only sessions from here on. Older data stays viewable from the patch selector.`
+          ? `Now on ${version} — a comparability line was drawn, so the live board scores only sessions from here on. Older data stays viewable from the patch selector. Drawn by mistake? Undo it in “Patch history” below — sessions merge straight back.`
           : `Now on ${version} — label updated and stamped onto new sessions. Existing data kept (no line drawn).`,
       });
     } catch (err) {
