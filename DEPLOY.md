@@ -24,6 +24,27 @@ on the parent domain; this app (a subdomain) receives that cookie and just
 
 ---
 
+## Server file layout
+
+Everything CCR lives under **one parent tree**, each app cleanly separated:
+
+```
+/srv/ccr/
+├── website/          # team website (the auth hub) — crosscurrentracing.com
+├── data-platform/    # this app — data.crosscurrentracing.com   (:3000)
+├── stint-planner/    # future web component                      (:3001)
+├── backups/          # nightly pg_dump output
+└── shared/           # cross-app files (rare — prefer the DB/API)
+```
+
+Rules: apps **never** reach into each other's folders (talk via API or the DB);
+**one Postgres install, separate databases** per app (`ccr_platform`,
+`ccr_website`, …); one Caddyfile maps subdomains → ports. Claude Code on the
+server runs from `/srv/ccr/` so the whole tree is in scope, and **git is the
+bridge** — anything fixed on the box gets committed and pushed back.
+
+---
+
 ## Deploy steps
 
 ### 1. Provision the box
@@ -48,8 +69,9 @@ npm run migrate    # runs db/1_init_schema.sql — creates every table
 
 ### 3. App
 ```bash
-git clone https://github.com/Slat3ruk/ccr-platform.git
-cd ccr-platform
+sudo mkdir -p /srv/ccr && cd /srv/ccr
+git clone https://github.com/Slat3ruk/ccr-platform.git data-platform
+cd data-platform
 npm install
 npm run build
 
