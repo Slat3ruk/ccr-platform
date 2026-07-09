@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Sidebar from "@/components/Sidebar";
+import NavShell from "@/components/NavShell";
 import { RoleProvider } from "@/lib/role";
 import "./globals.css";
 
@@ -14,16 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <RoleProvider>
           <div className="app">
-            <nav className="rail" aria-label="Servers">
-              <div className="rail-logo" title="Cross Current Racing">
-                CC
-              </div>
-              <div className="rail-divider" />
-              <div className="rail-icon" title="LMU Intel">
-                🏁
-              </div>
-            </nav>
-            <Sidebar />
+            <NavShell />
             <main className="main">{children}</main>
           </div>
         </RoleProvider>

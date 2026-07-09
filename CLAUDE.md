@@ -470,11 +470,27 @@ colour by wear severity, updating as the sliders move. 104 tests.
 
 ### 🔭 Action points — queued, not yet built (most recent first)
 
-**Still on the table (Claude's recs 2026-07-05, user hasn't picked — kept parked):**
-**mobile responsive pass** (Discord pings open on phones; the app is desktop-3-column;
-top rec) and a **sheet-patch nudge** (benchmark sync already reads the sheet's patch
-version → compare to current patch, nudge "draw a new line?" — closes the patch loop
-cheaply).
+**Sheet-patch nudge — BUILT (2026-07-09, commit 9147aa1, admin control panel
+only):** when the Ohne Speed sheet's newest patch label beats the app's current
+patch, the Current-patch card nudges + one-click prefills the set-patch form
+(flows into the smart draw-line default). `normalizeSheetPatchLabel` expands the
+sheet's shorthand (`"1.24+"` = LMU 1.2.4 — digits concatenated; verified against
+real labels) so it can't out-rank `"1.3 +"`; `newestPatchIn` picks the max.
+
+**Mobile responsive pass — BUILT (2026-07-09):** ≤720px the rail hides and the
+sidebar becomes a slide-in drawer (new `NavShell.tsx` client wrapper; layout's
+rail/sidebar moved into it) toggled by a floating ☰ FAB (bottom-right, accent
+red); drawer closes on route change or backdrop tap. Desktop is untouched by
+construction — `.side-holder` is `display: contents` there, so the grid still
+sees rail+sidebar. Also at ≤720px: `.table-wrap` gets `overflow-x: auto` (tables
+scroll instead of clipping — desktop keeps `overflow: hidden`), `.grid-2`
+stacks, topbar wraps, content padding shrinks (+ bottom clearance for the FAB).
+Verified at 375px across all 8 pages: zero horizontal overflow; SVG charts
+scale via viewBox. Next.js emits the viewport meta automatically.
+
+**GT3 steering-wheel control-panel styling — EXTREME LAST priority (user call
+2026-07-09):** keep the idea, but the vision-to-execution risk is high; do not
+start it ahead of anything else without asking.
 
 - **Stint-planner bridge (agreed 2026-07-04 — deliberately DEFERRED).** The
   Tauri app already captures lap times/tyre wear/off-tracks live; a "log this

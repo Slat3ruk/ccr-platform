@@ -1591,11 +1591,97 @@ table.rank tbody tr.expanded {
   font-weight: 600;
 }
 
+/* --- Mobile (drawer nav + stacking) ---------------------------------------
+   Desktop is untouched: .side-holder is display:contents so the grid still
+   sees rail + sidebar as direct children. On phones the rail hides, the
+   sidebar becomes a slide-in drawer (toggled by the floating ☰), and the few
+   fixed multi-column layouts stack. */
+
+.side-holder {
+  display: contents;
+}
+
+.nav-fab {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 70;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 21px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.nav-backdrop {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .app {
-    grid-template-columns: var(--rail-w) 1fr;
+    grid-template-columns: 1fr;
   }
-  .sidebar {
+  .rail {
     display: none;
+  }
+
+  /* sidebar → slide-in drawer */
+  .side-holder {
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(80vw, 300px);
+    z-index: 60;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.45);
+  }
+  .side-holder.open {
+    transform: translateX(0);
+  }
+  .side-holder .sidebar {
+    height: 100%;
+  }
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .nav-fab {
+    display: flex;
+  }
+
+  /* content breathing room + stacking */
+  .content {
+    padding: 14px 12px 96px; /* extra bottom so the FAB never covers actions */
+  }
+  .topbar {
+    height: auto;
+    min-height: 44px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* wide tables scroll sideways instead of clipping */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-wrap table {
+    min-width: 560px;
   }
 }
