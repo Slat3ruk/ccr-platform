@@ -15,7 +15,7 @@ on the parent domain; this app (a subdomain) receives that cookie and just
 
 ## What production needs
 
-1. A **VPS** (Ubuntu 22.04, ~$5–10/mo) running the Next.js app as a persistent
+1. A **VPS** (Ubuntu 24.04 LTS, ~$5–10/mo) running the Next.js app as a persistent
    Node process.
 2. **PostgreSQL** on the same box (real filesystem = durable writes; the JSON
    dev store's ephemeral limitation never applies here).
@@ -48,7 +48,7 @@ bridge** — anything fixed on the box gets committed and pushed back.
 ## Deploy steps
 
 ### 1. Provision the box
-Ubuntu 22.04 VPS (DigitalOcean, Hetzner, Linode…). Install Node 20, PostgreSQL,
+Ubuntu 24.04 LTS VPS (DigitalOcean, Hetzner, Linode…). Install Node 20, PostgreSQL,
 and Caddy:
 
 ```bash
