@@ -37,21 +37,34 @@ export async function POST(req: Request) {
   }
   if (errors.length) return NextResponse.json({ error: errors.join(" ") }, { status: 400 });
 
+  const store = getStore();
+  await store.init();
+
+  // Validate referenced rows exist here, matching the sessions endpoint — a clean
+  // 400 instead of leaning on the Postgres FK (which would surface as a 500).
   const recommended = Number(body.recommended_car_id);
+  const recommended_car_id = Number.isInteger(recommended) && recommended > 0 ? recommended : null;
+  const [track, racedCar, recCar] = await Promise.all([
+    store.getTrack(track_id),
+    store.getCar(raced_car_id),
+    recommended_car_id != null ? store.getCar(recommended_car_id) : Promise.resolve(true),
+  ]);
+  if (!track) return NextResponse.json({ error: "Unknown track_id." }, { status: 400 });
+  if (!racedCar) return NextResponse.json({ error: "Unknown raced_car_id." }, { status: 400 });
+  if (!recCar) return NextResponse.json({ error: "Unknown recommended_car_id." }, { status: 400 });
+
   const input: NewRaceResultInput = {
     track_id,
     class: cls as NewRaceResultInput["class"],
     raced_on,
     raced_car_id,
     verdict,
-    recommended_car_id: Number.isInteger(recommended) && recommended > 0 ? recommended : null,
+    recommended_car_id,
     position: typeof body.position === "string" && body.position.trim() ? body.position.trim() : null,
     note: typeof body.note === "string" && body.note.trim() ? body.note.trim() : null,
     created_by: typeof body.created_by === "string" && body.created_by.trim() ? body.created_by.trim() : null,
   };
 
-  const store = getStore();
-  await store.init();
   const result = await store.createRaceResult(input);
   return NextResponse.json({ ok: true, result }, { status: 201 });
 }
