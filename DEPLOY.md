@@ -99,8 +99,28 @@ data.crosscurrentracing.com {
 ```bash
 sudo systemctl reload caddy
 ```
-Point a DNS `A` record for `data` at the VPS IP. Add more apps as more subdomain
-blocks (`planner.crosscurrentracing.com { reverse_proxy localhost:3001 }`, …).
+Point a DNS `A` record for `data` at the VPS IP (and an `AAAA` record at the IPv6
+if you want dual-stack). Add more apps as more subdomain blocks
+(`planner.crosscurrentracing.com { reverse_proxy localhost:3001 }`, …).
+
+#### ⚠ Temporary access gate (REQUIRED until real auth exists)
+The app has **no login yet** — a client-side role toggle, so anyone who reaches
+the URL can act as Admin and purge data. Until the website's Discord OAuth + the
+app's verify layer are built, put the whole subdomain behind a **shared-password
+gate** so the team can use it but the public can't. Add `basic_auth` to the block:
+```
+data.crosscurrentracing.com {
+    basic_auth {
+        # user + a bcrypt hash. Generate the hash with:  caddy hash-password
+        crossteam <PASTE-BCRYPT-HASH-HERE>
+    }
+    reverse_proxy localhost:3000
+}
+```
+Generate the hash with `caddy hash-password` (it prompts for the password), paste
+it in, `sudo systemctl reload caddy`. The team logs in with the one shared
+password. When the real Discord auth lands, delete the `basic_auth { … }` block.
+This keeps the app **live on its domain and usable** without being wide open.
 
 ### 5. Seed reference data (once)
 Open the site and click **"Load sample data"** on the rankings banner, or

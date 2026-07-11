@@ -31,13 +31,15 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
    `pm2 restart`. That's the finish line for this phase.
 
 ## ⛔ CRITICAL GUARDRAILS — do not cross without the user's explicit OK
-- **DO NOT expose this publicly.** No DNS records, no public Caddy binding, no
-  handing anyone the address. **The app has NO real authentication yet** — it uses
-  a client-side "view-as" role toggle, so *anyone who can reach the URL can become
-  Admin and purge all data.* Keep it localhost-only / unlisted until the auth
-  **verify layer** + the team website's Discord OAuth are built (a later phase —
-  see the ⭐ RELEASE PLAN in `CLAUDE.md`). Getting it *running privately* is the
-  whole goal for now.
+- **The app has NO real authentication yet** — a client-side "view-as" role
+  toggle, so *anyone who can reach the URL can become Admin and purge all data.*
+  It is therefore OK to put it on its domain **only behind the temporary
+  shared-password gate** (Caddy `basic_auth`, see DEPLOY.md §4). That's the
+  sanctioned way to make it usable by the team tomorrow without exposing it to
+  the public. **NEVER bind the subdomain publicly without that gate**, and don't
+  hand out the address until the gate is live. The real fix (Discord OAuth via
+  the team website + an app-side verify layer) is a later phase — see the
+  ⭐ RELEASE PLAN in `CLAUDE.md`.
 - **DO NOT follow third-party server-hardening guides.** The user's first server
   was bricked by one (it disabled all login methods before a key was installed).
   Do hardening yourself, from inside, **testing that SSH still works before and
