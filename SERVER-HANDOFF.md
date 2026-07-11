@@ -67,3 +67,15 @@ Caddy: `dig +short data.crosscurrentracing.com` should show `204.168.129.71`.)
 Report the result to the user and stop. The next phases (team website + Discord
 OAuth, the app-side auth verify layer, then public launch) are separate jobs the
 user will direct — they are NOT part of this deploy.
+
+## Post-launch backlog (once stable — NOT launch tasks)
+- **Turn on the Cloudflare proxy (orange cloud) for `data`** — hides the origin
+  IP + free DDoS protection (the real win; CDN caching barely helps a dynamic
+  app). Requires reconfiguring Caddy to get certs via the **Cloudflare DNS-01
+  challenge** (CF API token) since the proxy breaks the default challenge, and
+  setting CF SSL mode to "Full (strict)". ~15 min. Do it deliberately once the
+  app is proven, not at launch. NB: keep any future **telemetry-relay** subdomain
+  **grey** — Cloudflare's proxy has websocket idle-timeout quirks.
+- **Cloudflare Access** (free ≤50 users) is an alternative edge login gate that
+  could replace the temp password gate if the website OAuth proves heavy — option
+  to keep in mind, not the current plan (Discord-via-website is).
