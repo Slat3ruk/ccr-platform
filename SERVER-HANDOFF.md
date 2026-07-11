@@ -63,10 +63,29 @@ hit a cert failure, check the cloud colour first. (User was told to grey-cloud i
 the night before — verify it actually resolves to the origin IP before debugging
 Caddy: `dig +short data.crosscurrentracing.com` should show `204.168.129.71`.)
 
-## After the smoke test passes
-Report the result to the user and stop. The next phases (team website + Discord
-OAuth, the app-side auth verify layer, then public launch) are separate jobs the
-user will direct — they are NOT part of this deploy.
+## After the smoke test passes — LAUNCH CHECKLIST
+The production DB starts **blank** — several things the user configured in local
+dev live in the settings store and must be redone here (walk the user through
+these in the control panel, view-as Admin):
+1. **Set the current patch** (e.g. `1.3.3.4` — check Steam for the latest) so new
+   sessions are patch-stamped. No line needed (fresh DB, nothing to scope).
+2. **Reconnect the three Discord webhooks** (race / test / board) — the user has
+   the URLs in their Discord server's channel settings. Use each slot's "Test"
+   button to verify (this is a sanctioned test post).
+3. Wet penalty + weighting are back to defaults (8%, Balanced) — fine unless the
+   user wants their tuning back.
+4. **Schedule the backup cron on day one** (see Backups & ops) — real data
+   deserves a daily pg_dump from the first session logged.
+5. **Data policy (user decision 2026-07-11): production starts CLEAN** — no
+   migration of the local dev store's sessions. If the user changes their mind,
+   a small export/replay script is the path (local JSON → POST /api/sessions).
+6. Known quirk to mention to the team: drivers are auto-created by typed name,
+   so spelling variations split a driver on the leaderboard — type your name
+   consistently until Discord auth replaces free-text names.
+
+Then report the result to the user and stop. The next phases (team website +
+Discord OAuth, the app-side auth verify layer, then public launch) are separate
+jobs the user will direct — they are NOT part of this deploy.
 
 ## Post-launch backlog (once stable — NOT launch tasks)
 - **Turn on the Cloudflare proxy (orange cloud) for `data`** — hides the origin
