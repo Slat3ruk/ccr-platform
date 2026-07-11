@@ -74,8 +74,11 @@ these in the control panel, view-as Admin):
    button to verify (this is a sanctioned test post).
 3. Wet penalty + weighting are back to defaults (8%, Balanced) — fine unless the
    user wants their tuning back.
-4. **Schedule the backup cron on day one** (see Backups & ops) — real data
-   deserves a daily pg_dump from the first session logged.
+4. **Schedule the backup cron on day one AND run the restore round-trip test**
+   (see DEPLOY.md "Backups & ops" — backup script, cron line, restore command,
+   and the required scratch-DB restore test). Real data deserves a daily
+   pg_dump from the first session logged, and the first restore must never be
+   during an emergency.
 5. **Data policy (user decision 2026-07-11): production starts CLEAN** — no
    migration of the local dev store's sessions. If the user changes their mind,
    a small export/replay script is the path (local JSON → POST /api/sessions).

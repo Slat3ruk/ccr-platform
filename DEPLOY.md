@@ -154,10 +154,40 @@ lighter for a single small app; Docker is tidier if you're running several.
 
 ## Backups & ops
 
-```bash
-# Daily DB backup (cron it)
-pg_dump "$DATABASE_URL" > "backup_$(date +%Y%m%d).sql"
+Backups live in `/srv/ccr/backups/`. Daily dump + 30-day retention:
 
+```bash
+# /srv/ccr/backups/backup.sh  (chmod +x)
+#!/bin/bash
+set -euo pipefail
+export DATABASE_URL="postgres://ccr_admin:<password>@localhost:5432/ccr_platform"
+pg_dump "$DATABASE_URL" > "/srv/ccr/backups/ccr_platform_$(date +%Y%m%d).sql"
+find /srv/ccr/backups -name "ccr_platform_*.sql" -mtime +30 -delete
+```
+
+```bash
+# Cron it daily at 04:00 (crontab -e):
+0 4 * * * /srv/ccr/backups/backup.sh >> /srv/ccr/backups/backup.log 2>&1
+```
+
+**Restore** (into a scratch DB first if you just want to inspect; straight over
+the live DB in a real emergency — this drops and recreates its contents):
+
+```bash
+# Emergency restore over the live DB:
+sudo -u postgres psql -c "DROP DATABASE ccr_platform;" \
+                  -c "CREATE DATABASE ccr_platform OWNER ccr_admin;"
+psql "$DATABASE_URL" < /srv/ccr/backups/ccr_platform_<DATE>.sql
+pm2 restart ccr-data
+```
+
+**⚠ Restore round-trip test (REQUIRED once, at deploy time):** never let the
+first restore be during an emergency. Right after the smoke test: take a backup,
+restore it into a scratch DB (`createdb ccr_restore_test`, `psql` the dump in,
+sanity-query a table, `dropdb ccr_restore_test`). Confirm the dump actually
+round-trips, then delete the scratch DB.
+
+```bash
 pm2 logs ccr-data          # app logs
 pm2 restart ccr-data       # restart after a deploy
 ```
