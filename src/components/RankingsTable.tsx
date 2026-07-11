@@ -93,7 +93,12 @@ export default function RankingsTable({
       <div className="empty">
         <div className="big">🏁</div>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>No rankings yet</div>
-        <div>Log a few sessions for this track/class and they’ll appear here, ranked by Car Score.</div>
+        <div style={{ marginBottom: 12 }}>
+          Log a few sessions for this track/class and they’ll appear here, ranked by Car Score.
+        </div>
+        <a href="/log" className="btn" style={{ display: "inline-block" }}>
+          Log a session →
+        </a>
       </div>
     );
   }

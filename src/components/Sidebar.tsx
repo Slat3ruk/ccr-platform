@@ -9,7 +9,10 @@ import { ROLES, useRole } from "@/lib/role";
 const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = [
   {
     title: "Race weekend",
-    items: [{ href: "/briefing", label: "briefing" }],
+    items: [
+      { href: "/start", label: "start-here" },
+      { href: "/briefing", label: "briefing" },
+    ],
   },
   {
     title: "Leaderboard",

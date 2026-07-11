@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ExportButton from "@/components/ExportButton";
 import RankingsTable from "@/components/RankingsTable";
 import SetupBanner from "@/components/SetupBanner";
+import WelcomeBanner from "@/components/WelcomeBanner";
 import WeightsControl from "@/components/WeightsControl";
 import PresetWinners from "@/components/PresetWinners";
 import { api } from "@/lib/api-client";
@@ -182,6 +183,7 @@ export default function DashboardPage() {
         </span>
       </div>
       <div className="content">
+        <WelcomeBanner />
         {carsCount === 0 && (
           <SetupBanner
             backend={backend}
