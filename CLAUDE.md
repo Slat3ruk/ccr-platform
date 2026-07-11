@@ -470,6 +470,14 @@ colour by wear severity, updating as the sliders move. 104 tests.
 
 ### 🔭 Action points — queued, not yet built (most recent first)
 
+**Log-on-behalf (build WITH the auth verify layer, 2026-07-11):** once Discord
+auth pre-fills + locks the log form's driver identity (session attaches to
+`discord_id`, name = display only, typos impossible), **managers and admins get a
+"logging for: [team-member dropdown]" override** so they can log a session on a
+driver's behalf (driver ran the test but won't log it). Drivers can only log as
+themselves. Include the one-time cleanup: map any pre-auth name-typed drivers to
+their Discord IDs.
+
 **Sheet-patch nudge — BUILT (2026-07-09, commit 9147aa1, admin control panel
 only):** when the Ohne Speed sheet's newest patch label beats the app's current
 patch, the Current-patch card nudges + one-click prefills the set-patch form
