@@ -50,6 +50,19 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
   in sync with the user's PC. Commit style: end messages with
   `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
 
+## ⚠ Cloudflare gotcha (known before you start)
+`crosscurrentracing.com` is on **Cloudflare**, and `data.crosscurrentracing.com`
+was resolving to Cloudflare proxy IPs (104.21.x / 172.67.x), not the origin
+`204.168.129.71`. If the `data` record is **proxied (orange cloud)**, Caddy's
+default automatic HTTPS (TLS-ALPN / HTTP-01 challenge) **will fail** — it'll look
+like a cert bug. Two fixes: (A) simplest — the user sets the `data` record to
+**"DNS only" (grey cloud)** so Caddy's auto-HTTPS just works; (B) keep the proxy
+and configure Caddy's Cloudflare **DNS-01 challenge** (needs a CF API token) with
+Cloudflare SSL mode "Full (strict)". Plan agreed = **Option A for launch.** If you
+hit a cert failure, check the cloud colour first. (User was told to grey-cloud it
+the night before — verify it actually resolves to the origin IP before debugging
+Caddy: `dig +short data.crosscurrentracing.com` should show `204.168.129.71`.)
+
 ## After the smoke test passes
 Report the result to the user and stop. The next phases (team website + Discord
 OAuth, the app-side auth verify layer, then public launch) are separate jobs the
