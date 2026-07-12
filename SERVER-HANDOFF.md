@@ -90,6 +90,34 @@ Then report the result to the user and stop. The next phases (team website +
 Discord OAuth, the app-side auth verify layer, then public launch) are separate
 jobs the user will direct — they are NOT part of this deploy.
 
+## ⭐ NEXT PHASE PREP — write the auth contract (do this when the user asks, NOT during the deploy)
+The **team website is already live on this same VPS with a WORKING Discord auth
+system** (built in a separate server session). The data platform's next job is a
+small **verify layer** that reads the website's shared cookie and enforces roles
+server-side — but to build it correctly, the app side needs to know the exact
+shape of what the website sets. **You are uniquely placed to document this: the
+website's source is on this box** (under `/srv/ccr/website/`).
+
+When the user is ready to tie the apps together, **produce `AUTH-CONTRACT.md` and
+push it to the website repo** (and copy the same file into the data-platform repo
+so both sessions see it). It must state, read from the live website's actual code
+(don't guess):
+- **Cookie**: exact name, domain/scope (must be `.crosscurrentracing.com` — the
+  parent domain — or subdomains can't read it; flag it if it's host-only), Secure/
+  HttpOnly/SameSite attributes, and lifetime.
+- **Token format**: JWT? signed session id? opaque + a lookup endpoint? If a JWT,
+  the signing algorithm and the claim names carrying the **Discord user id** and
+  the **role** (driver/manager/admin), plus how Discord roles map to those three.
+- **Secret**: where the signing secret / verification key lives on the box so the
+  data platform's middleware can validate the token locally (shared secret via a
+  file/env, or a public key, or a `/verify` HTTP endpoint on the website).
+- **Membership gating**: does the website reject non-CCR-Discord members before
+  ever issuing the cookie? (Determines whether the app must re-check membership.)
+
+Once that file exists, the app-side verify middleware can be built against it (see
+the ⭐ RELEASE PLAN in the data-platform `CLAUDE.md`), which retires BOTH the
+client-side view-as toggle AND the temporary Caddy `basic_auth` gate.
+
 ## Post-launch backlog (once stable — NOT launch tasks)
 - **Turn on the Cloudflare proxy (orange cloud) for `data`** — hides the origin
   IP + free DDoS protection (the real win; CDN caching barely helps a dynamic
