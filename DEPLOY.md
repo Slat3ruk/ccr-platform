@@ -51,10 +51,19 @@ bridge** — anything fixed on the box gets committed and pushed back.
 Ubuntu 24.04 LTS VPS (DigitalOcean, Hetzner, Linode…). Install Node 20, PostgreSQL,
 and Caddy:
 
+> **⚠ This box is NOT bare — the team website is already live here** (`crosscurrentracing.com`),
+> so Caddy and Node are probably already installed and Caddy is serving a working
+> config. **Check before installing** (`caddy version`, `node --version`,
+> `psql --version`) and install **only what's missing** — PostgreSQL is the likely
+> gap. Do NOT blindly `apt install caddy` over a running one, and never overwrite
+> the existing Caddyfile (§4 explains how to add to it safely).
+
 ```bash
-# Node 20
+# Only the pieces that step-0 survey showed are missing. Typically just Postgres:
+sudo apt install -y postgresql git
+# Node 20 (skip if `node --version` already shows v20+):
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs postgresql caddy git
+sudo apt install -y nodejs
 ```
 
 ### 2. Postgres + schema
@@ -90,14 +99,19 @@ pm2 save && pm2 startup                     # survive reboots
 ```
 
 ### 4. Reverse proxy + HTTPS (Caddy)
-`/etc/caddy/Caddyfile` — Caddy fetches + renews the TLS cert automatically:
+**The Caddyfile already exists and has a working `crosscurrentracing.com` block
+for the live website — APPEND to it, do not replace it.** Add this block alongside
+the existing website block in `/etc/caddy/Caddyfile`; Caddy fetches + renews the
+TLS cert automatically:
 ```
 data.crosscurrentracing.com {
     reverse_proxy localhost:3000
 }
 ```
 ```bash
+sudo caddy validate --config /etc/caddy/Caddyfile   # MUST pass before reloading
 sudo systemctl reload caddy
+curl -sI https://crosscurrentracing.com | head -1   # confirm the website is STILL up
 ```
 Point a DNS `A` record for `data` at the VPS IP (and an `AAAA` record at the IPv6
 if you want dual-stack). Add more apps as more subdomain blocks

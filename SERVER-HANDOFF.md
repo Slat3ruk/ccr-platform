@@ -11,26 +11,53 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
 5-factor model ranks cars per track/class. It's feature-complete and tested
 (111 passing tests). Full detail is in `CLAUDE.md`.
 
-## Where things stand (2026-07-11)
+## Where things stand (updated 2026-07-12)
 - **The app is DONE and pushed** — you're getting the latest by cloning.
-- **The server is fresh** — secured with SSH key auth, nothing deployed yet.
-- **This is the first real production deploy.** Dev has only ever run on the JSON
-  dev store; the first real PostgreSQL run has never been done. `DEPLOY.md`'s
-  checklist *is* that smoke test.
+- **⚠ THE BOX IS NOT EMPTY.** The team **website is already deployed and live on
+  this same VPS** (`crosscurrentracing.com`) with a working Discord auth system,
+  built in an earlier server session. That almost certainly means **Caddy is
+  already installed and serving the website over HTTPS**, a Caddyfile already
+  exists with a working website block, and Node and parts of the `/srv/ccr/`
+  tree may already be present. **DO NOT treat this as a bare server and DO NOT
+  follow DEPLOY.md's install steps blind** — inspect first (see step 0 below),
+  then add only what's missing. Clobbering the existing Caddyfile or restarting
+  Caddy with a broken config would take the LIVE website down.
+- **This is the first real production deploy *of the data platform*.** Dev has
+  only ever run on the JSON dev store; the first real PostgreSQL run has never
+  been done. `DEPLOY.md`'s checklist *is* that smoke test.
 
-## Your job (walk `DEPLOY.md` — it has every command)
-1. Update the system.
-2. Create the `/srv/ccr/` tree (see DEPLOY.md "Server file layout").
-3. Install Node 20, PostgreSQL, Caddy.
+## Your job (walk `DEPLOY.md`, but ADAPT it to the box's real state)
+0. **Survey the box before changing anything.** Run and read the output of:
+   `caddy version` + `cat /etc/caddy/Caddyfile` (the live website config — you
+   will ADD to this, never replace it); `node --version`; `psql --version` and
+   `systemctl status postgresql`; `pm2 list`; `ls -la /srv/ccr/`. Report what's
+   already there to the user before installing anything.
+1. Update the system (`apt update`; hold off on blanket upgrades if the website
+   is serving — a kernel/service upgrade mid-session is a needless risk).
+2. Create only the **missing** parts of the `/srv/ccr/` tree (see DEPLOY.md
+   "Server file layout"). `website/` likely already exists — leave it alone.
+3. Install **only what step 0 showed is missing** (PostgreSQL is the likely
+   gap; Node and Caddy are probably already there from the website).
 4. Clone `https://github.com/Slat3ruk/ccr-platform.git` into
    `/srv/ccr/data-platform`.
 5. Create the DB + `npm run migrate`, then `npm install && npm run build`.
 6. Run under pm2, **bound to localhost:3000**.
-7. Seed reference data, then verify: `GET /api/seed` must report
+7. **Caddy: ADD a `data.crosscurrentracing.com` block to the EXISTING Caddyfile**
+   (with the `basic_auth` gate — see DEPLOY.md §4). Never overwrite the file.
+   `caddy validate --config /etc/caddy/Caddyfile` BEFORE reloading, and confirm
+   the website still loads AFTER reloading.
+8. Seed reference data, then verify: `GET /api/seed` must report
    `"backend": "postgres"` (not `json`), and a logged session must survive a
    `pm2 restart`. That's the finish line for this phase.
 
 ## ⛔ CRITICAL GUARDRAILS — do not cross without the user's explicit OK
+- **⚠ A LIVE WEBSITE SHARES THIS BOX.** `crosscurrentracing.com` is already
+  serving from this server. Do not restart, reconfigure, or upgrade any **shared**
+  service (Caddy, Postgres if the website uses it, the network/firewall) without
+  first confirming it won't drop the website. For Caddy specifically: only ever
+  **append** a subdomain block, always `caddy validate` before reload, and load
+  `crosscurrentracing.com` in a check right after. If a change to a shared
+  service looks unavoidable, stop and ask the user first.
 - **The app has NO real authentication yet** — a client-side "view-as" role
   toggle, so *anyone who can reach the URL can become Admin and purge all data.*
   It is therefore OK to put it on its domain **only behind the temporary
