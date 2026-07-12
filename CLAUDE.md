@@ -560,6 +560,16 @@ CLAUDE.md.
     the subdomain and skips the site).
   - **Discord = the roster:** site's OAuth gates on CCR-server membership + maps
     Discord roles → driver/manager/admin, baked into the cookie/session.
+  - **⚠ IDENTITY, not just roles — part of the SAME build:** the verify layer must
+    also key **driver identity** to the cookie's `discord_id`, and take the display
+    name from the Discord identity (server nickname), NOT free-text. TODAY identity
+    is `getOrCreateDriver(name)` matching a *typed* name (`discord_id` column exists
+    but is always null), so spelling variations split a driver and there's no
+    Discord link at all. When building auth: populate `discord_id`, pre-fill + lock
+    the log form's driver field from the cookie, and run the **one-time cleanup**
+    mapping pre-auth name-typed drivers to their Discord IDs (merging duplicates).
+    This is what actually kills the duplicate/mismatch-name problem — see the
+    "Log-on-behalf" action point, which ships in the same phase.
   - **Still collapses BOTH gates:** auth (above) + **Postgres persistence** — the
     VPS has a real filesystem and runs real Postgres, so the JSON dev store's
     ephemeral-disk limitation is a non-issue in production (wire `DATABASE_URL`,
