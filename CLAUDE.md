@@ -560,6 +560,14 @@ CLAUDE.md.
     the subdomain and skips the site).
   - **Discord = the roster:** site's OAuth gates on CCR-server membership + maps
     Discord roles → driver/manager/admin, baked into the cookie/session.
+  - **⚠ DEFAULT = DRIVER (least privilege), user-confirmed 2026-07-12.** Every
+    authenticated member is a **Driver** unless their Discord roles explicitly
+    grant **Team Manager** or **Admin** (the two editing/behind-the-scenes roles).
+    No role / unrecognised role → Driver, never elevate by default (fail closed).
+    NB the CURRENT client-side view-as default is `manager` (`role.tsx`,
+    `useState<Role>("manager")`) — a dev convenience that becomes irrelevant once
+    the verify layer enforces server-side; the verify layer must NOT carry that
+    manager-default over — it must default to Driver.
   - **⚠ IDENTITY, not just roles — part of the SAME build:** the verify layer must
     also key **driver identity** to the cookie's `discord_id`, and take the display
     name from the Discord identity (server nickname), NOT free-text. TODAY identity
