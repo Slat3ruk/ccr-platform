@@ -112,6 +112,18 @@ these in the control panel, view-as Admin):
 6. Known quirk to mention to the team: drivers are auto-created by typed name,
    so spelling variations split a driver on the leaderboard — type your name
    consistently until Discord auth replaces free-text names.
+7. **Wire the website → app link.** The user wants the app reachable from the
+   live website's **Apps page → "Telemetry Logging" card → "Launch app" button**.
+   The website source is on this box (`/srv/ccr/website/`) — find that button and
+   point it at `https://data.crosscurrentracing.com` (open in a new tab is fine).
+   Then reload/redeploy the website however it's served (if it's static under
+   Caddy, just saving the file is enough; if it has a build step, run it) and
+   **confirm both the website still loads AND the button opens the app.** NB the
+   app is behind the shared-password gate for now, so clicking Launch will show a
+   password prompt even for logged-in website users — that is EXPECTED until the
+   verify layer lands, not a bug. ⚠ The user is **redesigning the website**; if a
+   fresh design gets re-imported later it must keep this link — flag that to them
+   and note it so the redesign carries it forward.
 
 Then report the result to the user and stop. The next phases (team website +
 Discord OAuth, the app-side auth verify layer, then public launch) are separate
