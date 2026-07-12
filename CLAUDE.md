@@ -535,8 +535,13 @@ CLAUDE.md.
   session to CCR platform" button POSTing to the existing API would kill manual
   entry and typos. BOTH apps must stabilise first — building it now risks
   breaking both. Revisit when the stint planner's feature work settles.
-- **⭐ RELEASE PLAN — the TEAM WEBSITE is the hub (LOCKED 2026-07-08; not started;
-  the two release gates collapse into this).** Decision: the existing/planned
+- **⭐ RELEASE PLAN — the TEAM WEBSITE is the hub (LOCKED 2026-07-08; the two
+  release gates collapse into this). STATUS 2026-07-12: the website is LIVE on
+  the VPS with the Discord auth WORKING (built server-side) — the hub half is
+  done. This app's verify layer is now UNBLOCKED; before building it, get the
+  auth contract from the server copy (cookie name/domain, token format, secret
+  location, role claim) — ask server-Claude to push an `AUTH-CONTRACT.md` to
+  the website repo.** Decision: the existing/planned
   **CrossCurrent team website** (see the user's "Apps" page mockup: members-only,
   "Sign in with Discord", app cards for Telemetry Logging = this platform + Stint
   Planner/Pitwall) IS the auth hub — NOT a separate service. Shape:
