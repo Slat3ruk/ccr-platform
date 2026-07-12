@@ -173,3 +173,20 @@ client-side view-as toggle AND the temporary Caddy `basic_auth` gate.
 - **Cloudflare Access** (free ≤50 users) is an alternative edge login gate that
   could replace the temp password gate if the website OAuth proves heavy — option
   to keep in mind, not the current plan (Discord-via-website is).
+
+### Ops hygiene (minor, deferred by the user 2026-07-12 — none are launch-blockers)
+- **pm2 log rotation** — `pm2 install pm2-logrotate`. Without it pm2's logs grow
+  unbounded and can slowly fill the disk over months. One command, do it early in
+  the post-launch tidy. (The website's pm2, if any, wants this too.)
+- **Firewall (ufw)** — the website already serves, so 22/80/443 are effectively
+  open; there's no formal ufw policy yet. When hardening, allow 22 (SSH), 80 +
+  443 (Caddy/ACME) and default-deny the rest — **but do it from inside, testing
+  SSH still works before AND after each change** (the user's first server was
+  bricked by a hardening step that cut all login paths). Confirm the LIVE website
+  still loads after enabling.
+- **Uptime monitoring** — a free external pinger (UptimeRobot / Better Uptime) on
+  `data.crosscurrentracing.com` (and the website) so a drop is noticed before a
+  driver reports it. ~5 min, no server install.
+- **Drop the unused `NEXT_PUBLIC_API_URL`** from `.env.example` — the app uses
+  relative `/api/...` fetches and never reads that var (verified 2026-07-12), so
+  it's dead config that could mislead a future deployer. Cosmetic cleanup.
