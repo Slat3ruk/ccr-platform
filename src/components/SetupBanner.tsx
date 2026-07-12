@@ -40,7 +40,7 @@ export default function SetupBanner({ backend, carsCount, onSeeded }: Props) {
         {err && <div className="msg error" style={{ marginTop: 8, marginBottom: 0 }}>{err}</div>}
       </div>
       <button className="btn" onClick={seed} disabled={busy}>
-        {busy ? "Loading…" : "Load sample data"}
+        {busy ? "Loading…" : "Load reference data"}
       </button>
     </div>
   );

@@ -64,7 +64,7 @@ export default function BenchmarksPage() {
           <div className="empty">
             <div className="big">📊</div>
             <div style={{ fontWeight: 700 }}>No benchmarks yet</div>
-            <div>Load sample data from #rankings, or sync from Google Sheets.</div>
+            <div>Load reference data from #rankings, or sync from Google Sheets.</div>
           </div>
         ) : (
           <div className="table-wrap">

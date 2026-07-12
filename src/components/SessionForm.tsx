@@ -101,7 +101,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   }, [isEdit, sessionName]);
 
   useEffect(() => {
-    if (!driverNameLocked) api.drivers().then((list) => setDriverOptions(list.map((d) => d.name))).catch(() => {});
+    if (!driverNameLocked) api.roster().then((r) => setDriverOptions(r.roster.map((m) => m.name))).catch(() => {});
   }, [driverNameLocked]);
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
   const [trackId, setTrackId] = useState(s ? String(s.track_id) : "");
@@ -293,7 +293,8 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     <form className="content-narrow" onSubmit={submit}>
       {noData && (
         <div className="msg error">
-          No cars/tracks loaded yet. Go to <strong>#rankings</strong> and click “Load sample data” first.
+          No cars/tracks loaded yet. Go to <strong>#rankings</strong> and click “Load reference data” first, or
+          ask an admin.
         </div>
       )}
       {errors.length > 0 && (
@@ -334,8 +335,8 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
             )}
             {!driverNameLocked && (
               <div className="card-sub" style={{ marginTop: 4 }}>
-                Pre-filled with your name — clear it and pick a registered driver, or type a new one, to log on
-                their behalf.
+                Pre-filled with your name — clear it and pick from the team roster, or type a new name, to log
+                on their behalf.
               </div>
             )}
           </div>

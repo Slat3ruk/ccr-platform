@@ -7,7 +7,6 @@ import type {
   BadgeDef,
   Benchmark,
   Car,
-  Driver,
   DriverStat,
   Era,
   FactorWeights,
@@ -175,7 +174,9 @@ export const api = {
 
   // driver leaderboard --------------------------------------------------------
   driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
-  drivers: () => jget<Driver[]>("/api/drivers"),
+
+  // team roster (Manager/Admin only — log-on-behalf dropdown) -----------------
+  roster: () => jget<{ roster: { discordId: string; name: string }[] }>("/api/auth/roster"),
 
   // current patch -------------------------------------------------------------
   patch: () => jget<{ current_patch: string | null }>("/api/patch"),
