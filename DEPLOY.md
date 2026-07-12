@@ -143,6 +143,11 @@ computes rankings. Drivers can log from anywhere after this.
 
 **Verify:** `GET /api/seed` should report `"backend": "postgres"` (not `json`),
 and a logged session should survive an app restart (`pm2 restart ccr-data`).
+**Also do a one-time full reboot test** (`sudo reboot`): after the box comes
+back, confirm the app and Postgres started on their own (`pm2 list`, load the
+site) and the session persists — proves `pm2 save && pm2 startup` + Postgres
+auto-start survive a real reboot, not just an app restart. (Warn the user first;
+SSH drops briefly.)
 
 ---
 

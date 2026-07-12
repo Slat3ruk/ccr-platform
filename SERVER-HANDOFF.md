@@ -48,7 +48,12 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
    the website still loads AFTER reloading.
 8. Seed reference data, then verify: `GET /api/seed` must report
    `"backend": "postgres"` (not `json`), and a logged session must survive a
-   `pm2 restart`. That's the finish line for this phase.
+   `pm2 restart`. **Then do a FULL reboot test** (`sudo reboot`; wait; SSH back
+   in): confirm the app AND Postgres came back **on their own** and the logged
+   session is still there — this proves `pm2 save && pm2 startup` and Postgres
+   auto-start actually work (they can silently not register, and you'd only find
+   out when the box reboots unattended weeks later). ⚠ Warn the user before you
+   reboot — your own SSH session drops for ~30-60s. That's the finish line.
 
 ## ⛔ CRITICAL GUARDRAILS — do not cross without the user's explicit OK
 - **⚠ A LIVE WEBSITE SHARES THIS BOX.** `crosscurrentracing.com` is already
