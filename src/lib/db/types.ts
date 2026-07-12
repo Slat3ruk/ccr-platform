@@ -108,6 +108,15 @@ export interface Store {
 
   // drivers
   getOrCreateDriver(name: string): Promise<Driver>;
+  /**
+   * Discord-identity-keyed version, for sessions logged by an authenticated
+   * driver logging their own run. Looks up by discord_id first; if unseen,
+   * backfills a pre-auth name-typed record with no discord_id yet (case-
+   * insensitive exact match) rather than creating a duplicate; else creates
+   * fresh. Idempotent — safe to call on every login, no separate migration
+   * script needed.
+   */
+  getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver>;
   listDrivers(): Promise<Driver[]>;
 
   // cars

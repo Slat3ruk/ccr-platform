@@ -7,6 +7,7 @@ import type {
   BadgeDef,
   Benchmark,
   Car,
+  Driver,
   DriverStat,
   Era,
   FactorWeights,
@@ -174,6 +175,7 @@ export const api = {
 
   // driver leaderboard --------------------------------------------------------
   driverStats: () => jget<{ stats: DriverStat[]; badges: BadgeDef[] }>("/api/driver-stats"),
+  drivers: () => jget<Driver[]>("/api/drivers"),
 
   // current patch -------------------------------------------------------------
   patch: () => jget<{ current_patch: string | null }>("/api/patch"),

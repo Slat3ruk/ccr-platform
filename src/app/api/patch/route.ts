@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { postDiscord } from "@/lib/discord";
 import { CURRENT_PATCH_SETTING } from "@/lib/patch";
@@ -20,9 +22,13 @@ export async function GET() {
  * Always updates the label (auto-stamped onto new sessions + shown in the header).
  * When `draw_line` is true it ALSO draws an era line so older data drops off the
  * live board — the caller decides (a version/update/patch bump usually should, a
- * hotfix usually shouldn't). (Phase 1: gated client-side to Admin.)
+ * hotfix usually shouldn't). Admin only.
  */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const version = typeof body.version === "string" ? body.version.trim() : "";
   if (!version) return NextResponse.json({ error: "A version is required (e.g. 1.3.3.4)." }, { status: 400 });
@@ -38,7 +44,7 @@ export async function POST(req: Request) {
       name: version,
       starts_at: new Date().toISOString(),
       reason: typeof body.reason === "string" && body.reason.trim() ? body.reason.trim() : null,
-      created_by: "Admin",
+      created_by: session.name,
     });
     recompute = await recomputeAll(store);
     await postDiscord(

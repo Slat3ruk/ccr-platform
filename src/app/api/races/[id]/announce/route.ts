@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { getChannelUrl, postDiscord } from "@/lib/discord";
 import type { Recommendation, WeightsConfig } from "@/types";
@@ -23,10 +25,14 @@ function topFor(recs: Recommendation[], trackId: number, cls: string | null | un
  * #race-announcements webhook: when, where, the car pick per class racing that
  * weekend, and the engineer's note. Uses Discord's <t:…:F> timestamp when the
  * race has a start time, so every reader sees it in THEIR local timezone —
- * same principle as the briefing page. (Phase 1: gated client-side to
- * Manager/Admin, like the rest of race management.)
+ * same principle as the briefing page. Manager/Admin, like the rest of race
+ * management.
  */
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const raceId = Number(id);
   if (!Number.isInteger(raceId)) return NextResponse.json({ error: "Bad id." }, { status: 400 });

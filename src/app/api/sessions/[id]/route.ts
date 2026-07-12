@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { recomputeAll } from "@/lib/recompute";
 import { validateSessionInput } from "@/lib/validation";
@@ -25,8 +27,12 @@ export async function GET(_req: Request, ctx: Ctx) {
   return NextResponse.json(session);
 }
 
-/** PUT /api/sessions/:id → full update (same shape/validation as create), then recompute. */
+/** PUT /api/sessions/:id → full update (same shape/validation as create), then recompute. Manager/Admin. */
 export async function PUT(req: Request, ctx: Ctx) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const id = await parseId(ctx);
   if (id == null) return NextResponse.json({ error: "Invalid id." }, { status: 400 });
 
@@ -76,8 +82,12 @@ export async function PUT(req: Request, ctx: Ctx) {
   return NextResponse.json({ ok: true, session: updated, recompute });
 }
 
-/** DELETE /api/sessions/:id → delete, then recompute. */
+/** DELETE /api/sessions/:id → delete, then recompute. Manager/Admin. */
 export async function DELETE(_req: Request, ctx: Ctx) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const id = await parseId(ctx);
   if (id == null) return NextResponse.json({ error: "Invalid id." }, { status: 400 });
   const store = getStore();

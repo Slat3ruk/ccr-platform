@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import type { Condition, NewRaceInput, RacingClass, RaceRow } from "@/types";
 import { CONDITIONS, RACING_CLASSES } from "@/types";
@@ -19,8 +21,12 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
-/** POST /api/races → add a race weekend. (Phase 1: gated client-side to Manager/Admin.) */
+/** POST /api/races → add a race weekend. Manager/Admin. */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   const track_id = Number(body.track_id);

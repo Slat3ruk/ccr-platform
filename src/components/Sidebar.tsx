@@ -33,7 +33,7 @@ const SECTIONS: { title: string; items: { href: string; label: string }[] }[] = 
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { role, setRole } = useRole();
+  const { role, name } = useRole();
   const [patch, setPatch] = useState<string | null>(null);
 
   // Show the current LMU patch globally; refresh on navigation (cheap) so it
@@ -68,21 +68,12 @@ export default function Sidebar() {
           </div>
         ))}
       </div>
-      <div className="sidebar-foot" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
-        <div className="nav-section" style={{ padding: "0 0 2px" }}>
-          View as <span className="muted">· {current.hint}</span>
-        </div>
-        <div className="role-switch">
-          {ROLES.map((r) => (
-            <button
-              key={r.value}
-              className={`role-btn${role === r.value ? " active" : ""}`}
-              onClick={() => setRole(r.value)}
-              title={r.hint}
-            >
-              {r.label}
-            </button>
-          ))}
+      <div className="sidebar-foot">
+        <div className="sidebar-identity">
+          <div>
+            Signed in as <span className="name">{name || "…"}</span>
+          </div>
+          <div className="role-badge">{current.label}</div>
         </div>
       </div>
     </aside>

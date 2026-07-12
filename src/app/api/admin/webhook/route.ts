@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { postDiscord, WEBHOOK_SETTINGS, type WebhookChannel } from "@/lib/discord";
 
@@ -37,9 +39,13 @@ const TEST_MESSAGES: Record<WebhookChannel, string> = {
 /**
  * POST /api/admin/webhook → manage a channel's webhook.
  * Body: { action: "save", channel, url } (empty url clears) | { action: "test", channel }.
- * (Phase 1: gated client-side to Admin, like the rest of the control panel.)
+ * Admin only, like the rest of the control panel.
  */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as { action?: unknown; channel?: unknown; url?: unknown };
   if (!isChannel(body.channel)) {
     return NextResponse.json({ error: 'channel must be "race", "test" or "board".' }, { status: 400 });

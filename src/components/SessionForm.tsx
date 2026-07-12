@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
+import { useRole } from "@/lib/role";
 import { sessionQualityWarnings } from "@/lib/quality";
 import { cleanLaps, stdDev } from "@/lib/scoring";
 import { formatLapTime, parseLapTime, parseLapTimes } from "@/lib/time";
@@ -77,6 +78,11 @@ export interface EditContext {
 export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDone?: () => void }) {
   const isEdit = !!edit;
   const s = edit?.session;
+  const { role, name: sessionName } = useRole();
+  // New sessions (not edits) from a Driver are locked to their own verified
+  // Discord identity — see AUTH-CONTRACT.md; managers/admins keep free text
+  // for logging on a teammate's behalf.
+  const driverNameLocked = !isEdit && role === "driver";
 
   const [cars, setCars] = useState<Car[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -84,6 +90,19 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [currentPatch, setCurrentPatch] = useState<string | null>(null);
 
   const [driverName, setDriverName] = useState(edit?.driverName ?? "");
+  const [driverOptions, setDriverOptions] = useState<string[]>([]);
+
+  // Pre-fill with the caller's own verified name on a fresh (non-edit) form —
+  // Drivers stay locked to it (see driverNameLocked above); Manager/Admin get
+  // it as a starting point but can clear it to log on a teammate's behalf,
+  // picking from driverOptions below or typing a brand-new name.
+  useEffect(() => {
+    if (!isEdit && sessionName) setDriverName((cur) => cur || sessionName);
+  }, [isEdit, sessionName]);
+
+  useEffect(() => {
+    if (!driverNameLocked) api.drivers().then((list) => setDriverOptions(list.map((d) => d.name))).catch(() => {});
+  }, [driverNameLocked]);
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
   const [trackId, setTrackId] = useState(s ? String(s.track_id) : "");
   const [sessionType, setSessionType] = useState<string>(s?.session_type ?? "Practice");
@@ -292,7 +311,33 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
         <div className="row">
           <div className="field">
             <label>Driver name</label>
-            <input type="text" value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="e.g. Dal" />
+            <input
+              type="text"
+              value={driverName}
+              onChange={(e) => setDriverName(e.target.value)}
+              placeholder="e.g. Dal"
+              disabled={driverNameLocked}
+              list={driverNameLocked ? undefined : "driver-options"}
+              autoComplete="off"
+            />
+            {!driverNameLocked && (
+              <datalist id="driver-options">
+                {driverOptions.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            )}
+            {driverNameLocked && (
+              <div className="card-sub" style={{ marginTop: 4 }}>
+                Locked to your Discord identity — a manager/admin can log on your behalf instead.
+              </div>
+            )}
+            {!driverNameLocked && (
+              <div className="card-sub" style={{ marginTop: 4 }}>
+                Pre-filled with your name — clear it and pick a registered driver, or type a new one, to log on
+                their behalf.
+              </div>
+            )}
           </div>
         </div>
         <div className="row">

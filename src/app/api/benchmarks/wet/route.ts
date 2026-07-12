@@ -4,6 +4,8 @@ import {
   WET_PENALTY_OVERRIDES_SETTING,
   WET_PENALTY_SETTING,
 } from "@/lib/benchmark-sync";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { recomputeAll } from "@/lib/recompute";
 import { NextResponse } from "next/server";
@@ -37,8 +39,13 @@ function cleanOverrides(raw: unknown): Record<string, number> {
  * overrides, regenerate the derived Wet tiers (dry × (1 + pct/100), per-track pct
  * where set), then recompute rankings. Body: { penalty_pct?: number,
  * overrides?: { [track_id]: pct } }. Both optional; whatever's sent is applied.
+ * Admin only.
  */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as { penalty_pct?: unknown; overrides?: unknown };
   const store = getStore();
   await store.init();

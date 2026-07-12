@@ -282,6 +282,24 @@ export class PostgresStore implements Store {
     return this.driver(ins.rows[0]);
   }
 
+  async getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver> {
+    const byId = await this.q("SELECT * FROM drivers WHERE discord_id = $1 LIMIT 1", [discordId]);
+    if (byId.rows[0]) return this.driver(byId.rows[0]);
+
+    const byName = await this.q("SELECT * FROM drivers WHERE discord_id IS NULL AND LOWER(name) = LOWER($1) LIMIT 1", [name]);
+    if (byName.rows[0]) {
+      const upd = await this.q("UPDATE drivers SET discord_id = $1, name = $2, updated_at = now() WHERE id = $3 RETURNING *", [
+        discordId,
+        name,
+        byName.rows[0].id,
+      ]);
+      return this.driver(upd.rows[0]);
+    }
+
+    const ins = await this.q("INSERT INTO drivers (name, discord_id) VALUES ($1, $2) RETURNING *", [name, discordId]);
+    return this.driver(ins.rows[0]);
+  }
+
   private driver(r: any): Driver {
     return {
       id: r.id,

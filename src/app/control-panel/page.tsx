@@ -307,7 +307,7 @@ export default function ControlPanelPage() {
           <div className="empty">
             <div className="big">🔒</div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>Admins only</div>
-            <div>Switch the view-as toggle to Admin (sidebar footer) to open the control panel.</div>
+            <div>Your Discord roles don&rsquo;t grant Admin here — ask a team admin if you need access.</div>
           </div>
         </div>
       </>

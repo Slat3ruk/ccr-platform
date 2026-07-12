@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_WET_PENALTY_PCT, deriveWetBenchmarks, syncBenchmarks, WET_PENALTY_SETTING } from "@/lib/benchmark-sync";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { postDiscord } from "@/lib/discord";
 import { recomputeAll } from "@/lib/recompute";
@@ -11,9 +13,13 @@ export const dynamic = "force-dynamic";
  * POST /api/benchmarks/sync → pull dry benchmark tiers from the public sheet,
  * then regenerate the derived Wet tiers from them at the stored penalty.
  * Never breaks rankings: on failure it keeps cached/seeded data. Recomputes
- * only if rows actually changed.
+ * only if rows actually changed. Admin only.
  */
 export async function POST() {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["admin"]);
+  if (denied) return denied;
+
   const store = getStore();
   await store.init();
   const result = await syncBenchmarks(store);

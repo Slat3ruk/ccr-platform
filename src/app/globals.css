@@ -202,6 +202,30 @@ textarea {
   font-size: 13px;
 }
 
+.sidebar-identity {
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.sidebar-identity .name {
+  color: #fff;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sidebar-identity .role-badge {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+}
+
 .avatar {
   width: 32px;
   height: 32px;

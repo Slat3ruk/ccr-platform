@@ -155,6 +155,34 @@ export class JsonStore implements Store {
     return driver;
   }
 
+  async getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver> {
+    await this.init();
+    const byId = this.db.drivers.find((d) => d.discord_id === discordId);
+    if (byId) return byId;
+
+    const byName = this.db.drivers.find((d) => !d.discord_id && d.name.toLowerCase() === name.toLowerCase());
+    if (byName) {
+      byName.discord_id = discordId;
+      byName.name = name;
+      byName.updated_at = this.now();
+      await this.persist();
+      return byName;
+    }
+
+    const driver: Driver = {
+      id: this.nextId("drivers"),
+      name,
+      discord_id: discordId,
+      role: "driver",
+      trust_score: 1.0,
+      created_at: this.now(),
+      updated_at: this.now(),
+    };
+    this.db.drivers.push(driver);
+    await this.persist();
+    return driver;
+  }
+
   async listDrivers(): Promise<Driver[]> {
     await this.init();
     return [...this.db.drivers];

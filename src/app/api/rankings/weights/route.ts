@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { recomputeAll } from "@/lib/recompute";
 import { DEFAULT_WEIGHTS_CONFIG, normalizeWeights, WEIGHT_PRESETS } from "@/lib/scoring";
@@ -27,8 +29,13 @@ export async function GET() {
  * POST /api/rankings/weights → set the global weighting and recompute rankings.
  * Body: { preset: "<name>" } for a known preset, or { weights: {...}, preset?: "Custom" }
  * for a custom set (normalised to sum 1). Applies to everyone (one shared ranking).
+ * Admin only.
  */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as { preset?: unknown; weights?: unknown };
   const store = getStore();
   await store.init();

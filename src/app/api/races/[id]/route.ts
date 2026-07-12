@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import type { Condition, RacingClass } from "@/types";
 import { CONDITIONS, RACING_CLASSES } from "@/types";
@@ -9,9 +11,13 @@ export const dynamic = "force-dynamic";
 
 /**
  * PATCH /api/races/:id → update a race. Chiefly used to set the BLUF `note`
- * (with `note_by`), but also edits name/date/class/condition.
+ * (with `note_by`), but also edits name/date/class/condition. Manager/Admin.
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const raceId = Number(id);
   if (!Number.isInteger(raceId)) return NextResponse.json({ error: "Bad id." }, { status: 400 });
@@ -41,8 +47,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   return NextResponse.json({ ok: true, race });
 }
 
-/** DELETE /api/races/:id → remove a race weekend. */
+/** DELETE /api/races/:id → remove a race weekend. Manager/Admin. */
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const raceId = Number(id);
   if (!Number.isInteger(raceId)) return NextResponse.json({ error: "Bad id." }, { status: 400 });

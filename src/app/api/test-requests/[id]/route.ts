@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** DELETE /api/test-requests/:id → clear a test request (the data landed, or it's stale). */
+/** DELETE /api/test-requests/:id → clear a test request (the data landed, or it's stale). Manager/Admin. */
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   const reqId = Number(id);
   if (!Number.isInteger(reqId)) return NextResponse.json({ error: "Bad id." }, { status: 400 });

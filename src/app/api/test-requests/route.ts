@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { forbidUnless } from "@/lib/auth/authz";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { postDiscord } from "@/lib/discord";
 import type { Condition, NewTestRequestInput } from "@/types";
@@ -17,10 +19,13 @@ export async function GET() {
 /**
  * POST /api/test-requests → pin a (car, track, condition) combo as wanted.
  * De-duplicates: pinning an already-pinned combo just returns the existing one.
- * Fires a #testdrivers webhook so the team sees the ask. (Phase 1: gated
- * client-side to Manager/Admin.)
+ * Fires a #testdrivers webhook so the team sees the ask. Manager/Admin.
  */
 export async function POST(req: Request) {
+  const session = await getVerifiedSession();
+  const denied = forbidUnless(session.role, ["manager", "admin"]);
+  if (denied) return denied;
+
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const car_id = Number(body.car_id);
   const track_id = Number(body.track_id);

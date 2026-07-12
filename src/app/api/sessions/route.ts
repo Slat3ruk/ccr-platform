@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
 import { postDiscord } from "@/lib/discord";
 import { CURRENT_PATCH_SETTING } from "@/lib/patch";
@@ -28,6 +29,7 @@ export async function GET(req: Request) {
 
 /** POST /api/sessions → log a session, then recompute rankings. */
 export async function POST(req: Request) {
+  const auth = await getVerifiedSession();
   const raw = await req.json().catch(() => null);
   const result = validateSessionInput(raw);
   if (!result.valid || !result.data) {
@@ -42,7 +44,20 @@ export async function POST(req: Request) {
   if (!car) return NextResponse.json({ error: "Unknown car_id." }, { status: 400 });
   if (!track) return NextResponse.json({ error: "Unknown track_id." }, { status: 400 });
 
-  const driver = await store.getOrCreateDriver(input.driver_name);
+  // Drivers can only log under their own verified identity — the client-typed
+  // name is only trusted as a log-on-behalf override for manager/admin (see
+  // AUTH-CONTRACT.md). This is what actually keys driver identity to Discord
+  // instead of a free-text name.
+  const loggingForSelf = input.driver_name.trim().toLowerCase() === auth.name.trim().toLowerCase();
+  if (auth.role === "driver" && !loggingForSelf) {
+    return NextResponse.json(
+      { error: "Drivers can only log sessions under their own name. Ask a manager/admin to log on your behalf." },
+      { status: 403 },
+    );
+  }
+  const driver = loggingForSelf
+    ? await store.getOrCreateDriverByDiscordId(auth.discordId, auth.name)
+    : await store.getOrCreateDriver(input.driver_name);
 
   // Auto-stamp the session with the patch the app is currently on, so every
   // session carries a durable record of the build it was logged under.
