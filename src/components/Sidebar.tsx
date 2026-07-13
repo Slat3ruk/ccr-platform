@@ -35,12 +35,20 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { role, name } = useRole();
   const [patch, setPatch] = useState<string | null>(null);
+  const [silenced, setSilenced] = useState(false);
 
   // Show the current LMU patch globally; refresh on navigation (cheap) so it
   // updates after an admin sets it in the control panel.
   useEffect(() => {
     api.patch().then((p) => setPatch(p.current_patch)).catch(() => {});
   }, [pathname]);
+
+  // Admin-only: surface webhook silence state everywhere, not just the control
+  // panel, so it's never forgotten mid-testing.
+  useEffect(() => {
+    if (role !== "admin") return;
+    api.webhook().then((h) => setSilenced(h.silenced)).catch(() => {});
+  }, [pathname, role]);
   const current = ROLES.find((r) => r.value === role) ?? ROLES[1];
   const sections =
     role === "admin"
@@ -52,6 +60,11 @@ export default function Sidebar() {
         Cross Current Racing
         {patch && <span className="patch-badge" title={`LMU patch ${patch} — set in the control panel`}>{patch}</span>}
       </div>
+      {role === "admin" && silenced && (
+        <div className="silence-banner" title="All Discord webhooks are muted — resume them in the control panel.">
+          🔇 Webhooks silenced
+        </div>
+      )}
       <div className="sidebar-nav">
         {sections.map((section) => (
           <div key={section.title}>

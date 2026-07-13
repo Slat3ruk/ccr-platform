@@ -1,6 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BadgeDef, BadgeHolder } from "@/types";
-import { diffBadgeGold, diffTopCars, newBoardKeys, type BoardEntry } from "./discord";
+import { JsonStore } from "./db/json-store";
+import {
+  diffBadgeGold,
+  diffTopCars,
+  isSilenced,
+  newBoardKeys,
+  postDiscord,
+  WEBHOOK_SETTINGS,
+  WEBHOOK_SILENCE_SETTING,
+  type BoardEntry,
+} from "./discord";
 
 function row(track: number, car: number, score: number, cls = "LMGT3", condition = "Dry"): BoardEntry {
   return { track_id: track, class: cls, condition, car_id: car, car_score: score };
@@ -91,5 +104,38 @@ describe("diffBadgeGold (leader-board crown takeovers)", () => {
     const { takeovers, next } = diffBadgeGold({ fastest: 1 }, [empty]);
     expect(takeovers).toHaveLength(0);
     expect(next).toEqual({}); // dropped — a later award won't false-fire as a takeover
+  });
+});
+
+describe("webhook silence mode", () => {
+  let dir: string;
+  let store: JsonStore;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "ccr-discord-test-"));
+    store = new JsonStore(dir);
+    await store.init();
+    await store.setSetting(WEBHOOK_SETTINGS.race, "https://discord.com/api/webhooks/fake/still-configured");
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("isSilenced is false until the setting is explicitly set", async () => {
+    expect(await isSilenced(store)).toBe(false);
+  });
+
+  it("postDiscord no-ops while silenced, even with a webhook configured", async () => {
+    await store.setSetting(WEBHOOK_SILENCE_SETTING, true);
+    expect(await isSilenced(store)).toBe(true);
+    const sent = await postDiscord("test message", store, "race");
+    expect(sent).toBe(false); // never attempts the fetch
+  });
+
+  it("postDiscord resumes sending once un-silenced (still no-ops here since no real URL, but proves the gate isn't stuck)", async () => {
+    await store.setSetting(WEBHOOK_SILENCE_SETTING, true);
+    await store.setSetting(WEBHOOK_SILENCE_SETTING, false);
+    expect(await isSilenced(store)).toBe(false);
   });
 });

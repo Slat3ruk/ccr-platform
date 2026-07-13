@@ -33,6 +33,15 @@ export const WEBHOOK_SETTINGS: Record<WebhookChannel, string> = {
   board: "discord_webhook_board_url",
 };
 
+/** Global silence switch — mutes all 3 channels at once (e.g. during testing).
+ *  No queue/backlog: anything that would've posted while silenced is simply
+ *  never sent, so resuming doesn't dump a backlog of stale announcements. */
+export const WEBHOOK_SILENCE_SETTING = "discord_webhooks_silenced";
+
+export async function isSilenced(store: Store): Promise<boolean> {
+  return (await store.getSetting<boolean>(WEBHOOK_SILENCE_SETTING)) === true;
+}
+
 /** Minimal shape a board row needs for flip detection. */
 export interface BoardEntry {
   track_id: number;
@@ -129,6 +138,7 @@ export async function postDiscord(
   channel: WebhookChannel = "race",
   urlOverride?: string,
 ): Promise<boolean> {
+  if (await isSilenced(store)) return false;
   const url = urlOverride ?? (await getChannelUrl(store, channel));
   if (!url) return false;
   try {

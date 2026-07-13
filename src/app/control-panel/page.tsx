@@ -88,6 +88,8 @@ export default function ControlPanelPage() {
   });
   const [hookUrls, setHookUrls] = useState<Record<WebhookChannelName, string>>({ race: "", test: "", board: "" });
   const [hookBusy, setHookBusy] = useState<WebhookChannelName | null>(null);
+  const [silenced, setSilenced] = useState(false);
+  const [silenceBusy, setSilenceBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [e, w, status, wet, hook, patch, tk, bm] = await Promise.all([
@@ -108,7 +110,10 @@ export default function ControlPanelPage() {
       setWetPct(String(wet.penalty_pct));
       setWetOverrides(Object.fromEntries(Object.entries(wet.overrides).map(([id, p]) => [Number(id), String(p)])));
     }
-    if (hook) setHooks(hook);
+    if (hook) {
+      setHooks(hook);
+      setSilenced(hook.silenced);
+    }
     if (patch) setCurrentPatch(patch.current_patch);
     setSheetPatch(newestPatchIn(bm.map((b) => normalizeSheetPatchLabel(b.patch_version))));
     setTracks(tk);
@@ -293,6 +298,26 @@ export default function ControlPanelPage() {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Test failed." });
     } finally {
       setHookBusy(null);
+    }
+  }
+
+  async function toggleSilence() {
+    setMsg(null);
+    setSilenceBusy(true);
+    const next = !silenced;
+    try {
+      await api.setWebhookSilence(next);
+      setSilenced(next);
+      setMsg({
+        kind: "success",
+        text: next
+          ? "Webhooks silenced — nothing will post to Discord until you resume. Nothing that happens while silenced gets sent later."
+          : "Webhooks resumed — new events will post again from now on.",
+      });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Failed to update silence mode." });
+    } finally {
+      setSilenceBusy(false);
     }
   }
 
@@ -580,6 +605,28 @@ export default function ControlPanelPage() {
                 the right channel. A slot left empty falls back to the first configured one — nothing goes missing.
                 Routine recomputes that change nothing stay silent.
               </div>
+
+              <div className={`hook-silence${silenced ? " on" : ""}`}>
+                <div>
+                  <div className="hook-silence-title">
+                    {silenced ? "🔇 Webhooks silenced" : "🔊 Webhooks live"}
+                  </div>
+                  <div className="hook-silence-sub">
+                    {silenced
+                      ? "All 3 channels are muted — nothing is posting right now. Data entered while silenced won’t be posted retroactively when you resume."
+                      : "Mute all 3 channels at once (e.g. while testing) — resuming only sends new events from that point on, nothing that happened while silenced gets backfilled."}
+                  </div>
+                </div>
+                <button
+                  className={`btn btn-sm${silenced ? "" : " btn-ghost"}`}
+                  type="button"
+                  disabled={silenceBusy}
+                  onClick={toggleSilence}
+                >
+                  {silenceBusy ? "Working…" : silenced ? "Resume" : "Silence"}
+                </button>
+              </div>
+
               {WEBHOOK_SLOTS.map((slot) => {
                 const st = hooks[slot.channel];
                 const draft = hookUrls[slot.channel];
@@ -614,7 +661,13 @@ export default function ControlPanelPage() {
                         {hookBusy === slot.channel ? "Working…" : draft.trim() ? "Save" : st.configured ? "Disconnect" : "Save"}
                       </button>
                       {st.configured && (
-                        <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={() => testHook(slot.channel)}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          disabled={busy || silenced}
+                          title={silenced ? "Resume webhooks first to send a test message." : undefined}
+                          onClick={() => testHook(slot.channel)}
+                        >
                           Test
                         </button>
                       )}

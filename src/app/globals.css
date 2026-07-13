@@ -1182,6 +1182,46 @@ table.rank tbody tr.expanded {
   margin: 4px 0 8px;
 }
 
+/* --- Global webhook silence switch (control panel) ------------------------- */
+.hook-silence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--bg-card-2);
+}
+.hook-silence.on {
+  border-color: rgba(242, 63, 67, 0.45);
+  background: rgba(242, 63, 67, 0.08);
+}
+.hook-silence-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.hook-silence-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+  max-width: 480px;
+}
+
+/* --- Sidebar silence banner -------------------------------------------------- */
+.silence-banner {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffb3b5;
+  background: rgba(242, 63, 67, 0.12);
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 0 12px 8px;
+  cursor: help;
+}
+
 /* --- Personal-lens note --------------------------------------------------- */
 .lens-note {
   display: flex;

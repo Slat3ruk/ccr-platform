@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { forbidUnless } from "@/lib/auth/authz";
 import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
-import { postDiscord, WEBHOOK_SETTINGS, type WebhookChannel } from "@/lib/discord";
+import { isSilenced, postDiscord, WEBHOOK_SETTINGS, WEBHOOK_SILENCE_SETTING, type WebhookChannel } from "@/lib/discord";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,16 +18,17 @@ async function slotStatus(store: Awaited<ReturnType<typeof getStore>>, channel: 
   return { configured: ok, hint: ok ? `${url!.trim().slice(0, 45)}…` : null };
 }
 
-/** GET /api/admin/webhook → per-channel status (URLs never echoed in full). */
+/** GET /api/admin/webhook → per-channel status (URLs never echoed in full) + global silence state. */
 export async function GET() {
   const store = getStore();
   await store.init();
-  const [race, test, board] = await Promise.all([
+  const [race, test, board, silenced] = await Promise.all([
     slotStatus(store, "race"),
     slotStatus(store, "test"),
     slotStatus(store, "board"),
+    isSilenced(store),
   ]);
-  return NextResponse.json({ race, test, board });
+  return NextResponse.json({ race, test, board, silenced });
 }
 
 const TEST_MESSAGES: Record<WebhookChannel, string> = {
@@ -37,8 +38,9 @@ const TEST_MESSAGES: Record<WebhookChannel, string> = {
 };
 
 /**
- * POST /api/admin/webhook → manage a channel's webhook.
- * Body: { action: "save", channel, url } (empty url clears) | { action: "test", channel }.
+ * POST /api/admin/webhook → manage webhooks.
+ * Body: { action: "save", channel, url } (empty url clears) | { action: "test", channel }
+ *     | { action: "silence" } | { action: "resume" } (global, no channel needed).
  * Admin only, like the rest of the control panel.
  */
 export async function POST(req: Request) {
@@ -47,11 +49,18 @@ export async function POST(req: Request) {
   if (denied) return denied;
 
   const body = (await req.json().catch(() => ({}))) as { action?: unknown; channel?: unknown; url?: unknown };
+  const store = getStore();
+  await store.init();
+
+  if (body.action === "silence" || body.action === "resume") {
+    const silenced = body.action === "silence";
+    await store.setSetting(WEBHOOK_SILENCE_SETTING, silenced);
+    return NextResponse.json({ ok: true, silenced });
+  }
+
   if (!isChannel(body.channel)) {
     return NextResponse.json({ error: 'channel must be "race", "test" or "board".' }, { status: 400 });
   }
-  const store = getStore();
-  await store.init();
 
   if (body.action === "save") {
     const url = typeof body.url === "string" ? body.url.trim() : "";
@@ -66,6 +75,9 @@ export async function POST(req: Request) {
   }
 
   if (body.action === "test") {
+    if (await isSilenced(store)) {
+      return NextResponse.json({ error: "Webhooks are silenced — resume them first to send a test message." }, { status: 409 });
+    }
     // Test the SLOT's own URL (no fallback) — the point is verifying which
     // channel this specific URL lands in.
     const url = await store.getSetting<string>(WEBHOOK_SETTINGS[body.channel]);
@@ -77,5 +89,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, sent: true });
   }
 
-  return NextResponse.json({ error: 'action must be "save" or "test".' }, { status: 400 });
+  return NextResponse.json({ error: 'action must be "save", "test", "silence" or "resume".' }, { status: 400 });
 }

@@ -152,13 +152,19 @@ export const api = {
     jsend<{ ok: true; sessions_removed: number; recompute: unknown }>("/api/admin/purge", "POST", { confirm: "PURGE" }),
 
   // Discord webhooks (three channel slots: race / test / board) -----------------
-  webhook: () => jget<Record<WebhookChannelName, { configured: boolean; hint: string | null }>>("/api/admin/webhook"),
+  webhook: () =>
+    jget<Record<WebhookChannelName, { configured: boolean; hint: string | null }> & { silenced: boolean }>(
+      "/api/admin/webhook",
+    ),
 
   saveWebhook: (channel: WebhookChannelName, url: string) =>
     jsend<{ ok: true; configured: boolean }>("/api/admin/webhook", "POST", { action: "save", channel, url }),
 
   testWebhook: (channel: WebhookChannelName) =>
     jsend<{ ok: true; sent: boolean }>("/api/admin/webhook", "POST", { action: "test", channel }),
+
+  setWebhookSilence: (silenced: boolean) =>
+    jsend<{ ok: true; silenced: boolean }>("/api/admin/webhook", "POST", { action: silenced ? "silence" : "resume" }),
 
   // race calendar + briefing --------------------------------------------------
   races: () => jget<RaceRow[]>("/api/races"),
