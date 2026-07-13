@@ -53,7 +53,9 @@ describe("syncBenchmarks column mapping (regression: was off by one column)", ()
     // col4 ~100% = 1:59.09, NOT col3's "Hotlap/Q" value 1:58.50.
     expect(bahrainWec!.alien_time).toBeCloseTo(119.09, 2);
     expect(bahrainWec!.competitive_time).toBeCloseTo(120.28, 2); // col5 101%
+    expect(bahrainWec!.good_102_time).toBeCloseTo(121.47, 2); // col6 102% (Good's faster edge)
     expect(bahrainWec!.good_time).toBeCloseTo(122.66, 2); // col7 103% (Good's slower edge)
+    expect(bahrainWec!.midpack_104_time).toBeCloseTo(123.85, 2); // col8 104% (Midpack's faster edge)
     expect(bahrainWec!.midpack_time).toBeCloseTo(125.04, 2); // col9 105% (Midpack's slower edge)
     expect(bahrainWec!.tail_ender_time).toBeCloseTo(126.23, 2); // col10 106%
     expect(bahrainWec!.offline_time).toBeCloseTo(127.43, 2); // col11 107%

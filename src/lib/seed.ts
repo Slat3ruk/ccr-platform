@@ -64,7 +64,9 @@ export async function seedDatabase(store: Store): Promise<SeedSummary> {
       alien_time: b.alien_time,
       competitive_time: b.competitive_time,
       good_time: b.good_time,
+      good_102_time: null, // seed data predates the 102%/104% columns; a real sync fills these in
       midpack_time: b.midpack_time,
+      midpack_104_time: null,
       tail_ender_time: b.tail_ender_time,
       offline_time: b.offline_time,
       data_readiness_pct: b.data_readiness_pct,

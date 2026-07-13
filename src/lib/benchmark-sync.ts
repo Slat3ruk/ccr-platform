@@ -25,9 +25,10 @@
 // label), not separate tiers — Ohne Speed's own legend defines Good as
 // "102–103%" and Midpack as "104–105%". Since good_time/midpack_time are used
 // downstream (scoring.ts) as "still counts as this tier if faster than X"
-// thresholds, we take each band's SLOWER edge: good_time = 103% (col7),
-// midpack_time = 105% (col9) — so anything between competitive_time and
-// good_time is genuinely 102-or-103%, matching the sheet's grouping exactly.
+// thresholds, good_time/midpack_time hold each band's SLOWER edge (103% col7,
+// 105% col9). good_102_time/midpack_104_time (col6/col8) hold the FASTER edge
+// of each band, display-only, so the benchmarks page can show both columns the
+// sheet shows under "Good"/"Midpack" instead of collapsing them to one.
 // All rows are Dry; Wet is derived separately (see deriveWetBenchmarks).
 // ============================================================================
 
@@ -82,7 +83,19 @@ const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/pub?ou
 
 // Tier → column index in a data row (see header note for why good/midpack
 // point at 103%/105% rather than 102%/104%). Column 3 ("Hotlap/Q") is unused.
-const COL = { helper: 0, track: 1, patch: 2, alien: 4, competitive: 5, good: 7, midpack: 9, tail: 10, offline: 11 } as const;
+const COL = {
+  helper: 0,
+  track: 1,
+  patch: 2,
+  alien: 4,
+  competitive: 5,
+  good102: 6,
+  good: 7,
+  midpack104: 8,
+  midpack: 9,
+  tail: 10,
+  offline: 11,
+} as const;
 
 /**
  * Attempt a live sync from the public CSV. Returns a structured result; on any
@@ -142,7 +155,9 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
       alien_time: row.alien_time,
       competitive_time: row.competitive_time,
       good_time: row.good_time,
+      good_102_time: row.good_102_time,
       midpack_time: row.midpack_time,
+      midpack_104_time: row.midpack_104_time,
       tail_ender_time: row.tail_ender_time,
       offline_time: row.offline_time,
       data_readiness_pct: row.data_readiness_pct,
@@ -189,7 +204,9 @@ export async function deriveWetBenchmarks(
       alien_time: d.alien_time * factor,
       competitive_time: d.competitive_time * factor,
       good_time: d.good_time * factor,
+      good_102_time: d.good_102_time != null ? d.good_102_time * factor : null,
       midpack_time: d.midpack_time * factor,
+      midpack_104_time: d.midpack_104_time != null ? d.midpack_104_time * factor : null,
       tail_ender_time: d.tail_ender_time * factor,
       offline_time: d.offline_time * factor,
       data_readiness_pct: d.data_readiness_pct,
@@ -209,7 +226,9 @@ interface ParsedBenchmark {
   alien_time: number;
   competitive_time: number;
   good_time: number;
+  good_102_time: number;
   midpack_time: number;
+  midpack_104_time: number;
   tail_ender_time: number;
   offline_time: number;
   data_readiness_pct: number;
@@ -267,7 +286,9 @@ function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
     if (!cls) continue; // skips GTE / unmapped
 
     const competitive = toSeconds(r[COL.competitive]) ?? alien * 1.01;
+    const good102 = toSeconds(r[COL.good102]) ?? alien * 1.02;
     const good = toSeconds(r[COL.good]) ?? alien * 1.03;
+    const midpack104 = toSeconds(r[COL.midpack104]) ?? alien * 1.04;
     const midpack = toSeconds(r[COL.midpack]) ?? alien * 1.05;
     const tail = toSeconds(r[COL.tail]) ?? alien * 1.06;
     const offline = toSeconds(r[COL.offline]) ?? alien * 1.07;
@@ -279,7 +300,9 @@ function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
       alien_time: alien,
       competitive_time: competitive,
       good_time: good,
+      good_102_time: good102,
       midpack_time: midpack,
+      midpack_104_time: midpack104,
       tail_ender_time: tail,
       offline_time: offline,
       data_readiness_pct: 100,

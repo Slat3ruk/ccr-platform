@@ -145,8 +145,14 @@ export interface Benchmark {
   condition: Condition;
   alien_time: number;
   competitive_time: number;
+  /** Slower edge of the "Good" band (103%) — used as the scoring threshold. */
   good_time: number;
+  /** Faster edge of the "Good" band (102%), display-only. Null until synced. */
+  good_102_time: number | null;
+  /** Slower edge of the "Midpack" band (105%) — used as the scoring threshold. */
   midpack_time: number;
+  /** Faster edge of the "Midpack" band (104%), display-only. Null until synced. */
+  midpack_104_time: number | null;
   tail_ender_time: number;
   offline_time: number;
   data_readiness_pct: number;

@@ -92,7 +92,9 @@ CREATE TABLE IF NOT EXISTS benchmarks (
   alien_time         FLOAT NOT NULL CHECK (alien_time > 0),
   competitive_time   FLOAT NOT NULL CHECK (competitive_time > 0),
   good_time          FLOAT NOT NULL CHECK (good_time > 0),
+  good_102_time      FLOAT CHECK (good_102_time > 0),
   midpack_time       FLOAT NOT NULL CHECK (midpack_time > 0),
+  midpack_104_time   FLOAT CHECK (midpack_104_time > 0),
   tail_ender_time    FLOAT NOT NULL CHECK (tail_ender_time > 0),
   offline_time       FLOAT NOT NULL CHECK (offline_time > 0),
   data_readiness_pct FLOAT DEFAULT 0.0 CHECK (data_readiness_pct BETWEEN 0.0 AND 100.0),
@@ -103,6 +105,13 @@ CREATE TABLE IF NOT EXISTS benchmarks (
   UNIQUE (track_id, class, condition, patch_version)
 );
 CREATE INDEX IF NOT EXISTS idx_benchmarks_track_class ON benchmarks(track_id, class);
+-- Ohne Speed's sheet merges "Good"/"Midpack" over 2 percentage columns each
+-- (102-103%, 104-105%); good_time/midpack_time already hold the slower edge
+-- (103%/105%, used as scoring thresholds) — these hold the faster edge so the
+-- UI can show both, matching the sheet. Nullable: absent on pre-existing rows
+-- until their next sync.
+ALTER TABLE benchmarks ADD COLUMN IF NOT EXISTS good_102_time FLOAT CHECK (good_102_time > 0);
+ALTER TABLE benchmarks ADD COLUMN IF NOT EXISTS midpack_104_time FLOAT CHECK (midpack_104_time > 0);
 
 -- Recommendations (computed car scores) ---------------------------------------
 CREATE TABLE IF NOT EXISTS recommendations (

@@ -63,7 +63,9 @@ export interface NewBenchmark {
   alien_time: number;
   competitive_time: number;
   good_time: number;
+  good_102_time?: number | null;
   midpack_time: number;
+  midpack_104_time?: number | null;
   tail_ender_time: number;
   offline_time: number;
   data_readiness_pct: number;

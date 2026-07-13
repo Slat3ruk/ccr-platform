@@ -101,7 +101,9 @@ function rowToBenchmark(r: any): Benchmark {
     alien_time: Number(r.alien_time),
     competitive_time: Number(r.competitive_time),
     good_time: Number(r.good_time),
+    good_102_time: r.good_102_time == null ? null : Number(r.good_102_time),
     midpack_time: Number(r.midpack_time),
+    midpack_104_time: r.midpack_104_time == null ? null : Number(r.midpack_104_time),
     tail_ender_time: Number(r.tail_ender_time),
     offline_time: Number(r.offline_time),
     data_readiness_pct: Number(r.data_readiness_pct),
@@ -480,18 +482,44 @@ export class PostgresStore implements Store {
     );
     if (existing.rows[0]) {
       const res = await this.q(
-        `UPDATE benchmarks SET alien_time=$1, competitive_time=$2, good_time=$3, midpack_time=$4,
-           tail_ender_time=$5, offline_time=$6, data_readiness_pct=$7, patch_version=$8,
-           last_synced_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=$9 RETURNING *`,
-        [b.alien_time, b.competitive_time, b.good_time, b.midpack_time, b.tail_ender_time, b.offline_time, b.data_readiness_pct, b.patch_version ?? null, existing.rows[0].id],
+        `UPDATE benchmarks SET alien_time=$1, competitive_time=$2, good_time=$3, good_102_time=$4,
+           midpack_time=$5, midpack_104_time=$6, tail_ender_time=$7, offline_time=$8, data_readiness_pct=$9,
+           patch_version=$10, last_synced_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=$11 RETURNING *`,
+        [
+          b.alien_time,
+          b.competitive_time,
+          b.good_time,
+          b.good_102_time ?? null,
+          b.midpack_time,
+          b.midpack_104_time ?? null,
+          b.tail_ender_time,
+          b.offline_time,
+          b.data_readiness_pct,
+          b.patch_version ?? null,
+          existing.rows[0].id,
+        ],
       );
       return rowToBenchmark(res.rows[0]);
     }
     const res = await this.q(
       `INSERT INTO benchmarks (track_id, class, condition, alien_time, competitive_time, good_time,
-         midpack_time, tail_ender_time, offline_time, data_readiness_pct, patch_version)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [b.track_id, b.class, b.condition, b.alien_time, b.competitive_time, b.good_time, b.midpack_time, b.tail_ender_time, b.offline_time, b.data_readiness_pct, b.patch_version ?? null],
+         good_102_time, midpack_time, midpack_104_time, tail_ender_time, offline_time, data_readiness_pct, patch_version)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [
+        b.track_id,
+        b.class,
+        b.condition,
+        b.alien_time,
+        b.competitive_time,
+        b.good_time,
+        b.good_102_time ?? null,
+        b.midpack_time,
+        b.midpack_104_time ?? null,
+        b.tail_ender_time,
+        b.offline_time,
+        b.data_readiness_pct,
+        b.patch_version ?? null,
+      ],
     );
     return rowToBenchmark(res.rows[0]);
   }

@@ -153,17 +153,23 @@ export default function BenchmarksPage() {
               <table className="rank">
                 <thead>
                   <tr>
-                    <th>Track</th>
-                    <th>Class</th>
-                    <th>Cond.</th>
-                    <th title="~100%">Alien</th>
-                    <th title="101%">Competitive</th>
-                    <th title="102–103%">Good</th>
-                    <th title="104–105%">Midpack</th>
-                    <th title="106%">Tail-ender</th>
-                    <th title="107%">Offline</th>
-                    <th className="num">Readiness</th>
-                    <th>Source</th>
+                    <th rowSpan={2}>Track</th>
+                    <th rowSpan={2}>Class</th>
+                    <th rowSpan={2}>Cond.</th>
+                    <th rowSpan={2} title="~100%">Alien</th>
+                    <th rowSpan={2} title="101%">Competitive</th>
+                    <th colSpan={2}>Good</th>
+                    <th colSpan={2}>Midpack</th>
+                    <th rowSpan={2} title="106%">Tail-ender</th>
+                    <th rowSpan={2} title="107%">Offline</th>
+                    <th rowSpan={2} className="num">Readiness</th>
+                    <th rowSpan={2}>Source</th>
+                  </tr>
+                  <tr>
+                    <th title="102%">102%</th>
+                    <th title="103%">103%</th>
+                    <th title="104%">104%</th>
+                    <th title="105%">105%</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,7 +182,9 @@ export default function BenchmarksPage() {
                       <td>{b.condition}</td>
                       <td>{formatLapTime(b.alien_time)}</td>
                       <td>{formatLapTime(b.competitive_time)}</td>
+                      <td>{formatLapTime(b.good_102_time)}</td>
                       <td>{formatLapTime(b.good_time)}</td>
+                      <td>{formatLapTime(b.midpack_104_time)}</td>
                       <td>{formatLapTime(b.midpack_time)}</td>
                       <td>{formatLapTime(b.tail_ender_time)}</td>
                       <td>{formatLapTime(b.offline_time)}</td>

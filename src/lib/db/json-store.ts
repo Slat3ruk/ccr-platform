@@ -333,7 +333,14 @@ export class JsonStore implements Store {
       await this.persist();
       return existing;
     }
-    const row: Benchmark = { id: this.nextId("benchmarks"), ...b, patch_version: b.patch_version ?? null, last_synced_at: this.now() };
+    const row: Benchmark = {
+      id: this.nextId("benchmarks"),
+      ...b,
+      patch_version: b.patch_version ?? null,
+      good_102_time: b.good_102_time ?? null,
+      midpack_104_time: b.midpack_104_time ?? null,
+      last_synced_at: this.now(),
+    };
     this.db.benchmarks.push(row);
     await this.persist();
     return row;
