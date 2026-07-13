@@ -62,7 +62,10 @@ export default function BenchmarksPage() {
     setMsg(null);
     try {
       const result = await api.syncBenchmarks();
-      setMsg(result.message ?? "Sync complete.");
+      const lastUpdated = result.sheet_last_updated
+        ? ` Sheet's own “last updated” note: ${result.sheet_last_updated}.`
+        : "";
+      setMsg((result.message ?? "Sync complete.") + lastUpdated);
       await load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Sync failed.");
@@ -153,11 +156,12 @@ export default function BenchmarksPage() {
                     <th>Track</th>
                     <th>Class</th>
                     <th>Cond.</th>
-                    <th>Alien</th>
-                    <th>Competitive</th>
-                    <th>Good</th>
-                    <th>Midpack</th>
-                    <th>Tail-ender</th>
+                    <th title="~100%">Alien</th>
+                    <th title="101%">Competitive</th>
+                    <th title="102–103%">Good</th>
+                    <th title="104–105%">Midpack</th>
+                    <th title="106%">Tail-ender</th>
+                    <th title="107%">Offline</th>
                     <th className="num">Readiness</th>
                     <th>Source</th>
                   </tr>
@@ -175,6 +179,7 @@ export default function BenchmarksPage() {
                       <td>{formatLapTime(b.good_time)}</td>
                       <td>{formatLapTime(b.midpack_time)}</td>
                       <td>{formatLapTime(b.tail_ender_time)}</td>
+                      <td>{formatLapTime(b.offline_time)}</td>
                       <td className="num">{b.data_readiness_pct.toFixed(0)}%</td>
                       <td>
                         {b.patch_version === "seed" ? <span className="pill seed">seed</span> : <span className="muted">{b.patch_version ?? "—"}</span>}

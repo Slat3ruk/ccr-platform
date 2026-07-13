@@ -13,11 +13,22 @@
 // Missing tracks (new layouts) are AUTO-CREATED so a brand-new circuit flows
 // straight through instead of being silently skipped.
 //
-// Live CSV layout (decoded 2026-07-03, tab gid 1766901750): a single grid,
-// per-class sections. Each data row: col0 = "<track><CLASS>" (e.g. "SpaLMGT3"),
-// col1 = track, col2 = patch, and the pace tiers at cols 3/4/5/7/9/10 =
-// Alien / Competitive / Good / Midpack / Tail-ender / Offline (the sheet's own
-// labels; 103% and 105% columns are unlabelled and skipped). All rows are Dry.
+// Live CSV layout (re-decoded 2026-07-13, tab gid 1766901750 — corrected after
+// the previous mapping was found to be off by one column, see below): a single
+// grid, per-class sections. Each data row: col0 = "<track><CLASS>" (e.g.
+// "SpaLMGT3"), col1 = track, col2 = patch, col3 = a separate "Hotlap/Q" best
+// time (NOT one of the pace tiers — ignored). The 8 race-pace percentage
+// columns start at col4: ~100/101/102/103/104/105/106/107% = cols 4–11.
+// The sheet's own labels only tag 6 of those 8 (~100/101/102/104/106/107 =
+// Alien/Competitive/Good/Midpack/Tail-ender/Offline); 103% and 105% are
+// visually merged under the "Good"/"Midpack" header cells (a 2-column-wide
+// label), not separate tiers — Ohne Speed's own legend defines Good as
+// "102–103%" and Midpack as "104–105%". Since good_time/midpack_time are used
+// downstream (scoring.ts) as "still counts as this tier if faster than X"
+// thresholds, we take each band's SLOWER edge: good_time = 103% (col7),
+// midpack_time = 105% (col9) — so anything between competitive_time and
+// good_time is genuinely 102-or-103%, matching the sheet's grouping exactly.
+// All rows are Dry; Wet is derived separately (see deriveWetBenchmarks).
 // ============================================================================
 
 import type { Condition, RacingClass } from "@/types";
@@ -42,6 +53,21 @@ export interface SyncResult {
   /** Names of tracks auto-created this sync (new circuits/layouts on the sheet). */
   created_tracks: string[];
   message: string;
+  /** The sheet's own "Last updated: …" note (top-left of the tab), so an admin
+   *  can tell whether they just pulled Ohne Speed's latest edit. Null when the
+   *  fetch failed or the sheet's layout dropped the note. */
+  sheet_last_updated: string | null;
+}
+
+/** Pulls the "Last updated: …" note the sheet keeps near the top of the tab. */
+function findLastUpdated(rows: string[][]): string | null {
+  for (const row of rows.slice(0, 10)) {
+    for (const cell of row) {
+      const m = /^Last updated:\s*(.+)$/i.exec(cell.trim());
+      if (m) return m[1].trim();
+    }
+  }
+  return null;
 }
 
 // Published-doc id + tab gid of the master laptimes grid. Overridable via env
@@ -54,8 +80,9 @@ const GID = process.env.OHNE_SPEED_GID?.trim() || "1766901750";
 
 const CSV_URL = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_ID}/pub?output=csv&gid=${GID}`;
 
-// Tier → column index in a data row (the sheet's own labels, see header note).
-const COL = { helper: 0, track: 1, patch: 2, alien: 3, competitive: 4, good: 5, midpack: 7, tail: 9, offline: 10 } as const;
+// Tier → column index in a data row (see header note for why good/midpack
+// point at 103%/105% rather than 102%/104%). Column 3 ("Hotlap/Q") is unused.
+const COL = { helper: 0, track: 1, patch: 2, alien: 4, competitive: 5, good: 7, midpack: 9, tail: 10, offline: 11 } as const;
 
 /**
  * Attempt a live sync from the public CSV. Returns a structured result; on any
@@ -71,15 +98,17 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
     const res = await fetch(CSV_URL, { signal: controller.signal, redirect: "follow" });
     clearTimeout(timeout);
     if (!res.ok) {
-      return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sheet fetch ${res.status} — kept cache.` };
+      return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sheet fetch ${res.status} — kept cache.`, sheet_last_updated: null };
     }
     text = await res.text();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sync error (${message}) — kept cache.` };
+    return { ok: false, source: "cache", upserted: 0, tracks_created: 0, created_tracks: [], message: `Sync error (${message}) — kept cache.`, sheet_last_updated: null };
   }
 
-  const parsed = parseBenchmarkRows(parseCsv(text));
+  const csvRows = parseCsv(text);
+  const sheetLastUpdated = findLastUpdated(csvRows);
+  const parsed = parseBenchmarkRows(csvRows);
   if (parsed.length === 0) {
     return {
       ok: false,
@@ -88,6 +117,7 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
       tracks_created: 0,
       created_tracks: [],
       message: "Fetched the sheet but parsed 0 benchmark rows — layout may have changed; kept cache.",
+      sheet_last_updated: sheetLastUpdated,
     };
   }
 
@@ -130,6 +160,7 @@ export async function syncBenchmarks(store: Store = getStore()): Promise<SyncRes
     tracks_created: createdTracks.length,
     created_tracks: createdTracks,
     message: `${bits.join(" · ")}.`,
+    sheet_last_updated: sheetLastUpdated,
   };
 }
 
@@ -236,8 +267,8 @@ function parseBenchmarkRows(rows: string[][]): ParsedBenchmark[] {
     if (!cls) continue; // skips GTE / unmapped
 
     const competitive = toSeconds(r[COL.competitive]) ?? alien * 1.01;
-    const good = toSeconds(r[COL.good]) ?? alien * 1.02;
-    const midpack = toSeconds(r[COL.midpack]) ?? alien * 1.04;
+    const good = toSeconds(r[COL.good]) ?? alien * 1.03;
+    const midpack = toSeconds(r[COL.midpack]) ?? alien * 1.05;
     const tail = toSeconds(r[COL.tail]) ?? alien * 1.06;
     const offline = toSeconds(r[COL.offline]) ?? alien * 1.07;
 

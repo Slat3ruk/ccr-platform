@@ -29,6 +29,16 @@ export interface WeightsPreset {
   weights: FactorWeights;
 }
 
+export interface BenchmarkSyncResult {
+  ok: boolean;
+  source: "google-sheets" | "cache";
+  upserted: number;
+  tracks_created: number;
+  created_tracks: string[];
+  message: string;
+  sheet_last_updated: string | null;
+}
+
 /** The three Discord webhook slots (see lib/discord.ts). */
 export type WebhookChannelName = "race" | "test" | "board";
 
@@ -116,7 +126,7 @@ export const api = {
 
   async syncBenchmarks() {
     const res = await fetch("/api/benchmarks/sync", { method: "POST" });
-    return res.json();
+    return res.json() as Promise<BenchmarkSyncResult>;
   },
 
   // wet benchmarks (derived from dry × penalty; per-track overrides) ----------
