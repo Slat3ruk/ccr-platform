@@ -446,8 +446,33 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
           <div className="tyre-grid" style={{ flex: 1 }}>
             {(["fl", "fr", "rl", "rr"] as const).map((pos) => (
               <div className="field" key={pos} style={{ marginBottom: 4 }}>
-                <label>
-                  {pos.toUpperCase()} — <span className="hint">{tyres[pos]}%</span>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {pos.toUpperCase()} —
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    inputMode="numeric"
+                    value={tyres[pos]}
+                    aria-label={`${pos.toUpperCase()} tyre % remaining`}
+                    onKeyDown={(e) => {
+                      // type=number still permits these; keep it integers-only.
+                      if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        setTyres((t) => ({ ...t, [pos]: 0 }));
+                        return;
+                      }
+                      const n = Math.round(Number(raw));
+                      if (Number.isNaN(n)) return;
+                      setTyres((t) => ({ ...t, [pos]: Math.max(0, Math.min(100, n)) }));
+                    }}
+                    style={{ width: 56, padding: "2px 6px" }}
+                  />
+                  <span className="hint">%</span>
                 </label>
                 <input
                   type="range"
