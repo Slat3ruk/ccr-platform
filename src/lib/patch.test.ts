@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   comparePatch,
   isOlderSetupPatch,
+  isSetupPatchStale,
   newestPatchIn,
   normalizeSheetPatchLabel,
   parsePatch,
@@ -100,5 +101,24 @@ describe("isOlderSetupPatch", () => {
     expect(isOlderSetupPatch("1.3.3.5", "1.3.3.4")).toBe(false); // newer (odd, but not "older")
     expect(isOlderSetupPatch("GMR001", "1.3.3.4")).toBe(false); // unparseable → no flag
     expect(isOlderSetupPatch("1.3.2.9", null)).toBe(false); // no current patch → no flag
+  });
+});
+
+describe("isSetupPatchStale", () => {
+  it("does NOT depreciate a hotfix-only gap (same era)", () => {
+    expect(isSetupPatchStale("1.3.3", "1.3.3.4")).toBe(false); // 1.3.3 == 1.3.3.0, differs only by hotfix
+    expect(isSetupPatchStale("1.3.3.1", "1.3.3.4")).toBe(false); // older by hotfix only
+    expect(isSetupPatchStale("1.3.3.4", "1.3.3.4")).toBe(false); // same
+  });
+  it("depreciates when older by a patch tier or higher", () => {
+    expect(isSetupPatchStale("1.3.2.9", "1.3.3.4")).toBe(true); // older by patch
+    expect(isSetupPatchStale("1.2.9.9", "1.3.3.4")).toBe(true); // older by update
+    expect(isSetupPatchStale("0.9", "1.3.3.4")).toBe(true); // older by version
+  });
+  it("never depreciates a newer or unparseable/missing patch", () => {
+    expect(isSetupPatchStale("1.3.3.5", "1.3.3.4")).toBe(false); // newer hotfix
+    expect(isSetupPatchStale("1.4", "1.3.3.4")).toBe(false); // newer update
+    expect(isSetupPatchStale("GMR001", "1.3.3.4")).toBe(false); // unparseable
+    expect(isSetupPatchStale("1.3.2.9", null)).toBe(false); // no current patch
   });
 });

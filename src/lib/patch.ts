@@ -68,6 +68,19 @@ export function isOlderSetupPatch(setup: string | null | undefined, current: str
 }
 
 /**
+ * True when `setup` is old enough (vs `current`) that its data should be
+ * DEPRECIATED — i.e. strictly older AND the gap is at the patch tier or higher.
+ * A hotfix-only gap (e.g. setup "1.3.3" vs current "1.3.3.4") is the SAME era
+ * and does NOT depreciate, matching shouldDrawLineByDefault(): a hotfix doesn't
+ * draw a comparability line, so it shouldn't discount weight either. This is
+ * what the scoring/quality layers gate on — NOT isOlderSetupPatch (which counts
+ * any tier, hotfix included, and so over-penalised current-patch data).
+ */
+export function isSetupPatchStale(setup: string | null | undefined, current: string | null | undefined): boolean {
+  return comparePatch(setup, current) === -1 && patchChangeKind(setup, current) !== "hotfix";
+}
+
+/**
  * Normalise an Ohne Speed sheet patch label to dotted form. The sheet writes
  * "1.24+" meaning LMU 1.2.4 (digits concatenated) and "1.3 +" meaning 1.3 —
  * observed labels: "1.1 +", "1.2 +", "1.23+", "1.24+", "1.3 +". A two-segment

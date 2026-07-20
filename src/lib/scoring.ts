@@ -28,7 +28,7 @@ import type {
   ValueComponents,
   WeightsConfig,
 } from "@/types";
-import { isOlderSetupPatch } from "./patch";
+import { isSetupPatchStale } from "./patch";
 
 // A session run on a setup built for an EARLIER patch than the one it was logged
 // under is less representative of current-build performance — it still counts,
@@ -305,12 +305,13 @@ export function sessionValueScore(session: Session, nowMs: number): SvsResult {
     consistency: round2(sessionConsistency(session)),
     cleanliness: round2(mistakesFactor(session.off_track_count, session.lap_count)),
     representativeness: round2(
-      // setup_version = the patch the setup was built on; older than the session's
-      // logged patch → discounted (a stale setup is less representative).
+      // setup_version = the patch the setup was built on. Discounted only when it
+      // predates the logged patch by a full patch tier or more — a hotfix-only
+      // gap (e.g. 1.3.3 setup on a 1.3.3.4 session) is the same era, not stale.
       representativenessScore(
         session.session_type,
         session.condition_reported,
-        isOlderSetupPatch(session.setup_version, session.patch_version),
+        isSetupPatchStale(session.setup_version, session.patch_version),
       ),
     ),
     recency: round2(recencyScore(daysSince)),

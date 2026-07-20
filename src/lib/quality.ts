@@ -6,7 +6,7 @@
 // (confirm, don't block) and the session log flags suspect rows with a ⚠.
 // ============================================================================
 
-import { isOlderSetupPatch } from "./patch";
+import { isSetupPatchStale } from "./patch";
 import { formatLapTime } from "./time";
 
 export interface QualityCheckInput {
@@ -67,9 +67,9 @@ export function sessionQualityWarnings(s: QualityCheckInput, benchmark?: Quality
     );
   }
 
-  if (isOlderSetupPatch(s.setup_version, s.patch_version)) {
+  if (isSetupPatchStale(s.setup_version, s.patch_version)) {
     warnings.push(
-      `Setup patch (${s.setup_version}) is older than the current patch (${s.patch_version}) — may not reflect current handling; its weight is reduced.`,
+      `Setup patch (${s.setup_version}) predates the current patch (${s.patch_version}) by a full patch or more — may not reflect current handling; its weight is reduced.`,
     );
   }
 

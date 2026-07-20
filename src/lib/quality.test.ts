@@ -43,9 +43,14 @@ describe("sessionQualityWarnings", () => {
     expect(w.some((m) => /slower than the best/i.test(m))).toBe(true);
   });
 
-  it("flags a setup built on an older patch than the session's", () => {
+  it("flags a setup built on an older patch (patch tier or higher) than the session's", () => {
     const w = sessionQualityWarnings({ ...clean, setup_version: "1.2.9", patch_version: "1.3.4" }, bench);
-    expect(w.some((m) => /Setup patch \(1\.2\.9\) is older/i.test(m))).toBe(true);
+    expect(w.some((m) => /Setup patch \(1\.2\.9\) predates/i.test(m))).toBe(true);
+  });
+
+  it("does NOT flag a hotfix-only-older setup (same era as the session's patch)", () => {
+    // setup 1.3.3 == 1.3.3.0, session on 1.3.3.4 → differs only by hotfix, still current era.
+    expect(sessionQualityWarnings({ ...clean, setup_version: "1.3.3", patch_version: "1.3.3.4" }, bench)).toEqual([]);
   });
 
   it("does not flag a current-patch setup or unparseable versions", () => {
