@@ -157,6 +157,21 @@ was verified end-to-end. Structure:
    `.data/store.json`. Same engine/UI either way. Docker isn't installed on this
    machine, so requiring Postgres to test locally would have blocked the manual
    feedback loop.
+   - **⚠ FACTOR IN (raised 2026-07-14, off-VPS session): the auth verify layer
+     now BREAKS local frontend dev.** `src/middleware.ts` runs on every non-static
+     path and verifies against `ccr-auth.service` at `127.0.0.1:8787`, failing
+     CLOSED when it's unreachable. On any machine WITHOUT the auth service running
+     (i.e. anywhere but the VPS), every page — `/log`, `/`, etc. — redirects to the
+     Discord login, so the UI can't be rendered or eyeballed locally at all. A
+     tyre-wear log-form tweak (commit `fda1b9c`) had to ship verified by
+     `npm run typecheck` only, with NO browser check, for this exact reason. **This
+     undermines the "idiot-proof local dev" property above and the whole manual
+     feedback loop.** Options to weigh: (a) a `NODE_ENV === "development"` bypass in
+     `middleware.ts` that injects a stub verified session (fast, dev-only, must be
+     impossible to trip in prod); (b) a documented way to run the auth service
+     locally; (c) point `AUTH_SERVICE_URL` at a tiny local stub. Recommend (a).
+     Needs a decision — flagged so it's not discovered the next time someone tries
+     to iterate on the frontend off-box.
 2. **Consistency = best→avg gap, scored in ABSOLUTE SECONDS** (fixed round 3).
    SPEC §3.2 wants std-dev of every lap, but the form (SPEC §5.1) logs only best +
    average + count, so we proxy dispersion with the best→avg gap. It's now scored
