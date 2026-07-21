@@ -167,26 +167,24 @@ was verified end-to-end. Structure:
      `npm run typecheck` only, with NO browser check, for this exact reason. **This
      undermines the "idiot-proof local dev" property above and the whole manual
      feedback loop.**
-   - **✅ DIRECTION CHOSEN — do NOT add a bypass to this app's `middleware.ts`.**
-     The fix lives in the auth service instead: see **`AUTH-DEV-MODE-SPEC.md` in the
-     CCR-Website repo** (`Slat3ruk/CCR-Website`, commit `996f19a`) — an env-flagged
-     `AUTH_DEV_MODE` + `POST /api/auth/dev-login` in `ccr-auth` that mints a NORMAL
-     `cc_session` at a chosen role (404s when the flag is off; refuses to start under
-     `NODE_ENV=production`). Implementation is the server session's job in the
-     `ccr-auth` repo. This is the better shape: ONE auth path, no divergent dev-only
-     branch in each consuming app, and this app needs **zero code changes**.
-     *(An earlier note here recommended a `NODE_ENV==='development'` bypass inside
-     `middleware.ts` — superseded, don't build it; two bypass mechanisms would be
-     worse than none.)*
-   - **⚠ Extra step this app specifically needs:** the dev-login only helps here if
-     `ccr-auth` is actually **running locally on `127.0.0.1:8787`**, because
-     `middleware.ts` calls `AUTH_SERVICE_URL` server-side (a cookie alone isn't
-     enough — the middleware still has to reach the service to verify it). So local
-     data-platform dev = clone + run `ccr-auth` with `AUTH_DEV_MODE=1`, dev-login,
-     then `npm run dev`. The `ccr-auth` source is NOT on the user's PC (it lives at
-     `/srv/ccr/auth-service` on the box) — getting that repo cloneable locally is
-     the remaining gap. Alternative if that's unwanted: point `AUTH_SERVICE_URL` at
-     a tiny local stub returning the `/api/auth/me` shape.
+   - **✅ SOLVED (commit `317438c`) — `middleware.ts` has a local dev bypass.**
+     **To do frontend work locally: put `AUTH_DEV_MODE=1` in `.env.local`** (it's
+     gitignored) and `npm run dev`. Optionally `AUTH_DEV_ROLE=driver|manager|admin`
+     to pick the tier (defaults `admin`). The middleware then skips the ccr-auth
+     round-trip and injects the same `x-ccr-*` headers a real session would, so every
+     page renders and role-gated UI can be exercised at any tier.
+     Safety, both required: `process.env.NODE_ENV !== "production"` **AND** the
+     explicit `AUTH_DEV_MODE === "1"`. Next inlines `NODE_ENV` at build time, so a
+     production build **cannot compile into that branch at all**; it also warns
+     loudly at startup and sets an `x-ccr-dev-mode: 1` response header so it's never
+     a silent state. Never set `AUTH_DEV_MODE` on the VPS or in the systemd unit.
+   - **Relationship to `AUTH-DEV-MODE-SPEC.md`** (CCR-Website repo, commit
+     `996f19a`): that spec is the **complementary backend** contract — an
+     env-flagged `POST /api/auth/dev-login` in `ccr-auth` that mints a real
+     `cc_session`, for the *website's* local dev (the website has no middleware of
+     its own; it just reads `/api/auth/me`). The two are NOT competing: the
+     middleware bypass covers THIS app without needing `ccr-auth` running locally;
+     the dev-login covers the website and anything that needs a genuine cookie.
 2. **Consistency = best→avg gap, scored in ABSOLUTE SECONDS** (fixed round 3).
    SPEC §3.2 wants std-dev of every lap, but the form (SPEC §5.1) logs only best +
    average + count, so we proxy dispersion with the best→avg gap. It's now scored
