@@ -9,6 +9,36 @@ const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL ?? "http://127.0.0.1:8787"
 const SESSION_COOKIE = "cc_session";
 const LOGIN_URL = "https://crosscurrentracing.com/api/auth/discord/login?returnTo=%2Fapps.html";
 
+// ── LOCAL DEV BYPASS ────────────────────────────────────────────────────────
+// Discord OAuth can only complete against the real domain, so on localhost
+// every role-gated page redirects to production and there's no way to work on
+// the admin/manager UI. This mints a fake verified identity instead.
+//
+// It requires BOTH of:
+//   1. a non-production build — Next inlines NODE_ENV at build time, so a
+//      production build cannot compile into this branch at all, and
+//   2. an explicit opt-in, AUTH_DEV_MODE=1 (set it in .env.local, which is
+//      gitignored — NEVER in the VPS environment or the systemd unit).
+// Either one missing = the normal ccr-auth verification path, unchanged.
+//
+// This only fakes the *client* side of the trust boundary on a machine the
+// developer already controls; it grants nothing they couldn't grant themselves.
+// The matching ccr-auth backend contract is AUTH-DEV-MODE-SPEC.md in the
+// website repo.
+const ROLES: readonly Role[] = ["driver", "manager", "admin"];
+const DEV_MODE = process.env.NODE_ENV !== "production" && process.env.AUTH_DEV_MODE === "1";
+const DEV_ROLE: Role = ROLES.includes(process.env.AUTH_DEV_ROLE as Role)
+  ? (process.env.AUTH_DEV_ROLE as Role)
+  : "admin";
+
+if (DEV_MODE) {
+  // Module scope: logged once per worker at startup, not per request.
+  console.warn(
+    `\n⚠  AUTH_DEV_MODE is ON — every request is authenticated as a fake "${DEV_ROLE}".\n` +
+      `   Local development only. Never enable this on the server.\n`,
+  );
+}
+
 interface AuthMeResponse {
   authenticated: boolean;
   id?: string;
@@ -44,6 +74,19 @@ export const config = {
 
 export async function middleware(req: NextRequest) {
   const isApi = req.nextUrl.pathname.startsWith("/api/");
+
+  // Local dev only — see the DEV_MODE notes above. Skips the ccr-auth
+  // round-trip entirely and injects the same headers a real session would.
+  if (DEV_MODE) {
+    const devHeaders = new Headers(req.headers);
+    devHeaders.set("x-ccr-discord-id", "dev-user");
+    devHeaders.set("x-ccr-name", `Dev ${DEV_ROLE}`);
+    devHeaders.set("x-ccr-role", DEV_ROLE);
+    const devRes = NextResponse.next({ request: { headers: devHeaders } });
+    devRes.headers.set("x-ccr-dev-mode", "1"); // visible in devtools so it's never a silent state
+    return devRes;
+  }
+
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verify(token) : { authenticated: false };
 
