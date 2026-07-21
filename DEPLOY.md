@@ -211,6 +211,29 @@ pm2 logs ccr-data          # app logs
 pm2 restart ccr-data       # restart after a deploy
 ```
 
+### ⚠ FIRST — reconcile the box with git (before ANY pull)
+
+The server may hold work git doesn't: hotfixes applied directly on the box that
+were never committed, or committed but never pushed. Pulling on top of that
+conflicts or loses it. **Always run this comparison first and report it to the
+user before changing anything:**
+
+```bash
+cd /srv/ccr/data-platform
+git fetch origin
+
+git status                              # uncommitted edits made ON the box?
+git stash list                          # anything parked in a stash?
+git log --oneline origin/master..HEAD   # ⚠ commits HERE that are NOT on origin
+git log --oneline HEAD..origin/master   # commits incoming from origin
+git diff --stat HEAD origin/master      # which files the update touches
+```
+
+Read it in this order: **anything in the first three means STOP and reconcile**
+(commit + push the box's work, or deliberately discard it — ask the user, don't
+guess). Only when the box is clean and has nothing unpushed is the update below
+safe. Repeat the same check for every repo on the box (`website/`, etc.).
+
 ### Deploy an update
 
 ```bash
