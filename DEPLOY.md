@@ -211,7 +211,36 @@ pm2 logs ccr-data          # app logs
 pm2 restart ccr-data       # restart after a deploy
 ```
 
-**Deploy an update:** `git pull && npm install && npm run build && pm2 restart ccr-data`.
+### Deploy an update
+
+```bash
+cd /srv/ccr/data-platform
+git pull
+npm install          # lockfile may have moved
+npm run migrate      # ⚠ DO NOT SKIP — see below
+npm run build
+pm2 restart ccr-data
+```
+
+**⚠ `npm run migrate` is REQUIRED on every update, not just the first deploy.**
+`db/1_init_schema.sql` is written to be idempotent for BOTH cases: fresh installs
+get `CREATE TABLE IF NOT EXISTS`, and **existing** databases get the newer columns
+via `ALTER TABLE … ADD COLUMN IF NOT EXISTS` (e.g. `benchmarks.good_102_time` /
+`midpack_104_time`, `sessions.lap_times` / `setup_type`, `races.start_at`,
+`recommendations.weights_preset` / `best_setup`). Skipping migrate on an
+already-live box means the code ships expecting columns the DB doesn't have —
+the failure shows up as runtime SQL errors on the affected page, not at build
+time. Re-running it when nothing changed is a harmless no-op.
+
+**After a migrate that added benchmark columns:** the new columns are NULL on
+pre-existing rows until the next benchmark sync — hit "Sync from Ohne Speed" in
+the control panel to populate them.
+
+**Sanity checks after any update:** `pm2 logs ccr-data --lines 50` for startup
+errors; load the site; and confirm **`AUTH_DEV_MODE` is NOT set** in the server
+environment (`pm2 env 0 | grep AUTH_DEV` should return nothing — it's a
+local-dev-only flag that would fake an authenticated admin if it ever leaked
+into production; `NODE_ENV=production` independently blocks it, but check anyway).
 
 ---
 
