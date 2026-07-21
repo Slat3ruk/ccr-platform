@@ -166,12 +166,27 @@ was verified end-to-end. Structure:
      tyre-wear log-form tweak (commit `fda1b9c`) had to ship verified by
      `npm run typecheck` only, with NO browser check, for this exact reason. **This
      undermines the "idiot-proof local dev" property above and the whole manual
-     feedback loop.** Options to weigh: (a) a `NODE_ENV === "development"` bypass in
-     `middleware.ts` that injects a stub verified session (fast, dev-only, must be
-     impossible to trip in prod); (b) a documented way to run the auth service
-     locally; (c) point `AUTH_SERVICE_URL` at a tiny local stub. Recommend (a).
-     Needs a decision — flagged so it's not discovered the next time someone tries
-     to iterate on the frontend off-box.
+     feedback loop.**
+   - **✅ DIRECTION CHOSEN — do NOT add a bypass to this app's `middleware.ts`.**
+     The fix lives in the auth service instead: see **`AUTH-DEV-MODE-SPEC.md` in the
+     CCR-Website repo** (`Slat3ruk/CCR-Website`, commit `996f19a`) — an env-flagged
+     `AUTH_DEV_MODE` + `POST /api/auth/dev-login` in `ccr-auth` that mints a NORMAL
+     `cc_session` at a chosen role (404s when the flag is off; refuses to start under
+     `NODE_ENV=production`). Implementation is the server session's job in the
+     `ccr-auth` repo. This is the better shape: ONE auth path, no divergent dev-only
+     branch in each consuming app, and this app needs **zero code changes**.
+     *(An earlier note here recommended a `NODE_ENV==='development'` bypass inside
+     `middleware.ts` — superseded, don't build it; two bypass mechanisms would be
+     worse than none.)*
+   - **⚠ Extra step this app specifically needs:** the dev-login only helps here if
+     `ccr-auth` is actually **running locally on `127.0.0.1:8787`**, because
+     `middleware.ts` calls `AUTH_SERVICE_URL` server-side (a cookie alone isn't
+     enough — the middleware still has to reach the service to verify it). So local
+     data-platform dev = clone + run `ccr-auth` with `AUTH_DEV_MODE=1`, dev-login,
+     then `npm run dev`. The `ccr-auth` source is NOT on the user's PC (it lives at
+     `/srv/ccr/auth-service` on the box) — getting that repo cloneable locally is
+     the remaining gap. Alternative if that's unwanted: point `AUTH_SERVICE_URL` at
+     a tiny local stub returning the `/api/auth/me` shape.
 2. **Consistency = best→avg gap, scored in ABSOLUTE SECONDS** (fixed round 3).
    SPEC §3.2 wants std-dev of every lap, but the form (SPEC §5.1) logs only best +
    average + count, so we proxy dispersion with the best→avg gap. It's now scored
