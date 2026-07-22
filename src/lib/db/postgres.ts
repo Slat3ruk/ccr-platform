@@ -379,6 +379,14 @@ export class PostgresStore implements Store {
     return trackRow(res.rows[0]);
   }
 
+  async deleteTrack(id: number): Promise<boolean> {
+    // ⚠ ON DELETE CASCADE fans out to sessions/benchmarks/recommendations/
+    // races/test_requests/race_results. The route proves nothing references
+    // this track before calling — do not call from anywhere else.
+    const res = await this.q("DELETE FROM tracks WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
   async updateTrack(id: number, patch: TrackPatch): Promise<Track | null> {
     // Build the SET list from only the keys actually supplied, so an omitted
     // field is left alone rather than being nulled.

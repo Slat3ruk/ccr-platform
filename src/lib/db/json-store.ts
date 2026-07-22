@@ -236,6 +236,15 @@ export class JsonStore implements Store {
     return track;
   }
 
+  async deleteTrack(id: number): Promise<boolean> {
+    await this.init();
+    const i = this.db.tracks.findIndex((t) => t.id === id);
+    if (i === -1) return false;
+    this.db.tracks.splice(i, 1);
+    await this.persist();
+    return true;
+  }
+
   async updateTrack(id: number, patch: TrackPatch): Promise<Track | null> {
     await this.init();
     const track = this.db.tracks.find((t) => t.id === id);

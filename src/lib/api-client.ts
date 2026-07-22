@@ -70,6 +70,8 @@ export const api = {
     jsend<Track>("/api/tracks", "POST", t),
   updateTrack: (id: number, patch: TrackPatch) =>
     jsend<{ ok: true; track: Track }>(`/api/tracks/${id}`, "PATCH", patch),
+  /** Refused (409) unless nothing references the track — see the route's notes. */
+  deleteTrack: (id: number) => jsend<{ ok: true; deleted: string }>(`/api/tracks/${id}`, "DELETE"),
 
   rankings: (params: { track_id?: number; class?: string; condition?: string; era_id?: number | "pre" } = {}) => {
     const q = new URLSearchParams();

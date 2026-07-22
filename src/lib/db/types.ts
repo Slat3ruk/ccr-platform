@@ -138,6 +138,14 @@ export interface Store {
   ): Promise<Track>;
   /** Partial update; returns null if no track has that id. */
   updateTrack(id: number, patch: TrackPatch): Promise<Track | null>;
+  /**
+   * ⚠ DANGER: every table referencing tracks(id) is ON DELETE CASCADE, so this
+   * takes that track's sessions, benchmarks, recommendations, races, test
+   * requests and race results with it. NEVER call without first proving nothing
+   * references it — see DELETE /api/tracks/:id, which is the only caller.
+   * Returns false if no track had that id.
+   */
+  deleteTrack(id: number): Promise<boolean>;
 
   // sessions
   createSession(rec: NewSessionRecord): Promise<Session>;

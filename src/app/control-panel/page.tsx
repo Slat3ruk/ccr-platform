@@ -365,6 +365,22 @@ export default function ControlPanelPage() {
     }
   }
 
+  async function removeTrack(t: Track) {
+    setMsg(null);
+    if (!confirm(`Delete “${t.name}”?\n\nOnly possible while nothing references it — if anything has been logged against it you'll get an explanation instead.`))
+      return;
+    setTrackBusy(true);
+    try {
+      await api.deleteTrack(t.id);
+      setTracks((ts) => ts.filter((x) => x.id !== t.id));
+      setMsg({ kind: "success", text: `Deleted “${t.name}”.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't delete that track." });
+    } finally {
+      setTrackBusy(false);
+    }
+  }
+
   async function toggleSilence() {
     setMsg(null);
     setSilenceBusy(true);
@@ -555,6 +571,11 @@ export default function ControlPanelPage() {
                 Every layout is its own track — name it the way the benchmark sheet does (e.g.{" "}
                 <code>Silverstone (GP)</code> vs <code>Silverstone (International)</code>) so sync matches it instead of
                 creating a duplicate. Lap distance is optional and used for strategy/fuel work, not scoring.
+                <br />
+                <strong>Adding a track before the sheet has it?</strong> Match the sheet&rsquo;s <em>words</em> and the
+                next sync adopts your entry — sessions and all. Capitals, spaces and brackets are ignored when matching,
+                so <code>bahrain wec</code> and <code>Bahrain (WEC)</code> are the same track. Delete only works while
+                nothing has been logged against a track; once it&rsquo;s in use, rename it instead.
               </div>
 
               <form className="flex" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }} onSubmit={addTrack}>
@@ -645,9 +666,19 @@ export default function ControlPanelPage() {
                           </span>
                         )}
                       </div>
-                      <button className="btn btn-ghost btn-sm" onClick={() => startEditTrack(t)} disabled={trackBusy}>
-                        Edit
-                      </button>
+                      <div className="flex" style={{ gap: 4 }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEditTrack(t)} disabled={trackBusy}>
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => removeTrack(t)}
+                          disabled={trackBusy}
+                          title="Only works while nothing has been logged against this track"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ),
                 )}
