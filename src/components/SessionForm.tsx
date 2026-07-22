@@ -132,8 +132,11 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [fuelPerLap, setFuelPerLap] = useState(s?.fuel_per_lap == null ? "" : String(s.fuel_per_lap));
   const [vePerLap, setVePerLap] = useState(s?.ve_per_lap == null ? "" : String(s.ve_per_lap));
 
-  // Only Hypercar + GT3 run Virtual Energy in LMU; LMP2/LMP3 have none.
+  // Only Hypercar + GT3 run Virtual Energy in LMU; LMP2/LMP3 have none. With no
+  // car picked yet the class is unknown, so leave the field open rather than
+  // greying it out on an assumption.
   const veApplies = useMemo(() => {
+    if (!carId) return true;
     const cat = cars.find((c) => String(c.id) === String(carId))?.category;
     return cat === "Hypercar" || cat === "GT3";
   }, [cars, carId]);
