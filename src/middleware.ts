@@ -75,6 +75,15 @@ export const config = {
 export async function middleware(req: NextRequest) {
   const isApi = req.nextUrl.pathname.startsWith("/api/");
 
+  // /api/public/* is the ONLY unauthenticated surface: team-wide aggregates
+  // (total laps etc.) for the public crosscurrentracing.com homepage, which has
+  // no session to present. Prefix-gated so exposing a new route is an explicit
+  // act of putting it under /api/public/, never an accident. Nothing per-driver
+  // or per-session belongs here.
+  if (req.nextUrl.pathname.startsWith("/api/public/")) {
+    return NextResponse.next();
+  }
+
   // Local dev only — see the DEV_MODE notes above. Skips the ccr-auth
   // round-trip entirely and injects the same headers a real session would.
   if (DEV_MODE) {
