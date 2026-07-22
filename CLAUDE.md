@@ -93,6 +93,34 @@ Completeness 30% + Consistency 25% + Cleanliness 20% + Representativeness 15% + 
 - SQLite persistence for offline mode
 - Native tray app / auto-start
 
+## ⛔ ONE SESSION PER REPO AT A TIME (user rule, 2026-07-22)
+
+Multiple Claude sessions (local chats + the server session on the VPS) all push
+to these repos. **Only one should be working in a given repo at a time.** The
+user coordinates this and will say when the server session is active.
+
+**It has already gone wrong once.** Commit `ca0ced3` is titled *"DEPLOY: point at
+the cross-app runbook"* but actually contains 14 files of an unrelated in-progress
+feature (cars CRUD + `fuel_per_lap`/`ve_per_lap`) — a parallel session ran a
+catch-all `git add` while another session's work sat uncommitted in the shared
+working tree. **Worse, it silently carried a schema change** (`sessions.fuel_per_lap`,
+`sessions.ve_per_lap`, `tracks.length_km`) that its message gives no hint of. It
+was only safe because DEPLOY.md mandates `npm run migrate` on every update.
+
+Git hygiene that prevents this — follow it even when you think you're alone:
+
+1. **Never `git add -A`, `git add .`, or `git commit -a`.** Stage the specific
+   files you changed, by name.
+2. **`git fetch` and read `git status` before every commit.** Origin moves under
+   you; so does the working tree.
+3. **If `git status` shows files you didn't touch, STOP and ask the user.** They
+   are someone else's work in progress — do not commit them, do not revert them.
+4. **Never rewrite pushed history** (amend/rebase/force-push) to tidy a mistake
+   like the above — another session or the server may already have pulled it.
+   Leave an accurate note in the next commit message instead.
+5. **A commit that changes `db/1_init_schema.sql` must say so in its message** —
+   the deploy depends on humans noticing migrations.
+
 ## Known Gotchas
 
 - **Tyre wear is comparative, not absolute.** No "ideal" wear rate yet — just rank drivers by harshness on the same car-track combo.
