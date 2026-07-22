@@ -10,6 +10,84 @@
 > hotfix-only-older setups, and slightly reordered car rankings. That is the fix
 > working, not data corruption.
 
+---
+
+## 📦 DEPLOYMENT STATEMENT — this repo's input to the catch-up deploy
+
+**From the data-platform session, 2026-07-22. Repo `Slat3ruk/ccr-platform`,
+branch `master`, HEAD `f2356ee`.**
+
+Everything below landed **after `DEPLOY-RUNBOOK.md` was written (2026-07-21)**, so
+the runbook's post-deploy checklist does not yet cover it. Ring-leader session:
+fold the relevant parts into the runbook.
+
+### ⚠ Migrations — `npm run migrate` is mandatory
+
+Three new columns, all nullable, all `ADD COLUMN IF NOT EXISTS`, safe to re-run:
+
+| Column | Purpose |
+|---|---|
+| `tracks.length_km` | Lap distance (reference data for future strategy work) |
+| `sessions.fuel_per_lap` | Litres/lap — captured, not scored |
+| `sessions.ve_per_lap` | Virtual Energy %/lap — captured, not scored |
+
+**Do not infer the need to migrate from commit messages this batch.** Two of
+these arrived inside `ca0ced3`, whose message describes only a docs change (a
+parallel session's catch-all `git add`; see `dfae22f` for the record). Always
+run migrate.
+
+### Behaviour changes — will look different, and are CORRECT
+
+- **The control panel now opens to Team Managers** (was admin-only). They see
+  Status, Export, Cars, Tracks & layouts, Wet pace penalty. **Purge, Discord
+  webhooks and patch/era lines remain admin-only and are hidden from them.** A
+  manager suddenly having control-panel access is intended, not a bug.
+- **New Cars and Tracks & layouts cards**, both with Delete buttons that
+  **refuse with an explanation** when anything references the item ("still has 6
+  logged sessions…"). That refusal is the safety feature working — every FK is
+  `ON DELETE CASCADE`, so an unguarded delete would silently destroy logged data.
+- **Log form has a new "Consumption" card** (fuel L/lap, VE %/lap, both
+  optional). **The VE field greys out for LMP2/LMP3** — correct, those classes
+  have no Virtual Energy in LMU.
+- **Logging the same run twice is now refused once** with a 409 and a "log it
+  again anyway?" confirm. Strict match (same driver/car/track/condition AND
+  identical lap count and both lap times, within 6h), so two genuinely different
+  stints on one combo still log normally.
+
+### Security change — may break anything scripted
+
+`POST /api/cars` and `POST /api/tracks` previously accepted **any authenticated
+member** (no role check at all). Both now require **manager/admin** and return
+409 on a duplicate name instead of silently upserting. Anything automated hitting
+those endpoints will start getting 403.
+
+### Post-deploy checks (in addition to the runbook's)
+
+- [ ] Sign in as a **manager** → control panel loads; Purge and Discord webhooks
+      are **absent**.
+- [ ] Log form → Consumption card present; select an LMP2 car → VE field greys out.
+- [ ] Control panel → Tracks → **"Fill known distances"** → fills ~13 base
+      circuits, leaves layout variants blank. Press it twice: the second run must
+      report 0 filled (it never overwrites).
+- [ ] Set one distance by hand, then **Sync from Ohne Speed** → the hand-entered
+      value must survive. *(Proven against the JSON dev store and true by
+      construction in Postgres, but never exercised on the real DB — worth doing
+      once before backfilling the rest.)*
+- [ ] Control panel → **Download sessions CSV** → opens in Excel with accents
+      intact and columns aligned.
+- [ ] Submit the same session twice → second attempt warns rather than saving.
+
+### Not blocking, worth knowing
+
+- Lap distances are **reference data only** — nothing scores on them, so blanks
+  are harmless. 13 of 29 get filled automatically; the rest are layout variants
+  we deliberately refuse to guess (a wrong lap distance would quietly corrupt
+  future fuel maths). Easiest source is the in-game HUD.
+- The CSV export is an **archive, not the backup of record**. `pg_dump` remains
+  the thing an actual restore uses.
+
+---
+
 **Target:** a self-hosted **VPS**, served as a **subdomain of the team website**
 (e.g. `data.crosscurrentracing.com`).
 **Auth:** the team website is the hub — it does Discord sign-in and sets a cookie
