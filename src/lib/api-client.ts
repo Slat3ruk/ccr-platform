@@ -20,6 +20,7 @@ import type {
   SessionInput,
   TestRequest,
   Track,
+  TrackPatch,
   WeightsConfig,
 } from "@/types";
 
@@ -63,6 +64,12 @@ export const api = {
   cars: () => jget<Car[]>("/api/cars"),
   tracks: () => jget<Track[]>("/api/tracks"),
   benchmarks: () => jget<Benchmark[]>("/api/benchmarks"),
+
+  // Track reference data (control panel — manager/admin) ----------------------
+  createTrack: (t: { name: string; layout_id?: string | null; country?: string | null; length_km?: number | null }) =>
+    jsend<Track>("/api/tracks", "POST", t),
+  updateTrack: (id: number, patch: TrackPatch) =>
+    jsend<{ ok: true; track: Track }>(`/api/tracks/${id}`, "PATCH", patch),
 
   rankings: (params: { track_id?: number; class?: string; condition?: string; era_id?: number | "pre" } = {}) => {
     const q = new URLSearchParams();

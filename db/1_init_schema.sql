@@ -34,8 +34,13 @@ CREATE TABLE IF NOT EXISTS tracks (
   name       VARCHAR(255) NOT NULL UNIQUE,
   layout_id  VARCHAR(50),
   country    VARCHAR(100),
+  length_km  FLOAT CHECK (length_km > 0),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Lap distance in km. Nullable: tracks auto-created by the benchmark sync have
+-- no distance until someone fills it in via the control panel, and nothing in
+-- scoring depends on it (it's reference data for strategy/fuel work).
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS length_km FLOAT CHECK (length_km > 0);
 
 -- Sessions --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sessions (

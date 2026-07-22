@@ -25,6 +25,7 @@ import type {
   Session,
   TestRequest,
   Track,
+  TrackPatch,
   ValueComponents,
 } from "@/types";
 import type {
@@ -220,12 +221,29 @@ export class JsonStore implements Store {
     return this.db.tracks.find((t) => t.id === id) ?? null;
   }
 
-  async createTrack(name: string, layout_id: string | null = null, country: string | null = null): Promise<Track> {
+  async createTrack(
+    name: string,
+    layout_id: string | null = null,
+    country: string | null = null,
+    length_km: number | null = null,
+  ): Promise<Track> {
     await this.init();
     const existing = this.db.tracks.find((t) => t.name.toLowerCase() === name.toLowerCase());
     if (existing) return existing;
-    const track: Track = { id: this.nextId("tracks"), name, layout_id, country, created_at: this.now() };
+    const track: Track = { id: this.nextId("tracks"), name, layout_id, country, length_km, created_at: this.now() };
     this.db.tracks.push(track);
+    await this.persist();
+    return track;
+  }
+
+  async updateTrack(id: number, patch: TrackPatch): Promise<Track | null> {
+    await this.init();
+    const track = this.db.tracks.find((t) => t.id === id);
+    if (!track) return null;
+    // Only overwrite keys actually supplied — an omitted field is left alone.
+    for (const key of ["name", "layout_id", "country", "length_km"] as const) {
+      if (patch[key] !== undefined) Object.assign(track, { [key]: patch[key] });
+    }
     await this.persist();
     return track;
   }

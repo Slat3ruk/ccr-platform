@@ -12,7 +12,7 @@ import { api, type WebhookChannelName } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
 import { comparePatch, newestPatchIn, normalizeSheetPatchLabel, patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
 import { useRole } from "@/lib/role";
-import type { Era, WeightsConfig } from "@/types";
+import type { Era, Track, WeightsConfig } from "@/types";
 
 /** The three webhook slots and what routes to each (mirrors lib/discord.ts). */
 const WEBHOOK_SLOTS: { channel: WebhookChannelName; label: string; channelHint: string; events: string }[] = [
@@ -49,6 +49,9 @@ function fmtWhen(iso: string): string {
 export default function ControlPanelPage() {
   const { role } = useRole();
   const isAdmin = role === "admin";
+  // Team Managers get the panel for reference-data work (tracks, wet penalty)
+  // but NOT the cards that rescore or destroy: era lines, webhooks, purge.
+  const canManage = role === "admin" || role === "manager";
 
   const [eras, setEras] = useState<Era[]>([]);
   const [weights, setWeights] = useState<WeightsConfig | null>(null);
@@ -76,8 +79,15 @@ export default function ControlPanelPage() {
   const [wetOverrides, setWetOverrides] = useState<Record<number, string>>({});
   const [addWetTrack, setAddWetTrack] = useState("");
   const [addWetPct, setAddWetPct] = useState("");
-  const [tracks, setTracks] = useState<{ id: number; name: string }[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [wetSaving, setWetSaving] = useState(false);
+
+  // Track reference data (manager/admin) — add a circuit/layout, or backfill a
+  // lap distance the benchmark sync couldn't know.
+  const [newTrack, setNewTrack] = useState({ name: "", country: "", length_km: "" });
+  const [trackBusy, setTrackBusy] = useState(false);
+  const [editTrackId, setEditTrackId] = useState<number | null>(null);
+  const [editTrack, setEditTrack] = useState({ name: "", country: "", length_km: "" });
 
   // Discord webhooks — three channel slots (race / test / board)
   const emptySlot = { configured: false, hint: null as string | null };
@@ -99,7 +109,7 @@ export default function ControlPanelPage() {
       api.wetPenalty().catch(() => null),
       api.webhook().catch(() => null),
       api.patch().catch(() => null),
-      api.tracks().catch(() => [] as { id: number; name: string }[]),
+      api.tracks().catch(() => [] as Track[]),
       api.benchmarks().catch(() => []),
     ]);
     setEras(e);
@@ -301,6 +311,60 @@ export default function ControlPanelPage() {
     }
   }
 
+  // ---- Tracks (manager/admin) ----------------------------------------------
+  async function addTrack(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const name = newTrack.name.trim();
+    if (!name) {
+      setMsg({ kind: "error", text: "Give the track a name." });
+      return;
+    }
+    setTrackBusy(true);
+    try {
+      const created = await api.createTrack({
+        name,
+        country: newTrack.country.trim() || null,
+        length_km: newTrack.length_km.trim() ? Number(newTrack.length_km) : null,
+      });
+      setTracks((ts) => [...ts, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewTrack({ name: "", country: "", length_km: "" });
+      setMsg({ kind: "success", text: `Added “${created.name}”. It's now selectable on the log form.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't add that track." });
+    } finally {
+      setTrackBusy(false);
+    }
+  }
+
+  function startEditTrack(t: Track) {
+    setEditTrackId(t.id);
+    setEditTrack({
+      name: t.name,
+      country: t.country ?? "",
+      length_km: t.length_km == null ? "" : String(t.length_km),
+    });
+  }
+
+  async function saveTrack(id: number) {
+    setMsg(null);
+    setTrackBusy(true);
+    try {
+      const { track } = await api.updateTrack(id, {
+        name: editTrack.name.trim(),
+        country: editTrack.country.trim() || null,
+        length_km: editTrack.length_km.trim() ? Number(editTrack.length_km) : null,
+      });
+      setTracks((ts) => ts.map((t) => (t.id === id ? track : t)).sort((a, b) => a.name.localeCompare(b.name)));
+      setEditTrackId(null);
+      setMsg({ kind: "success", text: `Saved “${track.name}”.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't save that track." });
+    } finally {
+      setTrackBusy(false);
+    }
+  }
+
   async function toggleSilence() {
     setMsg(null);
     setSilenceBusy(true);
@@ -321,7 +385,7 @@ export default function ControlPanelPage() {
     }
   }
 
-  if (!isAdmin) {
+  if (!canManage) {
     return (
       <>
         <div className="topbar">
@@ -331,8 +395,8 @@ export default function ControlPanelPage() {
         <div className="content">
           <div className="empty">
             <div className="big">🔒</div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Admins only</div>
-            <div>Your Discord roles don&rsquo;t grant Admin here — ask a team admin if you need access.</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Team Managers &amp; Admins only</div>
+            <div>Your Discord roles don&rsquo;t grant access here — ask a team admin if you need it.</div>
           </div>
         </div>
       </>
@@ -388,7 +452,8 @@ export default function ControlPanelPage() {
               </div>
             </div>
 
-            {/* ---- Set current patch ---- */}
+            {/* ---- Set current patch (ADMIN: draws era lines = rescores) ---- */}
+            {isAdmin && (
             <div className="card">
               <h2>Current patch</h2>
               <div className="card-sub">
@@ -481,6 +546,113 @@ export default function ControlPanelPage() {
                 </button>
               </form>
             </div>
+            )}
+
+            {/* ---- Tracks & layouts (manager + admin) ---- */}
+            <div className="card">
+              <h2>Tracks &amp; layouts</h2>
+              <div className="card-sub">
+                Every layout is its own track — name it the way the benchmark sheet does (e.g.{" "}
+                <code>Silverstone (GP)</code> vs <code>Silverstone (International)</code>) so sync matches it instead of
+                creating a duplicate. Lap distance is optional and used for strategy/fuel work, not scoring.
+              </div>
+
+              <form className="flex" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }} onSubmit={addTrack}>
+                <input
+                  type="text"
+                  style={{ flex: "2 1 200px" }}
+                  placeholder="Track + layout, e.g. Imola"
+                  value={newTrack.name}
+                  onChange={(e) => setNewTrack((t) => ({ ...t, name: e.target.value }))}
+                />
+                <input
+                  type="text"
+                  style={{ flex: "1 1 110px" }}
+                  placeholder="Country"
+                  value={newTrack.country}
+                  onChange={(e) => setNewTrack((t) => ({ ...t, country: e.target.value }))}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  step="0.001"
+                  inputMode="decimal"
+                  style={{ flex: "0 1 110px" }}
+                  placeholder="km"
+                  value={newTrack.length_km}
+                  onChange={(e) => setNewTrack((t) => ({ ...t, length_km: e.target.value }))}
+                />
+                <button className="btn" type="submit" disabled={trackBusy}>
+                  {trackBusy ? "Saving…" : "Add track"}
+                </button>
+              </form>
+
+              <div className="nav-section" style={{ padding: "6px 0 4px" }}>
+                {tracks.length} track{tracks.length === 1 ? "" : "s"} ·{" "}
+                {tracks.filter((t) => t.length_km == null).length} without a distance
+              </div>
+
+              <div className="cp-track-list">
+                {tracks.map((t) =>
+                  editTrackId === t.id ? (
+                    <div key={t.id} className="flex" style={{ gap: 6, flexWrap: "wrap", padding: "4px 0" }}>
+                      <input
+                        type="text"
+                        style={{ flex: "2 1 180px" }}
+                        value={editTrack.name}
+                        onChange={(e) => setEditTrack((s) => ({ ...s, name: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        style={{ flex: "1 1 100px" }}
+                        placeholder="Country"
+                        value={editTrack.country}
+                        onChange={(e) => setEditTrack((s) => ({ ...s, country: e.target.value }))}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={30}
+                        step="0.001"
+                        inputMode="decimal"
+                        style={{ flex: "0 1 90px" }}
+                        placeholder="km"
+                        value={editTrack.length_km}
+                        onChange={(e) => setEditTrack((s) => ({ ...s, length_km: e.target.value }))}
+                      />
+                      <button className="btn btn-sm" onClick={() => saveTrack(t.id)} disabled={trackBusy}>
+                        {trackBusy ? "Saving…" : "Save"}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditTrackId(null)} disabled={trackBusy}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      key={t.id}
+                      className="flex"
+                      style={{ gap: 8, alignItems: "center", padding: "4px 0", justifyContent: "space-between" }}
+                    >
+                      <div>
+                        {t.name}
+                        {t.country && <span className="muted"> · {t.country}</span>}{" "}
+                        {t.length_km != null ? (
+                          <span className="hint">{t.length_km} km</span>
+                        ) : (
+                          <span className="hint" style={{ color: "var(--yellow)" }}>
+                            no distance
+                          </span>
+                        )}
+                      </div>
+                      <button className="btn btn-ghost btn-sm" onClick={() => startEditTrack(t)} disabled={trackBusy}>
+                        Edit
+                      </button>
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
 
             {/* ---- Wet benchmark penalty ---- */}
             <div className="card">
@@ -564,6 +736,9 @@ export default function ControlPanelPage() {
               </form>
             </div>
 
+            {/* ---- ADMIN ONLY from here: era undo, webhooks, purge ---- */}
+            {isAdmin && (
+            <>
             {/* ---- Patch history (comparability lines) ---- */}
             <div className="card">
               <h2>Patch history</h2>
@@ -703,6 +878,8 @@ export default function ControlPanelPage() {
                 </button>
               </div>
             </div>
+            </>
+            )}
           </>
         )}
       </div>

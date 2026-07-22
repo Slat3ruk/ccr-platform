@@ -23,6 +23,7 @@ import type {
   Session,
   TestRequest,
   Track,
+  TrackPatch,
   ValueComponents,
 } from "@/types";
 import type {
@@ -48,6 +49,18 @@ function iso(v: unknown): string {
   if (v instanceof Date) return v.toISOString();
   if (typeof v === "string") return v;
   return new Date().toISOString();
+}
+
+/** Row → Track. `length_km` is nullable and absent on rows predating the column. */
+function trackRow(r: Record<string, unknown>): Track {
+  return {
+    id: r.id as number,
+    name: r.name as string,
+    layout_id: (r.layout_id as string | null) ?? null,
+    country: (r.country as string | null) ?? null,
+    length_km: r.length_km == null ? null : Number(r.length_km),
+    created_at: iso(r.created_at),
+  };
 }
 
 const SESSION_SELECT = `
@@ -343,22 +356,44 @@ export class PostgresStore implements Store {
   // tracks --------------------------------------------------------------------
   async listTracks(): Promise<Track[]> {
     const res = await this.q("SELECT * FROM tracks ORDER BY name");
-    return res.rows.map((r) => ({ id: r.id, name: r.name, layout_id: r.layout_id, country: r.country, created_at: iso(r.created_at) }));
+    return res.rows.map(trackRow);
   }
 
   async getTrack(id: number): Promise<Track | null> {
     const res = await this.q("SELECT * FROM tracks WHERE id = $1", [id]);
     const r = res.rows[0];
-    return r ? { id: r.id, name: r.name, layout_id: r.layout_id, country: r.country, created_at: iso(r.created_at) } : null;
+    return r ? trackRow(r) : null;
   }
 
-  async createTrack(name: string, layout_id: string | null = null, country: string | null = null): Promise<Track> {
+  async createTrack(
+    name: string,
+    layout_id: string | null = null,
+    country: string | null = null,
+    length_km: number | null = null,
+  ): Promise<Track> {
     const res = await this.q(
-      "INSERT INTO tracks (name, layout_id, country) VALUES ($1, $2, $3) ON CONFLICT (name) DO UPDATE SET layout_id = EXCLUDED.layout_id RETURNING *",
-      [name, layout_id, country],
+      "INSERT INTO tracks (name, layout_id, country, length_km) VALUES ($1, $2, $3, $4) " +
+        "ON CONFLICT (name) DO UPDATE SET layout_id = EXCLUDED.layout_id RETURNING *",
+      [name, layout_id, country, length_km],
     );
-    const r = res.rows[0];
-    return { id: r.id, name: r.name, layout_id: r.layout_id, country: r.country, created_at: iso(r.created_at) };
+    return trackRow(res.rows[0]);
+  }
+
+  async updateTrack(id: number, patch: TrackPatch): Promise<Track | null> {
+    // Build the SET list from only the keys actually supplied, so an omitted
+    // field is left alone rather than being nulled.
+    const cols: string[] = [];
+    const vals: unknown[] = [];
+    for (const key of ["name", "layout_id", "country", "length_km"] as const) {
+      if (patch[key] !== undefined) {
+        cols.push(`${key} = $${cols.length + 1}`);
+        vals.push(patch[key]);
+      }
+    }
+    if (!cols.length) return this.getTrack(id);
+    vals.push(id);
+    const res = await this.q(`UPDATE tracks SET ${cols.join(", ")} WHERE id = $${vals.length} RETURNING *`, vals);
+    return res.rows[0] ? trackRow(res.rows[0]) : null;
   }
 
   // sessions ------------------------------------------------------------------

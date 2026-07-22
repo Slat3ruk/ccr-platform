@@ -86,7 +86,17 @@ export interface Track {
   name: string;
   layout_id?: string | null;
   country?: string | null;
+  /** Lap distance in km. Null until entered — sync-created tracks have none. */
+  length_km?: number | null;
   created_at: string;
+}
+
+/** Editable fields on a track (control panel). Omitted keys are left alone. */
+export interface TrackPatch {
+  name?: string;
+  layout_id?: string | null;
+  country?: string | null;
+  length_km?: number | null;
 }
 
 export interface TyreData {

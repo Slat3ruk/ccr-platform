@@ -23,6 +23,7 @@ import type {
   SessionType,
   TestRequest,
   Track,
+  TrackPatch,
   ValueComponents,
 } from "@/types";
 
@@ -129,7 +130,14 @@ export interface Store {
   // tracks
   listTracks(): Promise<Track[]>;
   getTrack(id: number): Promise<Track | null>;
-  createTrack(name: string, layout_id?: string | null, country?: string | null): Promise<Track>;
+  createTrack(
+    name: string,
+    layout_id?: string | null,
+    country?: string | null,
+    length_km?: number | null,
+  ): Promise<Track>;
+  /** Partial update; returns null if no track has that id. */
+  updateTrack(id: number, patch: TrackPatch): Promise<Track | null>;
 
   // sessions
   createSession(rec: NewSessionRecord): Promise<Session>;
