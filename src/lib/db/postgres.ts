@@ -91,6 +91,8 @@ function rowToSession(r: any): Session {
     svm_data: r.svm_data,
     comments: r.comments,
     lap_times: r.lap_times ?? null,
+    fuel_per_lap: r.fuel_per_lap == null ? null : Number(r.fuel_per_lap),
+    ve_per_lap: r.ve_per_lap == null ? null : Number(r.ve_per_lap),
     session_value_score: r.session_value_score == null ? null : Number(r.session_value_score),
     value_components: r.value_components ?? null,
     created_at: iso(r.created_at),
@@ -258,6 +260,9 @@ export class PostgresStore implements Store {
     await pool.query("ALTER TABLE ccr.recommendations ADD COLUMN IF NOT EXISTS best_setup VARCHAR(255)");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS lap_times JSONB");
     await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS setup_type VARCHAR(100)");
+    await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS fuel_per_lap FLOAT");
+    await pool.query("ALTER TABLE ccr.sessions ADD COLUMN IF NOT EXISTS ve_per_lap FLOAT");
+    await pool.query("ALTER TABLE ccr.tracks ADD COLUMN IF NOT EXISTS length_km FLOAT");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ccr.race_results (
         id                 SERIAL PRIMARY KEY,
@@ -353,6 +358,29 @@ export class PostgresStore implements Store {
     return { id: r.id, name: r.name, category: r.category, created_at: iso(r.created_at) };
   }
 
+  async updateCar(id: number, patch: { name?: string; category?: CarCategory }): Promise<Car | null> {
+    const cols: string[] = [];
+    const vals: unknown[] = [];
+    for (const key of ["name", "category"] as const) {
+      if (patch[key] !== undefined) {
+        cols.push(`${key} = $${cols.length + 1}`);
+        vals.push(patch[key]);
+      }
+    }
+    if (!cols.length) return this.getCar(id);
+    vals.push(id);
+    const res = await this.q(`UPDATE cars SET ${cols.join(", ")} WHERE id = $${vals.length} RETURNING *`, vals);
+    const r = res.rows[0];
+    return r ? { id: r.id, name: r.name, category: r.category, created_at: iso(r.created_at) } : null;
+  }
+
+  async deleteCar(id: number): Promise<boolean> {
+    // ⚠ CASCADEs to sessions/recommendations/test_requests/race_results.
+    // The route proves nothing references this car first.
+    const res = await this.q("DELETE FROM cars WHERE id = $1", [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
   // tracks --------------------------------------------------------------------
   async listTracks(): Promise<Track[]> {
     const res = await this.q("SELECT * FROM tracks ORDER BY name");
@@ -414,14 +442,15 @@ export class PostgresStore implements Store {
         `INSERT INTO sessions
           (driver_id, car_id, track_id, session_type, condition_reported, patch_version,
            lap_count, best_lap_time, avg_lap_time, off_track_count, off_track_penalty_points,
-           confidence_rating, setup_type, setup_version, comments, lap_times)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+           confidence_rating, setup_type, setup_version, comments, lap_times, fuel_per_lap, ve_per_lap)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
          RETURNING id`,
         [
           rec.driver_id, rec.car_id, rec.track_id, rec.session_type, rec.condition_reported, rec.patch_version ?? null,
           rec.lap_count, rec.best_lap_time, rec.avg_lap_time, rec.off_track_count, rec.off_track_penalty_points,
           rec.confidence_rating, rec.setup_type ?? null, rec.setup_version ?? null, rec.comments ?? null,
           rec.lap_times ? JSON.stringify(rec.lap_times) : null,
+          rec.fuel_per_lap ?? null, rec.ve_per_lap ?? null,
         ],
       );
       const id = s.rows[0].id;
@@ -463,6 +492,7 @@ export class PostgresStore implements Store {
       "driver_id", "car_id", "track_id", "session_type", "condition_reported", "patch_version",
       "lap_count", "best_lap_time", "avg_lap_time", "off_track_count", "off_track_penalty_points",
       "confidence_rating", "setup_type", "setup_version", "comments", "lap_times",
+      "fuel_per_lap", "ve_per_lap",
     ];
     const sets: string[] = [];
     const params: unknown[] = [];

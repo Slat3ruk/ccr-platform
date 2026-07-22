@@ -80,6 +80,8 @@ export async function POST(req: Request) {
     setup_version: input.setup_version ?? null,
     comments: input.comments ?? null,
     lap_times: input.lap_times ?? null,
+    fuel_per_lap: input.fuel_per_lap ?? null,
+    ve_per_lap: input.ve_per_lap ?? null,
     tyre_fl_pct_remaining: input.tyre_fl_pct_remaining,
     tyre_fr_pct_remaining: input.tyre_fr_pct_remaining,
     tyre_rl_pct_remaining: input.tyre_rl_pct_remaining,

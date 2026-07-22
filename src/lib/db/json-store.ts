@@ -210,6 +210,25 @@ export class JsonStore implements Store {
     return car;
   }
 
+  async updateCar(id: number, patch: { name?: string; category?: CarCategory }): Promise<Car | null> {
+    await this.init();
+    const car = this.db.cars.find((c) => c.id === id);
+    if (!car) return null;
+    if (patch.name !== undefined) car.name = patch.name;
+    if (patch.category !== undefined) car.category = patch.category;
+    await this.persist();
+    return car;
+  }
+
+  async deleteCar(id: number): Promise<boolean> {
+    await this.init();
+    const i = this.db.cars.findIndex((c) => c.id === id);
+    if (i === -1) return false;
+    this.db.cars.splice(i, 1);
+    await this.persist();
+    return true;
+  }
+
   // tracks --------------------------------------------------------------------
   async listTracks(): Promise<Track[]> {
     await this.init();
@@ -279,6 +298,8 @@ export class JsonStore implements Store {
       svm_data: null,
       comments: rec.comments ?? null,
       lap_times: rec.lap_times ?? null,
+      fuel_per_lap: rec.fuel_per_lap ?? null,
+      ve_per_lap: rec.ve_per_lap ?? null,
       session_value_score: null,
       value_components: null,
       created_at: this.now(),

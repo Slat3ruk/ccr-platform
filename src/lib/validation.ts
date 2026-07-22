@@ -81,6 +81,25 @@ export function validateSessionInput(raw: unknown): ValidationResult {
     }
   }
 
+  // Optional consumption per lap. Not scored — captured for the strategy
+  // calculator. Blank stays blank; a nonsense value is worth rejecting rather
+  // than storing, since nobody will notice a bad number until it's relied on.
+  let fuel_per_lap: number | undefined;
+  if (b.fuel_per_lap != null && b.fuel_per_lap !== "") {
+    const n = Number(b.fuel_per_lap);
+    if (!isFiniteNum(n) || n <= 0) errors.push("Fuel per lap must be a positive number of litres.");
+    else if (n > 30) errors.push("Fuel per lap looks wrong — over 30 L/lap isn't a real LMU figure.");
+    else fuel_per_lap = Math.round(n * 1000) / 1000;
+  }
+
+  let ve_per_lap: number | undefined;
+  if (b.ve_per_lap != null && b.ve_per_lap !== "") {
+    const n = Number(b.ve_per_lap);
+    if (!isFiniteNum(n) || n <= 0) errors.push("VE per lap must be a positive percentage.");
+    else if (n > 100) errors.push("VE per lap can't exceed 100%.");
+    else ve_per_lap = Math.round(n * 1000) / 1000;
+  }
+
   const tyres = {
     tyre_fl_pct_remaining: Number(b.tyre_fl_pct_remaining),
     tyre_fr_pct_remaining: Number(b.tyre_fr_pct_remaining),
@@ -113,6 +132,8 @@ export function validateSessionInput(raw: unknown): ValidationResult {
       setup_version: typeof b.setup_version === "string" ? b.setup_version.trim() || undefined : undefined,
       comments: typeof b.comments === "string" ? b.comments.trim() || undefined : undefined,
       lap_times,
+      fuel_per_lap,
+      ve_per_lap,
       ...tyres,
     },
   };

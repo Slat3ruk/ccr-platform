@@ -128,6 +128,15 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [setupType, setSetupType] = useState(s?.setup_type ?? "");
   const [setupVersion, setSetupVersion] = useState(s?.setup_version ?? "");
   const [comments, setComments] = useState(s?.comments ?? "");
+  // Consumption per lap — optional, not scored, captured for the strategy tool.
+  const [fuelPerLap, setFuelPerLap] = useState(s?.fuel_per_lap == null ? "" : String(s.fuel_per_lap));
+  const [vePerLap, setVePerLap] = useState(s?.ve_per_lap == null ? "" : String(s.ve_per_lap));
+
+  // Only Hypercar + GT3 run Virtual Energy in LMU; LMP2/LMP3 have none.
+  const veApplies = useMemo(() => {
+    const cat = cars.find((c) => String(c.id) === String(carId))?.category;
+    return cat === "Hypercar" || cat === "GT3";
+  }, [cars, carId]);
 
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -214,6 +223,8 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     setTyres(initialTyres);
     setOffTrack("0");
     setComments("");
+    setFuelPerLap("");
+    setVePerLap("");
     if (!keepContext) {
       setDriverName("");
       setCarId("");
@@ -255,6 +266,8 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       setup_version: setupVersion.trim() || undefined,
       comments: comments.trim() || undefined,
       lap_times: parsedLaps.laps.length >= 2 ? parsedLaps.laps : undefined,
+      fuel_per_lap: fuelPerLap.trim() ? Number(fuelPerLap) : undefined,
+      ve_per_lap: vePerLap.trim() ? Number(vePerLap) : undefined,
       tyre_fl_pct_remaining: tyres.fl,
       tyre_fr_pct_remaining: tyres.fr,
       tyre_rl_pct_remaining: tyres.rl,
@@ -485,6 +498,52 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
             ))}
           </div>
           <TyreWearGauge tyres={tyres} />
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>
+          Consumption <span className="hint">(optional)</span>
+        </h2>
+        <div className="card-sub">
+          Not used in scoring — captured so the strategy tool can plan stints from real data later. It can&rsquo;t be
+          worked out after the fact, so it&rsquo;s worth a few seconds now if you have the numbers.
+        </div>
+        <div className="row">
+          <div className="field">
+            <label>
+              Fuel per lap <span className="hint">litres</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={30}
+              step="0.01"
+              inputMode="decimal"
+              placeholder="e.g. 3.4"
+              value={fuelPerLap}
+              onChange={(e) => setFuelPerLap(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>
+              Virtual Energy per lap <span className="hint">%</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              inputMode="decimal"
+              placeholder={veApplies ? "e.g. 2.8" : "n/a for this class"}
+              value={vePerLap}
+              disabled={!veApplies}
+              onChange={(e) => setVePerLap(e.target.value)}
+            />
+            {!veApplies && carId && (
+              <div className="hint">Only Hypercar and GT3 use Virtual Energy in LMU.</div>
+            )}
+          </div>
         </div>
       </div>
 

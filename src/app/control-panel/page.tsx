@@ -12,7 +12,8 @@ import { api, type WebhookChannelName } from "@/lib/api-client";
 import { currentEra, sortEras } from "@/lib/eras";
 import { comparePatch, newestPatchIn, normalizeSheetPatchLabel, patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
 import { useRole } from "@/lib/role";
-import type { Era, Track, WeightsConfig } from "@/types";
+import type { Car, CarCategory, Era, Track, WeightsConfig } from "@/types";
+import { CAR_CATEGORIES } from "@/types";
 
 /** The three webhook slots and what routes to each (mirrors lib/discord.ts). */
 const WEBHOOK_SLOTS: { channel: WebhookChannelName; label: string; channelHint: string; events: string }[] = [
@@ -89,6 +90,13 @@ export default function ControlPanelPage() {
   const [editTrackId, setEditTrackId] = useState<number | null>(null);
   const [editTrack, setEditTrack] = useState({ name: "", country: "", length_km: "" });
 
+  // Car reference data (manager/admin) — LMU adds cars like it adds tracks.
+  const [cars, setCars] = useState<Car[]>([]);
+  const [newCar, setNewCar] = useState<{ name: string; category: CarCategory }>({ name: "", category: "Hypercar" });
+  const [carBusy, setCarBusy] = useState(false);
+  const [editCarId, setEditCarId] = useState<number | null>(null);
+  const [editCar, setEditCar] = useState<{ name: string; category: CarCategory }>({ name: "", category: "Hypercar" });
+
   // Discord webhooks — three channel slots (race / test / board)
   const emptySlot = { configured: false, hint: null as string | null };
   const [hooks, setHooks] = useState<Record<WebhookChannelName, { configured: boolean; hint: string | null }>>({
@@ -102,7 +110,7 @@ export default function ControlPanelPage() {
   const [silenceBusy, setSilenceBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [e, w, status, wet, hook, patch, tk, bm] = await Promise.all([
+    const [e, w, status, wet, hook, patch, tk, bm, cr] = await Promise.all([
       api.eras(),
       api.weights().catch(() => null),
       api.status(),
@@ -111,6 +119,7 @@ export default function ControlPanelPage() {
       api.patch().catch(() => null),
       api.tracks().catch(() => [] as Track[]),
       api.benchmarks().catch(() => []),
+      api.cars().catch(() => [] as Car[]),
     ]);
     setEras(e);
     if (w) setWeights(w.active);
@@ -127,6 +136,7 @@ export default function ControlPanelPage() {
     if (patch) setCurrentPatch(patch.current_patch);
     setSheetPatch(newestPatchIn(bm.map((b) => normalizeSheetPatchLabel(b.patch_version))));
     setTracks(tk);
+    setCars(cr);
     setLoading(false);
   }, []);
 
@@ -381,6 +391,59 @@ export default function ControlPanelPage() {
     }
   }
 
+  // ---- Cars (manager/admin) ------------------------------------------------
+  async function addCar(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const name = newCar.name.trim();
+    if (!name) {
+      setMsg({ kind: "error", text: "Give the car a name." });
+      return;
+    }
+    setCarBusy(true);
+    try {
+      const created = await api.createCar({ name, category: newCar.category });
+      setCars((cs) => [...cs, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewCar({ name: "", category: newCar.category });
+      setMsg({ kind: "success", text: `Added “${created.name}”. It's now selectable on the log form.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't add that car." });
+    } finally {
+      setCarBusy(false);
+    }
+  }
+
+  async function saveCar(id: number) {
+    setMsg(null);
+    setCarBusy(true);
+    try {
+      const { car } = await api.updateCar(id, { name: editCar.name.trim(), category: editCar.category });
+      setCars((cs) => cs.map((c) => (c.id === id ? car : c)).sort((a, b) => a.name.localeCompare(b.name)));
+      setEditCarId(null);
+      setMsg({ kind: "success", text: `Saved “${car.name}”.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't save that car." });
+    } finally {
+      setCarBusy(false);
+    }
+  }
+
+  async function removeCar(c: Car) {
+    setMsg(null);
+    if (!confirm(`Delete “${c.name}”?\n\nOnly possible while nothing references it — if anything has been logged against it you'll get an explanation instead.`))
+      return;
+    setCarBusy(true);
+    try {
+      await api.deleteCar(c.id);
+      setCars((cs) => cs.filter((x) => x.id !== c.id));
+      setMsg({ kind: "success", text: `Deleted “${c.name}”.` });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't delete that car." });
+    } finally {
+      setCarBusy(false);
+    }
+  }
+
   async function toggleSilence() {
     setMsg(null);
     setSilenceBusy(true);
@@ -563,6 +626,105 @@ export default function ControlPanelPage() {
               </form>
             </div>
             )}
+
+            {/* ---- Cars (manager + admin) ---- */}
+            <div className="card">
+              <h2>Cars</h2>
+              <div className="card-sub">
+                The roster every ranking board is keyed to. Add LMU&rsquo;s new cars here as they land. Deleting only
+                works while nothing has been logged against a car — once it&rsquo;s in use, rename it instead.
+              </div>
+
+              <form className="flex" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }} onSubmit={addCar}>
+                <input
+                  type="text"
+                  style={{ flex: "2 1 220px" }}
+                  placeholder="Car name, e.g. Ferrari 499P"
+                  value={newCar.name}
+                  onChange={(e) => setNewCar((c) => ({ ...c, name: e.target.value }))}
+                />
+                <select
+                  style={{ flex: "0 1 140px" }}
+                  value={newCar.category}
+                  onChange={(e) => setNewCar((c) => ({ ...c, category: e.target.value as CarCategory }))}
+                >
+                  {CAR_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn" type="submit" disabled={carBusy}>
+                  {carBusy ? "Saving…" : "Add car"}
+                </button>
+              </form>
+
+              <div className="nav-section" style={{ padding: "6px 0 4px" }}>
+                {cars.length} car{cars.length === 1 ? "" : "s"}
+              </div>
+
+              <div className="cp-track-list">
+                {cars.map((c) =>
+                  editCarId === c.id ? (
+                    <div key={c.id} className="flex" style={{ gap: 6, flexWrap: "wrap", padding: "4px 0" }}>
+                      <input
+                        type="text"
+                        style={{ flex: "2 1 200px" }}
+                        value={editCar.name}
+                        onChange={(e) => setEditCar((s) => ({ ...s, name: e.target.value }))}
+                      />
+                      <select
+                        style={{ flex: "0 1 130px" }}
+                        value={editCar.category}
+                        onChange={(e) => setEditCar((s) => ({ ...s, category: e.target.value as CarCategory }))}
+                      >
+                        {CAR_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                      <button className="btn btn-sm" onClick={() => saveCar(c.id)} disabled={carBusy}>
+                        {carBusy ? "Saving…" : "Save"}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditCarId(null)} disabled={carBusy}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      key={c.id}
+                      className="flex"
+                      style={{ gap: 8, alignItems: "center", padding: "4px 0", justifyContent: "space-between" }}
+                    >
+                      <div>
+                        {c.name} <span className="hint">{c.category}</span>
+                      </div>
+                      <div className="flex" style={{ gap: 4 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setEditCarId(c.id);
+                            setEditCar({ name: c.name, category: c.category });
+                          }}
+                          disabled={carBusy}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => removeCar(c)}
+                          disabled={carBusy}
+                          title="Only works while nothing has been logged against this car"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
 
             {/* ---- Tracks & layouts (manager + admin) ---- */}
             <div className="card">

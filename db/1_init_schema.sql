@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   svm_data                 JSONB,
   comments                 TEXT,
   lap_times                JSONB,
+  fuel_per_lap             FLOAT CHECK (fuel_per_lap IS NULL OR fuel_per_lap > 0),
+  ve_per_lap               FLOAT CHECK (ve_per_lap IS NULL OR ve_per_lap > 0),
   session_value_score      FLOAT CHECK (session_value_score IS NULL OR (session_value_score BETWEEN 0.0 AND 100.0)),
   value_components         JSONB,
   created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -71,6 +73,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS lap_times JSONB;
 -- Additive column for DBs created before the controlled setup-type dropdown.
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS setup_type VARCHAR(100);
+-- Consumption per lap. Nothing scores on these — they're captured for the
+-- future strategy calculator (stint/fuel planning), which can't reconstruct
+-- them retroactively. Optional: LMP2/LMP3 have no Virtual Energy at all.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fuel_per_lap FLOAT CHECK (fuel_per_lap IS NULL OR fuel_per_lap > 0);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ve_per_lap   FLOAT CHECK (ve_per_lap IS NULL OR ve_per_lap > 0);
 CREATE INDEX IF NOT EXISTS idx_sessions_car_track ON sessions(car_id, track_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_driver    ON sessions(driver_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_created   ON sessions(created_at DESC);

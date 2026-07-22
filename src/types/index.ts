@@ -140,6 +140,13 @@ export interface Session {
   comments?: string | null;
   /** Optional individual lap times (seconds). When present (≥2 laps), consistency uses true std-dev. */
   lap_times?: number[] | null;
+  /**
+   * Litres of fuel used per lap. Not scored — captured for the future strategy
+   * calculator, which can't reconstruct it after the fact.
+   */
+  fuel_per_lap?: number | null;
+  /** % of Virtual Energy used per lap. Hypercar + GT3 only; LMP2/LMP3 have no VE. */
+  ve_per_lap?: number | null;
   session_value_score?: number | null;
   value_components?: ValueComponents | null;
   created_at: string;
@@ -212,6 +219,10 @@ export interface SessionInput {
   comments?: string;
   /** Optional individual lap times (seconds), already parsed by the form. */
   lap_times?: number[];
+  /** Litres per lap (optional). Reference data for the strategy calculator. */
+  fuel_per_lap?: number;
+  /** VE % per lap (optional). Hypercar + GT3 only. */
+  ve_per_lap?: number;
   tyre_fl_pct_remaining: number;
   tyre_fr_pct_remaining: number;
   tyre_rl_pct_remaining: number;

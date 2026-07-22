@@ -1,5 +1,15 @@
 # Deployment Guide — CrossCurrent Racing Platform
 
+> **🚨 Deploying as part of the multi-app catch-up? Read the cross-app runbook
+> FIRST: `DEPLOY-RUNBOOK.md` in the CCR-Website repo.** This guide covers *this
+> app in isolation*; the runbook covers what it can't — the order the apps must
+> go in (this one is third: after `ccr-auth` and `ccr-data-service`, before the
+> website, which consumes this app's new `/api/public/stats`), and the
+> post-deploy behaviour checks. Most importantly: the patch-weighting fix
+> **deliberately re-scores existing sessions** — higher Representativeness on
+> hotfix-only-older setups, and slightly reordered car rankings. That is the fix
+> working, not data corruption.
+
 **Target:** a self-hosted **VPS**, served as a **subdomain of the team website**
 (e.g. `data.crosscurrentracing.com`).
 **Auth:** the team website is the hub — it does Discord sign-in and sets a cookie

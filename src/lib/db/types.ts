@@ -44,6 +44,8 @@ export interface NewSessionRecord {
   setup_version?: string | null;
   comments?: string | null;
   lap_times?: number[] | null;
+  fuel_per_lap?: number | null;
+  ve_per_lap?: number | null;
   tyre_fl_pct_remaining: number;
   tyre_fr_pct_remaining: number;
   tyre_rl_pct_remaining: number;
@@ -126,6 +128,14 @@ export interface Store {
   listCars(): Promise<Car[]>;
   getCar(id: number): Promise<Car | null>;
   createCar(name: string, category: CarCategory): Promise<Car>;
+  /** Partial update; returns null if no car has that id. */
+  updateCar(id: number, patch: { name?: string; category?: CarCategory }): Promise<Car | null>;
+  /**
+   * ⚠ DANGER: sessions/recommendations/test_requests/race_results reference
+   * cars(id) ON DELETE CASCADE. Never call without proving nothing references
+   * it — see DELETE /api/cars/:id, the only caller.
+   */
+  deleteCar(id: number): Promise<boolean>;
 
   // tracks
   listTracks(): Promise<Track[]>;

@@ -7,6 +7,7 @@ import type {
   BadgeDef,
   Benchmark,
   Car,
+  CarCategory,
   DriverStat,
   Era,
   FactorWeights,
@@ -72,6 +73,13 @@ export const api = {
     jsend<{ ok: true; track: Track }>(`/api/tracks/${id}`, "PATCH", patch),
   /** Refused (409) unless nothing references the track — see the route's notes. */
   deleteTrack: (id: number) => jsend<{ ok: true; deleted: string }>(`/api/tracks/${id}`, "DELETE"),
+
+  // Car reference data (control panel — manager/admin) ------------------------
+  createCar: (c: { name: string; category: CarCategory }) => jsend<Car>("/api/cars", "POST", c),
+  updateCar: (id: number, patch: { name?: string; category?: CarCategory }) =>
+    jsend<{ ok: true; car: Car }>(`/api/cars/${id}`, "PATCH", patch),
+  /** Refused (409) unless nothing references the car. */
+  deleteCar: (id: number) => jsend<{ ok: true; deleted: string }>(`/api/cars/${id}`, "DELETE"),
 
   rankings: (params: { track_id?: number; class?: string; condition?: string; era_id?: number | "pre" } = {}) => {
     const q = new URLSearchParams();
