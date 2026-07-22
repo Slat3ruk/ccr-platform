@@ -291,7 +291,19 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
         await api.updateSession(edit.session.id, payload);
         onDone?.();
       } else {
-        await api.createSession(payload);
+        try {
+          await api.createSession(payload);
+        } catch (e) {
+          // The server refuses a suspected double-submit once (409). Show it,
+          // and only re-send if the user says they meant it.
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!/looks identical to a session/i.test(msg)) throw e;
+          if (!window.confirm(`${msg}\n\nLog it again anyway?`)) {
+            setBusy(false);
+            return;
+          }
+          await api.createSession({ ...payload, confirm_duplicate: true });
+        }
         const carName = cars.find((c) => c.id === Number(carId))?.name ?? "car";
         setSuccess(`Session logged for ${carName}. Rankings recomputed.`);
         reset(true);

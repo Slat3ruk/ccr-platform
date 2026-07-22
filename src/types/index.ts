@@ -223,6 +223,11 @@ export interface SessionInput {
   fuel_per_lap?: number;
   /** VE % per lap (optional). Hypercar + GT3 only. */
   ve_per_lap?: number;
+  /**
+   * Set only on a deliberate re-send after the server flagged a suspected
+   * double-submit (409). Skips that check — see lib/duplicates.ts.
+   */
+  confirm_duplicate?: boolean;
   tyre_fl_pct_remaining: number;
   tyre_fr_pct_remaining: number;
   tyre_rl_pct_remaining: number;

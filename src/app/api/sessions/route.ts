@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getVerifiedSession } from "@/lib/auth/session";
 import { getStore } from "@/lib/db";
+import { findDuplicate, minutesAgo } from "@/lib/duplicates";
 import { postDiscord } from "@/lib/discord";
 import { CURRENT_PATCH_SETTING } from "@/lib/patch";
 import { recomputeAll } from "@/lib/recompute";
@@ -58,6 +59,36 @@ export async function POST(req: Request) {
   const driver = loggingForSelf
     ? await store.getOrCreateDriverByDiscordId(auth.discordId, auth.name)
     : await store.getOrCreateDriver(input.driver_name);
+
+  // Guard against an accidental double-submit (double-click fires two POSTs
+  // before any client state updates, so this can only be caught here). Strict
+  // match — same driver/car/track/condition AND identical laps + both times.
+  // The client can override with confirm_duplicate once the user has seen it.
+  if (!(raw as Record<string, unknown>)?.confirm_duplicate) {
+    const recent = await store.listSessions({ car_id: input.car_id, track_id: input.track_id, limit: 50 });
+    const dup = findDuplicate(recent, {
+      driver_id: driver.id,
+      car_id: input.car_id,
+      track_id: input.track_id,
+      condition_reported: input.condition_reported,
+      lap_count: input.lap_count,
+      best_lap_time: input.best_lap_time,
+      avg_lap_time: input.avg_lap_time,
+    });
+    if (dup) {
+      const mins = minutesAgo(dup);
+      return NextResponse.json(
+        {
+          error:
+            `This looks identical to a session logged ${mins === 0 ? "moments" : `${mins} minute${mins === 1 ? "" : "s"}`} ago ` +
+            `(same car, track, conditions, ${input.lap_count} laps and the same lap times). ` +
+            `If you meant to log it twice, submit again to confirm.`,
+          duplicate_of: dup.id,
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   // Auto-stamp the session with the patch the app is currently on, so every
   // session carries a durable record of the build it was logged under.

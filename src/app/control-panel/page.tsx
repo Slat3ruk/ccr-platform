@@ -347,6 +347,20 @@ export default function ControlPanelPage() {
     }
   }
 
+  async function backfillKm() {
+    setMsg(null);
+    setTrackBusy(true);
+    try {
+      const res = await api.backfillTrackKm();
+      setTracks(await api.tracks());
+      setMsg({ kind: "success", text: res.message });
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't fill distances." });
+    } finally {
+      setTrackBusy(false);
+    }
+  }
+
   function startEditTrack(t: Track) {
     setEditTrackId(t.id);
     setEditTrack({
@@ -627,6 +641,19 @@ export default function ControlPanelPage() {
             </div>
             )}
 
+            {/* ---- Data export (manager + admin) ---- */}
+            <div className="card">
+              <h2>Export</h2>
+              <div className="card-sub">
+                Every logged session as a CSV — driver, car, track, times, tyres, fuel/VE, SVS and comments. Opens
+                straight in Excel or Sheets. This is a <strong>readable archive, not the backup of record</strong>: the
+                nightly database dump on the server is what an actual restore uses.
+              </div>
+              <a className="btn" href="/api/sessions/export" download>
+                Download sessions CSV
+              </a>
+            </div>
+
             {/* ---- Cars (manager + admin) ---- */}
             <div className="card">
               <h2>Cars</h2>
@@ -771,9 +798,24 @@ export default function ControlPanelPage() {
                 </button>
               </form>
 
-              <div className="nav-section" style={{ padding: "6px 0 4px" }}>
-                {tracks.length} track{tracks.length === 1 ? "" : "s"} ·{" "}
-                {tracks.filter((t) => t.length_km == null).length} without a distance
+              <div
+                className="flex"
+                style={{ justifyContent: "space-between", alignItems: "center", gap: 8, padding: "6px 0 4px" }}
+              >
+                <div className="nav-section" style={{ padding: 0 }}>
+                  {tracks.length} track{tracks.length === 1 ? "" : "s"} ·{" "}
+                  {tracks.filter((t) => t.length_km == null).length} without a distance
+                </div>
+                {tracks.some((t) => t.length_km == null) && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={backfillKm}
+                    disabled={trackBusy}
+                    title="Fills the base circuits we have verified figures for. Never overwrites an existing value."
+                  >
+                    {trackBusy ? "Filling…" : "Fill known distances"}
+                  </button>
+                )}
               </div>
 
               <div className="cp-track-list">

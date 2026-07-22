@@ -73,6 +73,12 @@ export const api = {
     jsend<{ ok: true; track: Track }>(`/api/tracks/${id}`, "PATCH", patch),
   /** Refused (409) unless nothing references the track — see the route's notes. */
   deleteTrack: (id: number) => jsend<{ ok: true; deleted: string }>(`/api/tracks/${id}`, "DELETE"),
+  /** Fills known lap distances on tracks that have none. Never overwrites. */
+  backfillTrackKm: () =>
+    jsend<{ ok: true; filled: { name: string; km: number }[]; already_set: number; skipped: string[]; message: string }>(
+      "/api/tracks/backfill-km",
+      "POST",
+    ),
 
   // Car reference data (control panel — manager/admin) ------------------------
   createCar: (c: { name: string; category: CarCategory }) => jsend<Car>("/api/cars", "POST", c),

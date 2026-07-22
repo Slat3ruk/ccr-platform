@@ -8,6 +8,7 @@
 import type { Condition, RacingClass } from "@/types";
 import benchmarksData from "@/data/benchmarks.json";
 import tracksData from "@/data/tracks.json";
+import { knownTrackKm } from "@/lib/track-km";
 import type { Store } from "./db/types";
 import { SEED_CARS } from "./seed-data";
 
@@ -48,7 +49,9 @@ export async function seedDatabase(store: Store): Promise<SeedSummary> {
   const tracks = tracksData as unknown as TrackRow[];
   const trackIdByName = new Map<string, number>();
   for (const t of tracks) {
-    const track = await store.createTrack(t.name, t.layout_id, t.country);
+    // Known base-layout distances are seeded; variants come through null and
+    // get filled in by hand in the control panel (see lib/track-km.ts).
+    const track = await store.createTrack(t.name, t.layout_id, t.country, knownTrackKm(t.name));
     trackIdByName.set(t.name, track.id);
   }
 
