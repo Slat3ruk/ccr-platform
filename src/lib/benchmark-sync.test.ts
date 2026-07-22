@@ -65,4 +65,30 @@ describe("syncBenchmarks column mapping (regression: was off by one column)", ()
     const result = await syncBenchmarks(store);
     expect(result.sheet_last_updated).toBe("2026.07.10. 09:55. CEST");
   });
+
+  // The sheet has no distance column, so a re-sync must never clobber a lap
+  // distance someone hand-entered in the control panel. Backfilling ~29 tracks
+  // is real work; losing it to a routine sync would be brutal.
+  it("does NOT wipe a manually-entered lap distance on re-sync", async () => {
+    await syncBenchmarks(store);
+    const created = (await store.listTracks()).find((t) => t.name === "Bahrain (wec)");
+    expect(created).toBeTruthy();
+    expect(created!.length_km).toBeNull(); // sync can't know it
+
+    await store.updateTrack(created!.id, { length_km: 5.412 });
+
+    await syncBenchmarks(store); // re-sync, same sheet
+    const after = (await store.listTracks()).find((t) => t.name === "Bahrain (wec)");
+    expect(after!.length_km).toBe(5.412);
+  });
+
+  it("still auto-creates tracks the sheet has and we don't", async () => {
+    expect(await store.listTracks()).toHaveLength(0);
+    const result = await syncBenchmarks(store);
+    expect(result.tracks_created).toBe(2);
+    expect((await store.listTracks()).map((t) => t.name).sort()).toEqual([
+      "Bahrain (endurance)",
+      "Bahrain (wec)",
+    ]);
+  });
 });
