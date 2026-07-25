@@ -120,6 +120,35 @@ names. Use `name` (now nickname-aware, see above) to pre-fill and lock the
 log form's driver field from the verified session, rather than letting it be
 typed.
 
+## Roster — `GET /api/auth/roster`
+
+The team roster, used by the data platform's **log-on-behalf** dropdown so a
+manager/admin can log a session for a driver who ran the test but won't log it.
+
+```
+GET http://127.0.0.1:8787/api/auth/roster
+Cookie: cc_session=<value forwarded from the incoming request>
+```
+
+- **Returns** Team Member and above, as `{ "roster": [{ "discordId": "...", "name": "..." }] }`.
+  `discordId` is the same identifier as `/api/auth/me`'s `id` (the JWT `sub`), so
+  a session logged on someone's behalf keys to the same driver row their own
+  logins produce. `name` follows the same nickname-first rule as `/api/auth/me`.
+- **Tier:** Manager/Admin. Gated by the caller **and** re-checked by the auth
+  service against the forwarded cookie — defence in depth, so a mistake in one
+  layer doesn't expose the roster.
+- **Forward the cookie**, exactly as with `/api/auth/me`; this is a server-side
+  call, never made from the browser.
+- **On any non-2xx the caller should surface a plain failure** (the data
+  platform returns 502) rather than falling back to a free-text name field —
+  degrading to typed names silently reintroduces the duplicate-driver problem
+  that keying to `discord_id` exists to solve.
+
+> Documented 2026-07-24 after a cross-repo contract audit found the data
+> platform depending on this endpoint while no copy of this contract mentioned
+> it — so nothing verified the shape, and a rename would only have surfaced as a
+> 502 at runtime.
+
 ## Logout
 
 `POST /api/auth/logout` (no body) clears the cookie. No app-side session

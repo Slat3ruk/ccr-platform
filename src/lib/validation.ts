@@ -7,6 +7,12 @@ import { CONDITIONS, SESSION_TYPES, SETUP_TYPES, type SessionInput } from "@/typ
 
 const SETUP_TYPE_VALUES = new Set(SETUP_TYPES.map((t) => t.value));
 
+/**
+ * Floor for `ve_per_lap`, in percent. Its only job is to reject a 0..1 FRACTION
+ * submitted where a percentage is meant — see the note at the check itself.
+ */
+export const MIN_VE_PCT_PER_LAP = 0.5;
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -97,7 +103,18 @@ export function validateSessionInput(raw: unknown): ValidationResult {
     const n = Number(b.ve_per_lap);
     if (!isFiniteNum(n) || n <= 0) errors.push("VE per lap must be a positive percentage.");
     else if (n > 100) errors.push("VE per lap can't exceed 100%.");
-    else ve_per_lap = Math.round(n * 1000) / 1000;
+    // ⚠ Lower bound catches a FRACTION submitted where a PERCENTAGE is meant.
+    // LMU's shared memory and the relay archive both carry VE as a 0..1
+    // fraction, so a real ~2.8 %/lap burn arrives as 0.028 — which would pass
+    // every other check here and silently record a burn 100x too low, then seed
+    // strategy and priors with it. Found by the cross-repo contract audit
+    // (2026-07-23) against race-ops' draft-ingest derivation. Nothing in LMU
+    // burns under 0.5 %/lap — that would be 200+ laps on one tank of energy.
+    else if (n < MIN_VE_PCT_PER_LAP) {
+      errors.push(
+        `VE per lap of ${n} looks like a 0–1 fraction rather than a percentage — enter 2.8 for 2.8%, not 0.028.`,
+      );
+    } else ve_per_lap = Math.round(n * 1000) / 1000;
   }
 
   const tyres = {
