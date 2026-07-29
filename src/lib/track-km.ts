@@ -1,9 +1,29 @@
 // ============================================================================
 // Known LMU lap distances (km).
 //
-// SOURCE: the CCR stint planner's own `TRACKS` constant (ccr-v10.html), which
-// the team has used and trusted in anger for fuel/stint maths. These are NOT
-// looked-up-from-the-web numbers.
+// SOURCES, best first. Nothing here is a looked-up-from-the-web number:
+//   1. MEASURED — scoring shared memory's `track_length`, read live in-game.
+//      The gold standard: it is what LMU actually simulates, which is not the
+//      published figure. Laguna Seca measures 3590 m against a published
+//      3.602 km — 12 m short, and that gap lands directly in fuel-per-lap.
+//   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), which the
+//      team has used and trusted in anger for fuel/stint maths.
+// Each entry below records which of the two it came from.
+//
+// ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED LENGTH, however authoritative the
+// source looks. Two circuits are deliberately ABSENT for exactly that reason:
+//   • Daytona — the planner's TRACKS carries 5.734 but nobody can say where it
+//     came from, and it has never been run in-game to check. Published road
+//     course is ~5.729. The 5 m spread is the same order as the real
+//     measured-vs-published gap, so it proves nothing. Stays null until someone
+//     drives it (planner session, 2026-07-29: "I'd rather send you one
+//     confirmed track than two with one silently unsourced").
+//   • Every layout variant — see the note below.
+//
+// ⚠ DO NOT DERIVE A LENGTH FROM TRACKMAP GEOMETRY. Summing LMU's REST
+// `watch/trackmap` type-0 centreline for Laguna gives 3551 m against a true
+// 3590 — ~1% short, because a sampled polyline cuts every corner. The polyline
+// is shape only; length comes from scoring.
 //
 // ⚠ BASE LAYOUTS ONLY. Every LMU circuit with layout variants — Bahrain
 // (outer/paddock), Silverstone (International/National), Paul Ricard (1A/3A/…),
@@ -17,6 +37,14 @@
 
 /** Track name (as stored) → lap distance in km. Matched case/punctuation-insensitively. */
 export const TRACK_KM: Record<string, number> = {
+  // MEASURED in-game from scoring `track_length` (source 1).
+  // Laguna Seca: 3590 m, LMU 1.4, ~10 sessions on 2026-07-29, consistent every
+  // time. The readout formats to the nearest metre, so the true value may be
+  // 3590.x — don't treat the last digit as exact. LMU reports its name as
+  // "WeatherTech Raceway Laguna Seca"; the short form here is the sheet's.
+  "Laguna Seca": 3.59,
+
+  // From the planner's TRACKS constant (source 2).
   "Circuit de la Sarthe": 13.626,
   Spa: 7.004,
   Monza: 5.793,
