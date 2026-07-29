@@ -106,6 +106,19 @@ these in the control panel, view-as Admin):
    button to verify (this is a sanctioned test post).
 3. Wet penalty + weighting are back to defaults (8%, Balanced) — fine unless the
    user wants their tuning back.
+3a. **⚠ RUN "SYNC FROM OHNE SPEED" (control panel → Benchmarks). NOT OPTIONAL —
+   the user asked for this explicitly.** Seeding alone leaves the DB with **no
+   Wet benchmarks at all**: the seed file is Dry-only and Wet is *derived*, but
+   that derivation runs only inside the sync (or a wet-penalty save), never
+   inside seeding. Until it runs, wet sessions silently fall back to the **Dry**
+   benchmark and every wet driver is scored against dry pace — no error, just
+   wrong numbers. The sync also pulls whatever the sheet has gained since the
+   seed snapshot (2026-07-29) and auto-creates those circuits.
+   **Verify:** the response reports `upserted` (≈155+) plus any `created_tracks`,
+   and `GET /api/benchmarks` then contains rows with `"condition": "Wet"`. No Wet
+   rows = the sync didn't complete and wet scoring is still wrong.
+   ⚠ This posts "new tracks from a sync" to the #testdrivers webhook — expected
+   and harmless, but do it AFTER step 2 so the user isn't surprised by it.
 4. **Schedule the backup cron on day one AND run the restore round-trip test**
    (see DEPLOY.md "Backups & ops" — backup script, cron line, restore command,
    and the required scratch-DB restore test). Real data deserves a daily

@@ -224,10 +224,33 @@ it in, `sudo systemctl reload caddy`. The team logs in with the one shared
 password. When the real Discord auth lands, delete the `basic_auth { … }` block.
 This keeps the app **live on its domain and usable** without being wide open.
 
-### 5. Seed reference data (once)
+### 5. Seed reference data (once), then SYNC
 Open the site and click **"Load sample data"** on the rankings banner, or
-`POST /api/seed`. Loads the car roster, tracks, and 145 benchmark tiers, then
-computes rankings. Drivers can log from anywhere after this.
+`POST /api/seed`. Loads the car roster, 31 tracks, and 155 Dry benchmark tiers,
+then computes rankings.
+
+#### ⚠ Then run "Sync from Ohne Speed" — seeding alone is NOT enough
+Control panel → Benchmarks → **Sync from Ohne Speed** (or `POST /api/benchmarks/sync`).
+Two reasons, both real:
+
+1. **A fresh seed has NO WET BENCHMARKS AT ALL.** The seed file carries Dry only,
+   because Wet is *derived* from Dry via the wet-penalty setting — and that
+   derivation only runs inside the sync (or a wet-penalty save), never inside
+   seeding. Until it runs, `recomputeAll` falls back to the Dry benchmark for
+   wet sessions (see the fallback in `lib/recompute.ts`), so **every wet session
+   is scored against dry pace and its driver looks slower than they are.** It
+   degrades silently — no error, just wrong numbers.
+2. **The seed is a point-in-time snapshot** (Ohne Speed as of 2026-07-29). The
+   sheet gains tracks and re-times tiers; the sync pulls the current state and
+   auto-creates any circuits the sheet has gained since (this is how Daytona and
+   Laguna Seca arrived).
+
+**Verify the sync:** the response reports `upserted` (≈155+) and any
+`created_tracks`. Then check a wet benchmark exists —
+`GET /api/benchmarks` should contain rows with `"condition": "Wet"`. If there
+are none, the sync did not complete and wet scoring is still wrong.
+
+Drivers can log from anywhere once both steps are done.
 
 **Verify:** `GET /api/seed` should report `"backend": "postgres"` (not `json`),
 and a logged session should survive an app restart (`pm2 restart ccr-data`).
@@ -343,9 +366,14 @@ already-live box means the code ships expecting columns the DB doesn't have —
 the failure shows up as runtime SQL errors on the affected page, not at build
 time. Re-running it when nothing changed is a harmless no-op.
 
-**After a migrate that added benchmark columns:** the new columns are NULL on
-pre-existing rows until the next benchmark sync — hit "Sync from Ohne Speed" in
-the control panel to populate them.
+**Run "Sync from Ohne Speed" after every update, not just the first deploy.**
+It is cheap, idempotent and fixes two things a `git pull` cannot:
+- new columns are NULL on pre-existing rows until a sync populates them (e.g.
+  the 102%/104% sub-tiers);
+- the sheet gains circuits and re-times tiers between deploys, and the sync is
+  the only thing that pulls them in (it auto-creates tracks the sheet has that
+  the DB doesn't — that is how Daytona and Laguna Seca arrived).
+It also re-derives the Wet benchmarks. See §5 for why that matters.
 
 **Sanity checks after any update:** `pm2 logs ccr-data --lines 50` for startup
 errors; load the site; and confirm **`AUTH_DEV_MODE` is NOT set** in the server
