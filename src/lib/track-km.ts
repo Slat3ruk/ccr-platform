@@ -7,7 +7,16 @@
 //      published figure. Laguna Seca measures 3590 m against a published
 //      3.602 km — 12 m short, and that gap lands directly in fuel-per-lap.
 //   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), which the
-//      team has used and trusted in anger for fuel/stint maths.
+//      team has used in anger for fuel/stint maths. ⚠ SUSPECTED to be published
+//      spec too, i.e. no better than source 3 — every value imported from it is
+//      *exactly* the circuit's official figure (Monza 5.793, Spa 7.004, Sarthe
+//      13.626, Silverstone 5.891 …), none has the awkward last digit a measured
+//      value tends to, and the planner session said of its Daytona entry: "it
+//      may well be a published figure someone typed in". Not proven, and cheap
+//      to settle: compare live scoring `track_length` against this table next
+//      time anyone drives one of them. If they diverge, assume every source-2
+//      entry runs ~0.3% long, always in the same direction (over-estimating
+//      distance ⇒ over-estimating fuel).
 //   3. LMU's own in-game TRACK INFO panel (the circuit splash: country, year
 //      opened, length, turns). ⚠ RESOLVED 2026-07-29 — THESE PANELS REPORT
 //      PUBLISHED SPEC, NOT SIMULATED LENGTH. Do not re-run this experiment:
