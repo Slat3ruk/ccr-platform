@@ -5,18 +5,15 @@
 //   1. MEASURED — scoring shared memory's `track_length`, read live in-game.
 //      The gold standard: it is what LMU actually simulates, which is not the
 //      published figure. Laguna Seca measures 3590 m against a published
-//      3.602 km — 12 m short, and that gap lands directly in fuel-per-lap.
-//   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), which the
-//      team has used in anger for fuel/stint maths. ⚠ SUSPECTED to be published
+//      3.602 km — 12 m short, on the same circuit in the same build.
+//   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), where the
+//      value drives layout matching and a mismatch warning. ⚠ SUSPECTED to be published
 //      spec too, i.e. no better than source 3 — every value imported from it is
 //      *exactly* the circuit's official figure (Monza 5.793, Spa 7.004, Sarthe
 //      13.626, Silverstone 5.891 …), none has the awkward last digit a measured
 //      value tends to, and the planner session said of its Daytona entry: "it
-//      may well be a published figure someone typed in". Not proven, and cheap
-//      to settle: compare live scoring `track_length` against this table next
-//      time anyone drives one of them. If they diverge, assume every source-2
-//      entry runs ~0.3% long, always in the same direction (over-estimating
-//      distance ⇒ over-estimating fuel).
+//      may well be a published figure someone typed in". Not proven; see the
+//      note below on why it is also not urgent.
 //   3. LMU's own in-game TRACK INFO panel (the circuit splash: country, year
 //      opened, length, turns). ⚠ RESOLVED 2026-07-29 — THESE PANELS REPORT
 //      PUBLISHED SPEC, NOT SIMULATED LENGTH. Do not re-run this experiment:
@@ -31,6 +28,26 @@
 // ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED WEB LENGTH. Layout variants stay
 // deliberately absent for exactly that reason — see the note below.
 //
+// WHAT A WRONG LENGTH ACTUALLY BREAKS — corrected 2026-07-29 after the planner
+// session checked rather than agreed. An earlier version of this comment said a
+// long table would over-estimate fuel. **It would not: nothing computes fuel
+// from lap distance in either app.** The planner measures fuel-per-lap from live
+// fuel snapshots at each lap boundary, or the engineer types it in; `buildStrat`
+// contains no reference to track length at all (verified by reading it). Here,
+// `length_km` is reference data — carried in the CSV export, shown in the
+// control panel, and nothing scores on it.
+// So the real exposures are narrow, and worth knowing before anyone "fixes"
+// this table under time pressure:
+//   • The planner warns "this may be a different layout" when live
+//     `track_length` differs from its constant by >50 m. A published-spec table
+//     is fine on short circuits (Laguna's gap is 12 m) but Le Mans at 13.6 km
+//     would be ~41 m on the same 0.3% — under the threshold, but not by much.
+//     A published table plus a long circuit is how you'd get a spurious alarm.
+//   • Layout tiebreaks are unaffected: a systematic offset shifts every
+//     candidate equally, so the relative ordering still picks the right one.
+//   • Future strategy work that DOES derive from distance would inherit the
+//     error — which is the actual reason to keep this table honest.
+//
 // ⚠ DO NOT DERIVE A LENGTH FROM TRACKMAP GEOMETRY. Summing LMU's REST
 // `watch/trackmap` type-0 centreline for Laguna gives 3551 m against a true
 // 3590 — ~1% short, because a sampled polyline cuts every corner. The polyline
@@ -40,10 +57,9 @@
 // (outer/paddock), Silverstone (International/National), Paul Ricard (1A/3A/…),
 // Fuji (chicane/classic), Monza (curvagrande), Sarthe (straight), Qatar (short),
 // Sebring (school), COTA (national) — has a genuinely different lap distance
-// that is NOT recorded here, because guessing reference data that later feeds
-// fuel calculations is worse than leaving it blank. Those stay null and show as
-// "no distance" in the control panel until someone enters the real figure
-// (easiest read straight off the in-game HUD).
+// that is NOT recorded here, because a guessed figure that looks authoritative
+// is worse than a visible blank. Those stay null and show as "no distance" in
+// the control panel until someone reads the real value off scoring in-game.
 // ============================================================================
 
 /** Track name (as stored) → lap distance in km. Matched case/punctuation-insensitively. */
@@ -55,9 +71,10 @@ export const TRACK_KM: Record<string, number> = {
   // don't treat the last digit as exact. LMU reports its name as "WeatherTech
   // Raceway Laguna Seca"; the short form here is the benchmark sheet's.
   // ⚠ LMU's own track info panel says 3.602 km for this circuit. That figure is
-  // WRONG for our purposes and is deliberately not used: 12 m of difference on
-  // every lap, straight into fuel-per-lap. If someone "corrects" this to 3.602,
-  // they have reintroduced the exact bug this file exists to prevent.
+  // deliberately NOT used — it is the published spec, not what the sim runs, and
+  // this 12 m disagreement is the evidence for the whole source ranking above.
+  // If someone "corrects" this to 3.602, they have thrown away the one measured
+  // datapoint the file has.
   "Laguna Seca": 3.59,
 
   // From LMU's in-game track info panel (source 3), screenshotted by the user
