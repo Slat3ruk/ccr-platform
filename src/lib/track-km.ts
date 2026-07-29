@@ -8,17 +8,18 @@
 //      3.602 km — 12 m short, and that gap lands directly in fuel-per-lap.
 //   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), which the
 //      team has used and trusted in anger for fuel/stint maths.
-// Each entry below records which of the two it came from.
+//   3. LMU's own in-game TRACK INFO panel (the circuit splash: country, year
+//      opened, length, turns). LMU's statement about its own content, so far
+//      better than a web lookup — but ⚠ UNPROVEN whether it reports what the
+//      sim MEASURES or just the circuit's official spec. The open test: that
+//      panel for Laguna Seca. If it reads 3.602 the panels are published spec
+//      (and every source-3 entry is ~0.3% long); if it reads 3.590 they match
+//      scoring, and source 3 can be promoted to par with source 1. Nobody has
+//      looked yet.
+// Each entry below records which of the three it came from.
 //
-// ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED LENGTH, however authoritative the
-// source looks. Two circuits are deliberately ABSENT for exactly that reason:
-//   • Daytona — the planner's TRACKS carries 5.734 but nobody can say where it
-//     came from, and it has never been run in-game to check. Published road
-//     course is ~5.729. The 5 m spread is the same order as the real
-//     measured-vs-published gap, so it proves nothing. Stays null until someone
-//     drives it (planner session, 2026-07-29: "I'd rather send you one
-//     confirmed track than two with one silently unsourced").
-//   • Every layout variant — see the note below.
+// ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED WEB LENGTH. Layout variants stay
+// deliberately absent for exactly that reason — see the note below.
 //
 // ⚠ DO NOT DERIVE A LENGTH FROM TRACKMAP GEOMETRY. Summing LMU's REST
 // `watch/trackmap` type-0 centreline for Laguna gives 3551 m against a true
@@ -43,6 +44,17 @@ export const TRACK_KM: Record<string, number> = {
   // 3590.x — don't treat the last digit as exact. LMU reports its name as
   // "WeatherTech Raceway Laguna Seca"; the short form here is the sheet's.
   "Laguna Seca": 3.59,
+
+  // From LMU's in-game track info panel (source 3), screenshotted by the user
+  // 2026-07-29: "Daytona Beach, FL, USA · Opened 1959 · 5.729 km · 13 turns ·
+  // Le Mans Ultimate - US Track Pack 1". 13 turns confirms this is the ROAD
+  // COURSE, not the 4.023 km oval — matching the sheet, which created a single
+  // "Daytona" with no layout variants.
+  // ⚠ 5.729 is also exactly the real-world published figure, and Laguna proves
+  // LMU's display and LMU's physics can disagree (3.602 shown vs 3590 measured).
+  // Treat as provisional: supersede with scoring `track_length` the first time
+  // anyone drives it. Supersedes the planner's unsourced 5.734.
+  Daytona: 5.729,
 
   // From the planner's TRACKS constant (source 2).
   "Circuit de la Sarthe": 13.626,

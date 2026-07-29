@@ -23,13 +23,20 @@ describe("knownTrackKm", () => {
     expect(knownTrackKm("Laguna Seca")).not.toBe(3.602);
   });
 
-  it("Daytona stays ABSENT until someone measures it in-game", () => {
-    // Deliberate: the planner's TRACKS has 5.734 with no known provenance, and
-    // published is ~5.729. That 5 m spread is the same order as the real
-    // measured-vs-published gap, so neither can be trusted. A null shows as
-    // "no distance" in the control panel, which is the honest state.
-    expect(knownTrackKm("Daytona")).toBeNull();
-    expect(TRACK_KM).not.toHaveProperty("Daytona");
+  it("Daytona carries LMU's own in-game figure, NOT the planner's unsourced one", () => {
+    // 5.729 km from LMU's track info panel (user screenshot, 2026-07-29) —
+    // 13 turns there confirms the road course rather than the 4.023 km oval.
+    // Provisional: supersede with scoring `track_length` once someone drives it.
+    expect(knownTrackKm("Daytona")).toBe(5.729);
+    // The planner's TRACKS has 5.734 with no traceable provenance. Pinned so a
+    // future session can't quietly swap LMU's own number for that one.
+    expect(knownTrackKm("Daytona")).not.toBe(5.734);
+  });
+
+  it("no entry sits at a bare published-web figure we know to be wrong", () => {
+    // Laguna is the worked example: published 3.602, measured 3590. If someone
+    // ever "corrects" it back to the published number, this fails.
+    expect(TRACK_KM["Laguna Seca"]).not.toBe(3.602);
   });
 
   it("carries no layout variants — guessing those would poison fuel maths", () => {
