@@ -33,9 +33,12 @@ describe("knownTrackKm", () => {
     expect(knownTrackKm("Daytona")).not.toBe(5.734);
   });
 
-  it("no entry sits at a bare published-web figure we know to be wrong", () => {
-    // Laguna is the worked example: published 3.602, measured 3590. If someone
-    // ever "corrects" it back to the published number, this fails.
+  it("prefers the MEASURED length over LMU's own info panel", () => {
+    // Proven 2026-07-29: LMU's track info panel reads 3.602 km for Laguna while
+    // scoring shared memory measures 3590 m — same circuit, same build. The
+    // panel is published spec, so it is NOT the source of truth here. If anyone
+    // "corrects" this to 3.602 they reintroduce a 12 m/lap error into fuel maths.
+    expect(TRACK_KM["Laguna Seca"]).toBe(3.59);
     expect(TRACK_KM["Laguna Seca"]).not.toBe(3.602);
   });
 

@@ -9,13 +9,14 @@
 //   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), which the
 //      team has used and trusted in anger for fuel/stint maths.
 //   3. LMU's own in-game TRACK INFO panel (the circuit splash: country, year
-//      opened, length, turns). LMU's statement about its own content, so far
-//      better than a web lookup — but ⚠ UNPROVEN whether it reports what the
-//      sim MEASURES or just the circuit's official spec. The open test: that
-//      panel for Laguna Seca. If it reads 3.602 the panels are published spec
-//      (and every source-3 entry is ~0.3% long); if it reads 3.590 they match
-//      scoring, and source 3 can be promoted to par with source 1. Nobody has
-//      looked yet.
+//      opened, length, turns). ⚠ RESOLVED 2026-07-29 — THESE PANELS REPORT
+//      PUBLISHED SPEC, NOT SIMULATED LENGTH. Do not re-run this experiment:
+//      the panel for Laguna Seca reads 3.602 km while scoring shared memory
+//      measures 3590 m on the same circuit in the same build. So a source-3
+//      figure is a real-world spec sheet with LMU's logo on it — better
+//      sourced than a random web lookup, and useful for settling which LAYOUT
+//      ships (turn counts are reliable), but it runs LONG by roughly 0.3% and
+//      must be superseded by scoring `track_length` once anyone drives there.
 // Each entry below records which of the three it came from.
 //
 // ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED WEB LENGTH. Layout variants stay
@@ -38,22 +39,32 @@
 
 /** Track name (as stored) → lap distance in km. Matched case/punctuation-insensitively. */
 export const TRACK_KM: Record<string, number> = {
-  // MEASURED in-game from scoring `track_length` (source 1).
-  // Laguna Seca: 3590 m, LMU 1.4, ~10 sessions on 2026-07-29, consistent every
-  // time. The readout formats to the nearest metre, so the true value may be
-  // 3590.x — don't treat the last digit as exact. LMU reports its name as
-  // "WeatherTech Raceway Laguna Seca"; the short form here is the sheet's.
+  // MEASURED in-game from scoring `track_length` (source 1) — and the reference
+  // case that proved sources 1 and 3 disagree.
+  // 3590 m, LMU 1.4, ~10 sessions on 2026-07-29, consistent every time. The
+  // readout formats to the nearest metre, so the true value may be 3590.x —
+  // don't treat the last digit as exact. LMU reports its name as "WeatherTech
+  // Raceway Laguna Seca"; the short form here is the benchmark sheet's.
+  // ⚠ LMU's own track info panel says 3.602 km for this circuit. That figure is
+  // WRONG for our purposes and is deliberately not used: 12 m of difference on
+  // every lap, straight into fuel-per-lap. If someone "corrects" this to 3.602,
+  // they have reintroduced the exact bug this file exists to prevent.
   "Laguna Seca": 3.59,
 
   // From LMU's in-game track info panel (source 3), screenshotted by the user
   // 2026-07-29: "Daytona Beach, FL, USA · Opened 1959 · 5.729 km · 13 turns ·
-  // Le Mans Ultimate - US Track Pack 1". 13 turns confirms this is the ROAD
-  // COURSE, not the 4.023 km oval — matching the sheet, which created a single
-  // "Daytona" with no layout variants.
-  // ⚠ 5.729 is also exactly the real-world published figure, and Laguna proves
-  // LMU's display and LMU's physics can disagree (3.602 shown vs 3590 measured).
-  // Treat as provisional: supersede with scoring `track_length` the first time
-  // anyone drives it. Supersedes the planner's unsourced 5.734.
+  // Le Mans Ultimate - US Track Pack 1". The 13 turns are the valuable part —
+  // they confirm the ROAD COURSE rather than the 4.023 km oval, matching the
+  // benchmark sheet, which created a single "Daytona" with no layout variants.
+  //
+  // ⚠ PROVISIONAL AND KNOWN TO RUN LONG. Source 3 is now confirmed to be
+  // published spec (see the header): the same panel reads 3.602 for Laguna
+  // where scoring measures 3590. Expect Daytona's simulated length to come in
+  // BELOW 5.729 — around 5.71 if the ~0.3% Laguna gap is representative, though
+  // one circuit is not a calibration curve, so no correction is applied here.
+  // Replace with scoring `track_length` the first time anyone drives it.
+  // Still better sourced than the planner's unexplained 5.734, which it
+  // supersedes.
   Daytona: 5.729,
 
   // From the planner's TRACKS constant (source 2).
