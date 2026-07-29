@@ -20,7 +20,11 @@ interface BenchmarkRow {
   data_readiness_pct: number;
   alien_time: number;
   competitive_time: number;
+  /** Faster edge of the merged "Good" band (102%); null on pre-2026-07-29 data. */
+  good_102_time: number | null;
   good_time: number;
+  /** Faster edge of the merged "Midpack" band (104%); null on pre-2026-07-29 data. */
+  midpack_104_time: number | null;
   midpack_time: number;
   tail_ender_time: number;
   offline_time: number;
@@ -55,7 +59,10 @@ export async function seedDatabase(store: Store): Promise<SeedSummary> {
     trackIdByName.set(t.name, track.id);
   }
 
-  // Real benchmark tiers (Dry hotlap/race-pace; 5 classes).
+  // Real benchmark tiers (Dry only, 5 classes — Wet is DERIVED from these by
+  // the wet-penalty setting, so seeding it would double up). Snapshot of the
+  // Ohne Speed sheet as of 2026-07-29; a sync refreshes it and adds whatever
+  // the sheet has gained since.
   let benchmarks = 0;
   for (const b of benchmarksData as unknown as BenchmarkRow[]) {
     const trackId = trackIdByName.get(b.track);
@@ -67,9 +74,9 @@ export async function seedDatabase(store: Store): Promise<SeedSummary> {
       alien_time: b.alien_time,
       competitive_time: b.competitive_time,
       good_time: b.good_time,
-      good_102_time: null, // seed data predates the 102%/104% columns; a real sync fills these in
+      good_102_time: b.good_102_time,
       midpack_time: b.midpack_time,
-      midpack_104_time: null,
+      midpack_104_time: b.midpack_104_time,
       tail_ender_time: b.tail_ender_time,
       offline_time: b.offline_time,
       data_readiness_pct: b.data_readiness_pct,

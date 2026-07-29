@@ -1,10 +1,5 @@
 [
   {
-    "name": "Bahrain (wec)",
-    "layout_id": "wec",
-    "country": "Bahrain"
-  },
-  {
     "name": "Bahrain (endurance)",
     "layout_id": "endurance",
     "country": "Bahrain"
@@ -17,6 +12,11 @@
   {
     "name": "Bahrain (paddock)",
     "layout_id": "paddock",
+    "country": "Bahrain"
+  },
+  {
+    "name": "Bahrain (wec)",
+    "layout_id": "wec",
     "country": "Bahrain"
   },
   {
@@ -45,6 +45,11 @@
     "country": "USA"
   },
   {
+    "name": "Daytona",
+    "layout_id": null,
+    "country": "USA"
+  },
+  {
     "name": "Fuji (chicane)",
     "layout_id": "chicane",
     "country": "Japan"
@@ -65,6 +70,11 @@
     "country": "Brazil"
   },
   {
+    "name": "Laguna Seca",
+    "layout_id": null,
+    "country": "USA"
+  },
+  {
     "name": "Monza",
     "layout_id": null,
     "country": "Italy"
@@ -80,8 +90,8 @@
     "country": "France"
   },
   {
-    "name": "Paul Ricard (1A)",
-    "layout_id": "1A",
+    "name": "Paul Ricard (1A v2 short)",
+    "layout_id": "1A v2 short",
     "country": "France"
   },
   {
@@ -90,8 +100,8 @@
     "country": "France"
   },
   {
-    "name": "Paul Ricard (1A v2 short)",
-    "layout_id": "1A v2 short",
+    "name": "Paul Ricard (1A)",
+    "layout_id": "1A",
     "country": "France"
   },
   {
@@ -115,21 +125,6 @@
     "country": "Qatar"
   },
   {
-    "name": "Silverstone (GP)",
-    "layout_id": "GP",
-    "country": "UK"
-  },
-  {
-    "name": "Silverstone (National)",
-    "layout_id": "National",
-    "country": "UK"
-  },
-  {
-    "name": "Silverstone (International)",
-    "layout_id": "International",
-    "country": "UK"
-  },
-  {
     "name": "Sebring",
     "layout_id": null,
     "country": "USA"
@@ -138,6 +133,21 @@
     "name": "Sebring (school)",
     "layout_id": "school",
     "country": "USA"
+  },
+  {
+    "name": "Silverstone (GP)",
+    "layout_id": "GP",
+    "country": "UK"
+  },
+  {
+    "name": "Silverstone (International)",
+    "layout_id": "International",
+    "country": "UK"
+  },
+  {
+    "name": "Silverstone (National)",
+    "layout_id": "National",
+    "country": "UK"
   },
   {
     "name": "Spa",
