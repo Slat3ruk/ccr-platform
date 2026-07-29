@@ -260,6 +260,31 @@ site) and the session persists — proves `pm2 save && pm2 startup` + Postgres
 auto-start survive a real reboot, not just an app restart. (Warn the user first;
 SSH drops briefly.)
 
+#### ⚠ Then verify SCORING, not just persistence
+
+The checks above prove rows survive. They do **not** prove the app can score,
+and this is the first time any of this code has run on PostgreSQL rather than
+the JSON dev store — every store method is a separate SQL implementation that
+has only ever been exercised against JSON. Log **two sessions on the same
+car+track, one `Dry` and one `Wet`**, then confirm both appear with a car score:
+
+```bash
+# after logging, rankings must contain the combo with a non-null car_score
+curl -s "http://localhost:3000/api/rankings?track_id=<ID>&class=<CLASS>&condition=Dry" | head -c 400
+curl -s "http://localhost:3000/api/rankings?track_id=<ID>&class=<CLASS>&condition=Wet" | head -c 400
+```
+
+That one exercise covers the paths most likely to break on first contact with
+real SQL: `getOrCreateDriverByDiscordId` (identity binding on every write), the
+session insert, `recomputeAll`, benchmark lookup, and the tyre join.
+
+⚠ **A wet session scores even when wet benchmarks are missing** — `recomputeAll`
+silently falls back to the Dry benchmark (see §5). So "it produced a score" does
+NOT prove the wet path is healthy. The two checks are independent and you need
+both: a car score here, **and** `GET /api/benchmarks` containing
+`"condition": "Wet"` rows from §5. Score but no Wet rows = wet running is being
+judged against dry pace.
+
 ---
 
 ## Auth (when the website's OAuth is live)

@@ -53,7 +53,27 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
    session is still there — this proves `pm2 save && pm2 startup` and Postgres
    auto-start actually work (they can silently not register, and you'd only find
    out when the box reboots unattended weeks later). ⚠ Warn the user before you
-   reboot — your own SSH session drops for ~30-60s. That's the finish line.
+   reboot — your own SSH session drops for ~30-60s.
+9. **⚠ PROVE SCORING WORKS, not just persistence — this is the real finish line.**
+   Everything above proves rows survive. None of it proves the app can *score*,
+   and **this is the first time any of this code has run on PostgreSQL** — the
+   whole app has only ever been exercised against the JSON dev store, and every
+   store method is a separate SQL implementation. Structurally verified, never
+   executed.
+   After the §3a sync, log **two sessions on the same car+track — one `Dry`, one
+   `Wet`** — then confirm each appears in
+   `GET /api/rankings?track_id=<ID>&class=<CLASS>&condition=<Dry|Wet>` with a
+   non-null `car_score`.
+   That single exercise covers what is most likely to break on first contact with
+   real SQL: `getOrCreateDriverByDiscordId` (identity binding, hit on every
+   write), the session insert, `recomputeAll`, benchmark lookup and the tyre join.
+   ⚠ **A wet session still scores when wet benchmarks are missing** — recompute
+   silently falls back to the Dry benchmark. So a score here does NOT prove the
+   wet path is healthy. You need BOTH this and the `"condition": "Wet"` rows from
+   step 3a; a score with no Wet rows means wet running is being judged against
+   dry pace.
+   Delete the two test sessions afterwards (production starts clean — see item 5)
+   and say so to the user, so nobody later mistakes them for real data.
 
 ## ⛔ CRITICAL GUARDRAILS — do not cross without the user's explicit OK
 - **⚠ A LIVE WEBSITE SHARES THIS BOX.** `crosscurrentracing.com` is already
