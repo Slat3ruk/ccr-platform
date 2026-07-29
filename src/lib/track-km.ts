@@ -6,14 +6,19 @@
 //      The gold standard: it is what LMU actually simulates, which is not the
 //      published figure. Laguna Seca measures 3590 m against a published
 //      3.602 km — 12 m short, on the same circuit in the same build.
+//      Two circuits have now been measured and BOTH agree with the planner's
+//      constant, so source 2 has a track record — see below.
 //   2. The CCR stint planner's own `TRACKS` constant (ccr-v10.html), where the
-//      value drives layout matching and a mismatch warning. ⚠ SUSPECTED to be published
-//      spec too, i.e. no better than source 3 — every value imported from it is
-//      *exactly* the circuit's official figure (Monza 5.793, Spa 7.004, Sarthe
-//      13.626, Silverstone 5.891 …), none has the awkward last digit a measured
-//      value tends to, and the planner session said of its Daytona entry: "it
-//      may well be a published figure someone typed in". Not proven; see the
-//      note below on why it is also not urgent.
+//      value drives layout matching and a mismatch warning. ✅ VINDICATED
+//      2026-07-29 on both circuits that have been measured: Laguna theirs 3.59
+//      vs measured 3590 m; Daytona theirs 5.734 vs measured 5733.809 m. Neither
+//      matches its published figure, so the table is NOT a spec sheet.
+//      ⚠ I previously recorded the opposite here — reasoning that because most
+//      of its values equal the official published length (Monza 5.793, Spa
+//      7.004, Sarthe 13.626 …), the table had to be copied from one. Measurement
+//      falsified that: sims and reality simply agree to three decimals most of
+//      the time. Entries remain UNVERIFIED until measured, but do not assume
+//      they are wrong, and never "correct" one toward its published figure.
 //   3. LMU's own in-game TRACK INFO panel (the circuit splash: country, year
 //      opened, length, turns). ⚠ RESOLVED 2026-07-29 — THESE PANELS REPORT
 //      PUBLISHED SPEC, NOT SIMULATED LENGTH. Do not re-run this experiment:
@@ -21,8 +26,17 @@
 //      measures 3590 m on the same circuit in the same build. So a source-3
 //      figure is a real-world spec sheet with LMU's logo on it — better
 //      sourced than a random web lookup, and useful for settling which LAYOUT
-//      ships (turn counts are reliable), but it runs LONG by roughly 0.3% and
-//      must be superseded by scoring `track_length` once anyone drives there.
+//      ships (turn counts and the name string are reliable), but its LENGTH is
+//      wrong in BOTH DIRECTIONS depending on circuit — Laguna's panel is 12 m
+//      long, Daytona's ~5 m short — so there is no correction factor to apply,
+//      only measurement to wait for. Never take a length from here.
+//
+// ⚠ THE METHODOLOGICAL POINT, learned the hard way and worth keeping: after
+// Laguna alone it was tempting to conclude "the sim runs ~0.3% shorter than
+// published" and adjust the table. Daytona then measured LONGER than published.
+// A one-circuit calibration curve would have been confidently wrong in the
+// opposite direction. Two datapoints, opposite signs — measure each circuit,
+// never extrapolate between them.
 // Each entry below records which of the three it came from.
 //
 // ⚠ DO NOT ADD A TRACK HERE FROM A PUBLISHED WEB LENGTH. Layout variants stay
@@ -77,21 +91,23 @@ export const TRACK_KM: Record<string, number> = {
   // datapoint the file has.
   "Laguna Seca": 3.59,
 
-  // From LMU's in-game track info panel (source 3), screenshotted by the user
-  // 2026-07-29: "Daytona Beach, FL, USA · Opened 1959 · 5.729 km · 13 turns ·
-  // Le Mans Ultimate - US Track Pack 1". The 13 turns are the valuable part —
-  // they confirm the ROAD COURSE rather than the 4.023 km oval, matching the
-  // benchmark sheet, which created a single "Daytona" with no layout variants.
+  // MEASURED in-game from the raw Scoring buffer (source 1), captured during a
+  // live 62-car online race on 2026-07-29: `mLapDist` = **5733.809 m**, with
+  // `mTrackName` = "Daytona International Speedway Road Course" — the name
+  // string itself settles the layout, independently agreeing with the 13-turn
+  // count on LMU's panel and the sheet's single no-variant "Daytona".
   //
-  // ⚠ PROVISIONAL AND KNOWN TO RUN LONG. Source 3 is now confirmed to be
-  // published spec (see the header): the same panel reads 3.602 for Laguna
-  // where scoring measures 3590. Expect Daytona's simulated length to come in
-  // BELOW 5.729 — around 5.71 if the ~0.3% Laguna gap is representative, though
-  // one circuit is not a calibration curve, so no correction is applied here.
-  // Replace with scoring `track_length` the first time anyone drives it.
-  // Still better sourced than the planner's unexplained 5.734, which it
-  // supersedes.
-  Daytona: 5.729,
+  // ⚠ THIS REPLACED A PANEL FIGURE OF 5.729 THAT WAS WRONG IN THE OPPOSITE
+  // DIRECTION TO EXPECTED. Laguna's panel runs 12 m LONG; Daytona's runs ~5 m
+  // SHORT. The sign flips between circuits, which is why no blanket
+  // published→measured correction is valid — see the header.
+  //
+  // Stored at metre precision (5733.809 → 5.734) deliberately: `parseLengthKm`
+  // rounds every API write to 3 dp, so a 4 dp constant here would disagree with
+  // the same track written through the control panel. 0.2 m is far below
+  // anything that matters; one consistent value across all write paths is not.
+  // It also lands exactly on the planner's own 5.734.
+  Daytona: 5.734,
 
   // From the planner's TRACKS constant (source 2).
   "Circuit de la Sarthe": 13.626,

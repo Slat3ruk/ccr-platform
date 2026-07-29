@@ -23,14 +23,24 @@ describe("knownTrackKm", () => {
     expect(knownTrackKm("Laguna Seca")).not.toBe(3.602);
   });
 
-  it("Daytona carries LMU's own in-game figure, NOT the planner's unsourced one", () => {
-    // 5.729 km from LMU's track info panel (user screenshot, 2026-07-29) —
-    // 13 turns there confirms the road course rather than the 4.023 km oval.
-    // Provisional: supersede with scoring `track_length` once someone drives it.
-    expect(knownTrackKm("Daytona")).toBe(5.729);
-    // The planner's TRACKS has 5.734 with no traceable provenance. Pinned so a
-    // future session can't quietly swap LMU's own number for that one.
-    expect(knownTrackKm("Daytona")).not.toBe(5.734);
+  it("Daytona carries the MEASURED length, not LMU's panel figure", () => {
+    // mLapDist = 5733.809 m from the raw Scoring buffer during a live race
+    // (2026-07-29); mTrackName "…Road Course" settles the layout.
+    // Stored at metre precision because parseLengthKm rounds API writes to 3 dp.
+    expect(knownTrackKm("Daytona")).toBe(5.734);
+    // LMU's own info panel says 5.729 — ~5 m SHORT of what the sim runs. Pinned
+    // because it briefly WAS the stored value before anyone measured.
+    expect(knownTrackKm("Daytona")).not.toBe(5.729);
+  });
+
+  it("published-vs-measured error flips sign between circuits — no blanket correction", () => {
+    // The reason this file measures each circuit instead of applying a factor:
+    // Laguna's published 3.602 is 12 m LONG vs measured 3.590; Daytona's
+    // published 5.729 is ~5 m SHORT vs measured 5.734. Opposite directions.
+    const lagunaErr = 3.602 - (TRACK_KM["Laguna Seca"] as number);
+    const daytonaErr = 5.729 - (TRACK_KM["Daytona"] as number);
+    expect(lagunaErr).toBeGreaterThan(0);
+    expect(daytonaErr).toBeLessThan(0);
   });
 
   it("prefers the MEASURED length over LMU's own info panel", () => {
