@@ -22,9 +22,31 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
   follow DEPLOY.md's install steps blind** — inspect first (see step 0 below),
   then add only what's missing. Clobbering the existing Caddyfile or restarting
   Caddy with a broken config would take the LIVE website down.
-- **This is the first real production deploy *of the data platform*.** Dev has
-  only ever run on the JSON dev store; the first real PostgreSQL run has never
-  been done. `DEPLOY.md`'s checklist *is* that smoke test.
+- **⚠⚠ THE DATA PLATFORM IS ALREADY DEPLOYED AND RUNNING ON POSTGRESQL. THIS IS
+  AN UPDATE, NOT A FIRST DEPLOY.** (Corrected 2026-07-29 — this file previously
+  said the opposite, and following it would have been actively dangerous.)
+  Evidence, not assumption: **8 commits in this repo are authored `Claude Code
+  (deploy)` from the box itself** (2026-07-12/13), including the Discord verify
+  middleware (`7952a33`), the roster log-on-behalf dropdown (`a917eb4`), the
+  benchmarks Dry/Wet grouping (`8cc04ba`) and the Ohne Speed column-mapping fix
+  (`279a09a`) — that last one could only have been developed against a live,
+  syncing database.
+  **CONSEQUENCES YOU MUST RESPECT:**
+  1. **There may be REAL LOGGED DATA.** Back the database up BEFORE migrating —
+     this is no longer a formality (see DEPLOY.md "Backups & ops").
+  2. **Do NOT treat the production DB as blank.** The launch checklist below was
+     written for a fresh install; several items (patch, webhooks, wet penalty)
+     may already be configured. **Check each one before setting it** — silently
+     overwriting live settings is the failure mode here.
+  3. **PostgreSQL is PROVEN, not unknown.** Earlier revisions of this file
+     treated the first Postgres run as the headline risk. It isn't; the app has
+     been running on it for weeks. The scoring smoke test below is still worth
+     doing — it now proves THIS UPDATE didn't break scoring, rather than proving
+     Postgres works at all.
+  4. **Steps 1-4 below (install Node/Postgres/Caddy, clone) are mostly already
+     done.** Step 0's survey tells you which. For an existing install the real
+     sequence is the "Deploy an update" recipe in DEPLOY.md: reconcile → pull →
+     install → **migrate** → build → restart → sync.
 
 ## Your job (walk `DEPLOY.md`, but ADAPT it to the box's real state)
 0. **Survey the box before changing anything.** Run and read the output of:
@@ -122,9 +144,19 @@ the night before — verify it actually resolves to the origin IP before debuggi
 Caddy: `dig +short data.crosscurrentracing.com` should show `204.168.129.71`.)
 
 ## After the smoke test passes — LAUNCH CHECKLIST
-The production DB starts **blank** — several things the user configured in local
-dev live in the settings store and must be redone here (walk the user through
-these in the control panel, view-as Admin):
+
+> ⚠⚠ **THIS LIST WAS WRITTEN FOR A BLANK DATABASE AND THE DATABASE IS NO LONGER
+> BLANK.** (Corrected 2026-07-29 — the data platform has been live on Postgres
+> since ~2026-07-12; see "Where things stand".) Items 1-3 SET configuration.
+> On a live install, **read the current value first and only change it if it is
+> actually wrong or missing.** Blindly re-running them overwrites live settings
+> — e.g. re-setting the patch with the draw-a-line box ticked would draw a
+> spurious comparability line and rescore real sessions.
+> Treat every item below as **check, then act** rather than **do**.
+> ⚠ Item 5's "production starts CLEAN" is likewise obsolete: there may be real
+> logged sessions now. **Back up before migrating.**
+
+Walk these with the user in the control panel:
 1. **Set the current patch** (e.g. `1.3.3.4` — check Steam for the latest) so new
    sessions are patch-stamped. No line needed (fresh DB, nothing to scope).
 2. **Reconnect the three Discord webhooks** (race / test / board) — the user has
@@ -150,9 +182,13 @@ these in the control panel, view-as Admin):
    and the required scratch-DB restore test). Real data deserves a daily
    pg_dump from the first session logged, and the first restore must never be
    during an emergency.
-5. **Data policy (user decision 2026-07-11): production starts CLEAN** — no
-   migration of the local dev store's sessions. If the user changes their mind,
-   a small export/replay script is the path (local JSON → POST /api/sessions).
+5. ~~**Data policy: production starts CLEAN**~~ — **SPENT. That decision applied
+   to the original deploy, which has already happened.** Production may now hold
+   real logged sessions, so the operative rules are the opposite ones:
+   **never seed or purge on the assumption it is empty, and back up before
+   migrating.** The local dev store is still NOT migrated up; it is test data.
+   If the user ever wants a fresh start, that is the Danger Zone purge — a
+   deliberate, admin-only act, never a deploy step.
 6. ~~Known quirk: drivers are auto-created by typed name, so spelling variations
    split a driver on the leaderboard.~~ **MOSTLY OBSOLETE — the Discord verify
    layer landed.** A driver logging their own session is now keyed to their

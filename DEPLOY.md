@@ -45,12 +45,19 @@ run migrate.
 ### ⚠ TWO STEPS THAT ARE NOT OPTIONAL — both silent if skipped
 
 1. **`npm run migrate`** (above).
-2. **"Sync from Ohne Speed"** — control panel → Benchmarks, AFTER seeding and
-   after reconnecting the webhooks. Full reasoning in §5; the short version is
-   that **a freshly seeded database has no Wet benchmarks at all**, and
-   `recomputeAll` silently falls back to the Dry benchmark, so every wet session
-   is scored against dry pace. No error, just wrong numbers.
-   **Verify:** `GET /api/benchmarks` must return rows with `"condition": "Wet"`.
+2. **"Sync from Ohne Speed"** — control panel → Benchmarks. Two distinct reasons
+   depending on the box's state:
+   - **On the LIVE install (this deploy):** the sheet gained **Daytona and
+     Laguna Seca** on 2026-07-29 and re-timed existing tiers. The sync is the
+     only thing that pulls them in — it auto-creates circuits the sheet has that
+     the DB lacks. Without it, the two new tracks simply won't exist in
+     production.
+   - **On a fresh install:** a freshly seeded DB has **no Wet benchmarks at
+     all** (they are derived, and only the sync derives them), and
+     `recomputeAll` silently falls back to the Dry benchmark — so every wet
+     session gets scored against dry pace. Full reasoning in §5.
+   **Verify either way:** `GET /api/benchmarks` returns rows with
+   `"condition": "Wet"`, and `GET /api/tracks` contains Daytona and Laguna Seca.
 
 Neither failure announces itself. Both look like a working deploy.
 
@@ -59,12 +66,17 @@ Neither failure announces itself. Both look like a working deploy.
 `src/data/benchmarks.json` still carried the pre-`279a09a` off-by-one column
 mapping: every tier from "good" downward was one column too fast (Bahrain wec
 LMGT3 seeded `good` 121.47 where the sheet means 122.66, `offline` 125.04 where
-it means 127.43). Production seeds into a **blank** database, so a fresh deploy
-would have scored every driver against tiers up to ~2.4 s too strict, invisibly,
-until someone happened to sync. Regenerated from the live sheet: **29 → 31
-tracks, 145 → 155 benchmark rows**, now carrying the 102%/104% sub-tiers that
-`seed.ts` previously hardcoded to `null`. Verified by running a genuine fresh
-seed, not by inspection.
+it means 127.43). Regenerated from the live sheet: **29 → 31 tracks, 145 → 155
+benchmark rows**, now carrying the 102%/104% sub-tiers that `seed.ts` previously
+hardcoded to `null`. Verified by running a genuine fresh seed, not by inspection.
+
+⚠ **Scope, stated honestly:** the LIVE database is probably unaffected. Its
+benchmarks came from a *sync*, and `279a09a` — the fix — was itself authored on
+the box, so production has almost certainly been syncing correct tiers all
+along. The stale seed file would have bitten a **fresh install or a
+disaster-recovery reseed**, where it would have installed too-strict tiers
+silently. Worth having fixed; not a reason to expect anything wrong in
+production today. The post-deploy sync makes it certain either way.
 
 ### Behaviour changes — will look different, and are CORRECT
 
@@ -149,10 +161,19 @@ those endpoints will start getting 403.
 on the parent domain; this app (a subdomain) receives that cookie and just
 **verifies** it. See the ⭐ release plan in `CLAUDE.md` for the full picture.
 
-> **Status:** the production recipe below is the plan, not yet executed. Dev runs
-> on a local JSON store (`.data/store.json`, one machine, not shared); production
-> needs Postgres. The first real Postgres run is the one thing not yet smoke-
-> tested end-to-end — the checklist here *is* that smoke test.
+> **Status (corrected 2026-07-29): this recipe HAS been executed — the app is
+> live on the VPS running PostgreSQL, and has been since ~2026-07-12.** This
+> file previously said the opposite ("not yet executed… the first real Postgres
+> run"). It was wrong: 8 commits in this repo are authored `Claude Code (deploy)`
+> from the box, including work that could only have been done against a live
+> database. Dev still runs on the local JSON store (`.data/store.json`), so the
+> dual-store design and every JSON-only caveat still apply to **development** —
+> just not to production.
+>
+> **Read the sections below accordingly:** §1-§5 describe a FIRST install. For
+> the live box, the applicable recipe is **"Deploy an update"**, and the
+> production database **is not blank** — back it up before migrating, and check
+> settings before setting them.
 
 ---
 
@@ -317,11 +338,13 @@ SSH drops briefly.)
 
 #### ⚠ Then verify SCORING, not just persistence
 
-The checks above prove rows survive. They do **not** prove the app can score,
-and this is the first time any of this code has run on PostgreSQL rather than
-the JSON dev store — every store method is a separate SQL implementation that
-has only ever been exercised against JSON. Log **two sessions on the same
-car+track, one `Dry` and one `Wet`**, then confirm both appear with a car score:
+The checks above prove rows survive. They do **not** prove the app can score.
+Postgres itself is proven — the app has run on it since ~2026-07-12 — so this
+test is not about whether the SQL layer works at all. It is about **whether THIS
+UPDATE broke scoring**, which matters because this batch changes the benchmark
+tiers every score is computed against (regenerated seed, corrected column
+mapping, two new circuits). Log **two sessions on the same car+track, one `Dry`
+and one `Wet`**, then confirm both appear with a car score:
 
 ```bash
 # after logging, rankings must contain the combo with a non-null car_score
