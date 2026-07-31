@@ -54,7 +54,13 @@ engine for the sim-racing game Le Mans Ultimate. Drivers log test sessions; a
    auto-start actually work (they can silently not register, and you'd only find
    out when the box reboots unattended weeks later). ⚠ Warn the user before you
    reboot — your own SSH session drops for ~30-60s.
-9. **⚠ PROVE SCORING WORKS, not just persistence — this is the real finish line.**
+9. **⚠ PROVE SCORING WORKS, not just persistence — the real finish line.**
+   ⚠ ORDERING: this step needs the Ohne Speed sync, which is item **3a of the
+   LAUNCH CHECKLIST below**, not part of this job list. So the true sequence is
+   steps 0-8 here → launch-checklist items 1, 2, 3a → then come back and do this.
+   Doing it before the sync still "passes" (a Dry session scores fine) while
+   leaving the wet path unproven, which is exactly the gap this step exists to
+   close.
    Everything above proves rows survive. None of it proves the app can *score*,
    and **this is the first time any of this code has run on PostgreSQL** — the
    whole app has only ever been exercised against the JSON dev store, and every
@@ -147,9 +153,14 @@ these in the control panel, view-as Admin):
 5. **Data policy (user decision 2026-07-11): production starts CLEAN** — no
    migration of the local dev store's sessions. If the user changes their mind,
    a small export/replay script is the path (local JSON → POST /api/sessions).
-6. Known quirk to mention to the team: drivers are auto-created by typed name,
-   so spelling variations split a driver on the leaderboard — type your name
-   consistently until Discord auth replaces free-text names.
+6. ~~Known quirk: drivers are auto-created by typed name, so spelling variations
+   split a driver on the leaderboard.~~ **MOSTLY OBSOLETE — the Discord verify
+   layer landed.** A driver logging their own session is now keyed to their
+   `discord_id` (`getOrCreateDriverByDiscordId`), so their own spelling cannot
+   split them, and a driver attempting to log under anyone else's name gets a
+   403. The name-based path survives ONLY for manager/admin **log-on-behalf**,
+   which takes names from the roster dropdown rather than free text. Nothing to
+   warn the team about; noted so the old advice isn't repeated.
 7. **Wire the website → app link.** The user wants the app reachable from the
    live website's **Apps page → "Telemetry Logging" card → "Launch app" button**.
    The website source is on this box (`/srv/ccr/website/`) — find that button and

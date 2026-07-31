@@ -14,12 +14,18 @@
 
 ## 📦 DEPLOYMENT STATEMENT — this repo's input to the catch-up deploy
 
-**From the data-platform session, 2026-07-22. Repo `Slat3ruk/ccr-platform`,
-branch `master`, HEAD `f2356ee`.**
+**From the data-platform session. Repo `Slat3ruk/ccr-platform`, branch
+`master`. Last revised 2026-07-29 — supersedes the 2026-07-22 version, which
+was written at `f2356ee` and is now several features out of date.**
 
 Everything below landed **after `DEPLOY-RUNBOOK.md` was written (2026-07-21)**, so
 the runbook's post-deploy checklist does not yet cover it. Ring-leader session:
 fold the relevant parts into the runbook.
+
+> **Check you are reading the current version.** This statement is revised in
+> place as work lands. Confirm `git log -1 --format=%cd -- DEPLOY.md` on
+> `origin/master` is not older than the newest commit in the repo; if it is, the
+> statement has drifted behind the code and should be re-read after a pull.
 
 ### ⚠ Migrations — `npm run migrate` is mandatory
 
@@ -35,6 +41,30 @@ Three new columns, all nullable, all `ADD COLUMN IF NOT EXISTS`, safe to re-run:
 these arrived inside `ca0ced3`, whose message describes only a docs change (a
 parallel session's catch-all `git add`; see `dfae22f` for the record). Always
 run migrate.
+
+### ⚠ TWO STEPS THAT ARE NOT OPTIONAL — both silent if skipped
+
+1. **`npm run migrate`** (above).
+2. **"Sync from Ohne Speed"** — control panel → Benchmarks, AFTER seeding and
+   after reconnecting the webhooks. Full reasoning in §5; the short version is
+   that **a freshly seeded database has no Wet benchmarks at all**, and
+   `recomputeAll` silently falls back to the Dry benchmark, so every wet session
+   is scored against dry pace. No error, just wrong numbers.
+   **Verify:** `GET /api/benchmarks` must return rows with `"condition": "Wet"`.
+
+Neither failure announces itself. Both look like a working deploy.
+
+### ⚠ THE SEED DATA WAS WRONG AND IS NOW FIXED — relevant because production seeds from it
+
+`src/data/benchmarks.json` still carried the pre-`279a09a` off-by-one column
+mapping: every tier from "good" downward was one column too fast (Bahrain wec
+LMGT3 seeded `good` 121.47 where the sheet means 122.66, `offline` 125.04 where
+it means 127.43). Production seeds into a **blank** database, so a fresh deploy
+would have scored every driver against tiers up to ~2.4 s too strict, invisibly,
+until someone happened to sync. Regenerated from the live sheet: **29 → 31
+tracks, 145 → 155 benchmark rows**, now carrying the 102%/104% sub-tiers that
+`seed.ts` previously hardcoded to `null`. Verified by running a genuine fresh
+seed, not by inspection.
 
 ### Behaviour changes — will look different, and are CORRECT
 
@@ -53,6 +83,16 @@ run migrate.
   again anyway?" confirm. Strict match (same driver/car/track/condition AND
   identical lap count and both lap times, within 6h), so two genuinely different
   stints on one combo still log normally.
+- **A VE-per-lap value below 0.5 % is now rejected** with
+  *"looks like a 0–1 fraction rather than a percentage — enter 2.8 for 2.8%,
+  not 0.028"*. LMU's shared memory carries VE as a 0..1 fraction while this app
+  stores a percentage, so an un-converted value used to pass every check and
+  silently record a burn 100× too low. A refusal here is the guard working.
+- **Two new circuits: Daytona and Laguna Seca**, from the Ohne Speed sheet's
+  2026-07-29 update, with full benchmark coverage. Named in the sheet's short
+  form (`Daytona`, `Laguna Seca`) — deliberately NOT "WeatherTech Raceway Laguna
+  Seca", because the sync matches on letters+digits only and the long name would
+  create a duplicate on the next sync.
 
 ### Security change — may break anything scripted
 
@@ -66,9 +106,19 @@ those endpoints will start getting 403.
 - [ ] Sign in as a **manager** → control panel loads; Purge and Discord webhooks
       are **absent**.
 - [ ] Log form → Consumption card present; select an LMP2 car → VE field greys out.
-- [ ] Control panel → Tracks → **"Fill known distances"** → fills ~13 base
-      circuits, leaves layout variants blank. Press it twice: the second run must
-      report 0 filled (it never overwrites).
+- [ ] **Log one `Dry` and one `Wet` session on the same car+track** and confirm
+      each returns a non-null `car_score` from
+      `GET /api/rankings?track_id=<ID>&class=<CLASS>&condition=<Dry|Wet>`. This
+      is the only check that proves the app can SCORE on PostgreSQL rather than
+      merely persist — see §5. Delete both afterwards; production starts clean.
+      ⚠ A wet session still scores when Wet benchmarks are missing (Dry
+      fallback), so pair this with the `"condition": "Wet"` check above.
+- [ ] Control panel → Tracks → **"Fill known distances"** → fills **15 of 31**
+      circuits, leaves the 16 layout variants blank. Press it twice: the second
+      run must report 0 filled (it never overwrites).
+- [ ] Log form → enter VE per lap **0.028** → must be REJECTED with the
+      "looks like a 0–1 fraction" message. Proves the guard survived the
+      Postgres switch; it is the only new user-visible rejection.
 - [ ] Set one distance by hand, then **Sync from Ohne Speed** → the hand-entered
       value must survive. *(Proven against the JSON dev store and true by
       construction in Postgres, but never exercised on the real DB — worth doing
@@ -79,12 +129,17 @@ those endpoints will start getting 403.
 
 ### Not blocking, worth knowing
 
-- Lap distances are **reference data only** — nothing scores on them, so blanks
-  are harmless. 13 of 29 get filled automatically; the rest are layout variants
-  we deliberately refuse to guess (a wrong lap distance would quietly corrupt
-  future fuel maths). Easiest source is the in-game HUD.
+- Lap distances are **reference data only** — nothing computes fuel from them in
+  either app, so blanks are harmless. 15 of 31 fill automatically; the other 16
+  are layout variants we deliberately refuse to guess. Read real values off
+  scoring shared memory in-game (`track_length`), NOT off LMU's track-info
+  splash panel — that panel is published spec and is wrong in both directions
+  (Laguna 12 m long, Daytona ~5 m short vs measured).
 - The CSV export is an **archive, not the backup of record**. `pg_dump` remains
   the thing an actual restore uses.
+- **`AUTH_DEV_MODE` must be absent** from the server environment and the systemd
+  units. `NODE_ENV=production` blocks it independently, but check anyway — if it
+  ever leaked in, every request would authenticate as a fake admin.
 
 ---
 
