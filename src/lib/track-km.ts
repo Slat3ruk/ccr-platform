@@ -60,11 +60,15 @@ export const TRACK_KM: Record<string, number> = {
 
   // ── Circuit de la Sarthe ────────────────────────────────────────────────
   "Circuit de la Sarthe": 13.624,
-  // ⚠ MAPPED BY ELIMINATION, not by name. LMU offers exactly two Sarthe
-  // layouts — "Circuit de la Sarthe" (13.624) and "…Mulsanne" (13.561) — and the
-  // sheet has exactly two. The base names match exactly, so "(straight)" must be
-  // Mulsanne. Corroborated physically: removing the Mulsanne chicanes shortens
-  // the lap, and 13.561 < 13.624.
+  // ✅ CONFIRMED, three independent ways. LMU offers exactly two Sarthe layouts
+  // — "Circuit de la Sarthe" (13.624) and "…Mulsanne" (13.561) — and the sheet
+  // has exactly two, with the base names matching exactly, so "(straight)" must
+  // be Mulsanne by elimination. Then the benchmark times settle it without
+  // reference to any name: the sheet's LMH alien lap for "(straight)" is
+  // **3:10.7 against 3:24.2 for the base — 13.5 s FASTER over a SHORTER lap.**
+  // 63 m of distance accounts for well under a second at Mulsanne speeds; the
+  // rest is not braking twice for the chicanes. That is the physical signature
+  // of the no-chicane layout, which is what "(straight)" means.
   "Circuit de la Sarthe (straight)": 13.561,
 
   // ── Silverstone ─────────────────────────────────────────────────────────
@@ -80,10 +84,14 @@ export const TRACK_KM: Record<string, number> = {
   "Paul Ricard (3A)": 3.752,
 
   // ── Fuji ────────────────────────────────────────────────────────────────
-  // ⚠ MAPPED BY ELIMINATION, as with Sarthe. LMU has "Fuji Speedway" (4.536) and
-  // "Fuji Speedway Classic" (4.502); the sheet has "(chicane)" and "(classic)".
-  // Classic matches by name, so chicane is the plain one. Corroborated
-  // physically: the chicane layout is the longer of the two, and 4.536 > 4.502.
+  // ✅ CONFIRMED the same three ways as Sarthe. LMU has "Fuji Speedway" (4.536)
+  // and "Fuji Speedway Classic" (4.502); the sheet has "(chicane)" and
+  // "(classic)". Classic matches by name, so chicane is the plain one by
+  // elimination — and the benchmark times agree independently: the sheet's LMH
+  // alien lap for "(classic)" is **1:24.8 against 1:28.8 for "(chicane)" —
+  // 4.0 s FASTER over a SHORTER lap.** 34 m explains well under a second, so
+  // the balance is the chicane itself. The layout WITH the chicane is both
+  // longer and slower, which is the pair we have.
   "Fuji (chicane)": 4.536,
   "Fuji (classic)": 4.502,
 
