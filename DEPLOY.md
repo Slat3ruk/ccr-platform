@@ -105,6 +105,16 @@ production today. The post-deploy sync makes it certain either way.
   form (`Daytona`, `Laguna Seca`) — deliberately NOT "WeatherTech Raceway Laguna
   Seca", because the sync matches on letters+digits only and the long name would
   create a duplicate on the next sync.
+- **`GET /api/public/stats` now also returns `totalKm` and `kmCoverage`**
+  (additive; `totalLaps` and `sessionCount` unchanged). ⚠ **This one is
+  cross-repo:** the public website's home page consumes it and adds it to its own
+  race-distance figure, so if the data platform is deployed WITHOUT this commit
+  while the website expects it, published mileage silently loses all test-session
+  distance. `kmCoverage.complete` is false whenever any logged lap sat on a track
+  with no measured length — the website is expected to footnote or hide the
+  figure rather than publish a partial one.
+- **All 31 track lap distances are now measured** (was 15 of 31 with 16 blanks —
+  if you read that figure in an earlier copy of this statement, it is superseded).
 
 ### Security change — may break anything scripted
 
@@ -122,12 +132,22 @@ those endpoints will start getting 403.
       each returns a non-null `car_score` from
       `GET /api/rankings?track_id=<ID>&class=<CLASS>&condition=<Dry|Wet>`. This
       is the only check that proves the app can SCORE on PostgreSQL rather than
-      merely persist — see §5. Delete both afterwards; production starts clean.
+      merely persist — see §5. **Delete both afterwards** — production is a LIVE
+      database with real logged sessions (it is NOT a fresh install), so test
+      rows left behind become indistinguishable from real data.
       ⚠ A wet session still scores when Wet benchmarks are missing (Dry
       fallback), so pair this with the `"condition": "Wet"` check above.
-- [ ] Control panel → Tracks → **"Fill known distances"** → fills **15 of 31**
-      circuits, leaves the 16 layout variants blank. Press it twice: the second
-      run must report 0 filled (it never overwrites).
+- [ ] Control panel → Tracks → **"Fill known distances"** → reports **31 filled,
+      0 skipped**, and the counter then reads "31 tracks · 0 without a distance".
+      Press it twice: the second run must report **0 filled** (it never
+      overwrites). ⚠ On a database whose `tracks.length_km` is already populated
+      it will fill nothing, by design — the never-overwrite rule. Production's
+      column is created by this deploy's migration, so every row starts NULL and
+      all 31 fill.
+- [ ] `GET /api/public/stats` returns **`totalKm`** and
+      `kmCoverage.complete: true`. The public website's home page consumes both —
+      it adds this to its own race-distance figure — so a missing `totalKm` or a
+      `complete: false` silently under-reports team mileage on a public page.
 - [ ] Log form → enter VE per lap **0.028** → must be REJECTED with the
       "looks like a 0–1 fraction" message. Proves the guard survived the
       Postgres switch; it is the only new user-visible rejection.
@@ -141,12 +161,15 @@ those endpoints will start getting 403.
 
 ### Not blocking, worth knowing
 
-- Lap distances are **reference data only** — nothing computes fuel from them in
-  either app, so blanks are harmless. 15 of 31 fill automatically; the other 16
-  are layout variants we deliberately refuse to guess. Read real values off
-  scoring shared memory in-game (`track_length`), NOT off LMU's track-info
-  splash panel — that panel is published spec and is wrong in both directions
-  (Laguna 12 m long, Daytona ~5 m short vs measured).
+- **All 31 lap distances are MEASURED** (2026-08-01 sweep — every LMU layout
+  loaded and read from scoring `track_length`; raw export archived at
+  `src/data/CCR_Layouts_2026-08-01.json`). Nothing computes fuel from them, but
+  the public website now derives published mileage from them, so they are no
+  longer purely internal.
+  If a NEW circuit ever needs one: read it off scoring shared memory in-game,
+  **NOT** off LMU's track-info splash panel. That panel is published spec and is
+  wrong in both directions (Laguna 12 m long, Daytona ~5 m short), and the same
+  sweep found 12 of 15 hand-maintained values wrong by up to 199 m (Sebring).
 - The CSV export is an **archive, not the backup of record**. `pg_dump` remains
   the thing an actual restore uses.
 - **`AUTH_DEV_MODE` must be absent** from the server environment and the systemd

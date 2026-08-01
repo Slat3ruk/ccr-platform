@@ -235,8 +235,11 @@ was verified end-to-end. Structure:
    via laps where the proxy said 30. Postgres: `sessions.lap_times JSONB`
    (additive migration in init() + schema); rankings detail shows "⏱" on
    lap-timed sessions.
-3. **Benchmarks are REAL** — imported from a saved copy of the "Ohne Speed" sheet
-   (29 tracks/layouts × 5 classes = 145 Dry tiers, patch "1.3 +"). The importer
+3. **Benchmarks are REAL** — imported from the "Ohne Speed" sheet. Currently
+   **31 tracks/layouts × 5 classes = 155 Dry tiers** (regenerated from a live
+   sync 2026-08-01, which added Daytona + Laguna Seca and corrected an off-by-one
+   column mapping; the older "29 × 5 = 145" figure appears elsewhere in this file
+   as a historical record of the original import). The importer
    `scripts/parse-ohne-speed.mjs` (run via `npm run import:benchmarks`) parses the
    saved-as-HTML export into committed `src/data/{benchmarks,tracks}.json`, which
    the seeder loads. Tracks are seeded from this list too (real names like "Spa",
