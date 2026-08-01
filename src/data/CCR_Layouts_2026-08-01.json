@@ -1,0 +1,230 @@
+{
+  "v": 1,
+  "exported": "2026-08-01T11:18:53.933Z",
+  "layouts": {
+    "weathertech raceway laguna seca|3.59": {
+      "name": "WeatherTech Raceway Laguna Seca",
+      "km": 3.59,
+      "id": "lagunaseca",
+      "n": 290348,
+      "last": 1785582813390
+    },
+    "daytona international speedway road course|5.73": {
+      "name": "Daytona International Speedway Road Course",
+      "km": 5.734,
+      "id": null,
+      "n": 38431,
+      "last": 1785582191642
+    },
+    "silverstone national circuit|2.63": {
+      "name": "Silverstone National Circuit",
+      "km": 2.634,
+      "id": "silverstone_nat",
+      "n": 34680,
+      "last": 1785582763390
+    },
+    "circuit de spa-francorchamps|6.98": {
+      "name": "Circuit de Spa-Francorchamps",
+      "km": 6.982,
+      "id": "spa",
+      "n": 23051,
+      "last": 1785581992885
+    },
+    "algarve international circuit|4.63": {
+      "name": "Algarve International Circuit",
+      "km": 4.635,
+      "id": "portimao",
+      "n": 3804,
+      "last": 1785581046644
+    },
+    "autodromo enzo e dino ferrari|4.90": {
+      "name": "Autodromo Enzo e Dino Ferrari",
+      "km": 4.901,
+      "id": "imola",
+      "n": 1122,
+      "last": 1785581396392
+    },
+    "autodromo nazionale monza|5.78": {
+      "name": "Autodromo Nazionale Monza",
+      "km": 5.781,
+      "id": "monza",
+      "n": 91,
+      "last": 1785581458911
+    },
+    "monza curva grande circuit|5.75": {
+      "name": "Monza Curva Grande Circuit",
+      "km": 5.745,
+      "id": "monza_curvagrande",
+      "n": 78,
+      "last": 1785581504645
+    },
+    "autódromo josé carlos pace|4.27": {
+      "name": "Autódromo José Carlos Pace",
+      "km": 4.273,
+      "id": "interlagos",
+      "n": 191,
+      "last": 1785581573641
+    },
+    "bahrain international circuit|5.39": {
+      "name": "Bahrain International Circuit",
+      "km": 5.387,
+      "id": "bahrain",
+      "n": 168,
+      "last": 1785581672387
+    },
+    "bahrain endurance circuit|6.26": {
+      "name": "Bahrain Endurance Circuit",
+      "km": 6.257,
+      "id": "bahrain_end",
+      "n": 74,
+      "last": 1785581710895
+    },
+    "bahrain outer circuit|3.51": {
+      "name": "Bahrain Outer Circuit",
+      "km": 3.511,
+      "id": "bahrain_outer",
+      "n": 82,
+      "last": 1785581751890
+    },
+    "bahrain paddock circuit|3.81": {
+      "name": "Bahrain Paddock Circuit",
+      "km": 3.811,
+      "id": "bahrain_paddock",
+      "n": 104,
+      "last": 1785581796634
+    },
+    "circuit de barcelona|4.66": {
+      "name": "Circuit de Barcelona",
+      "km": 4.655,
+      "id": "barcelona",
+      "n": 73,
+      "last": 1785581834397
+    },
+    "circuit de la sarthe|13.62": {
+      "name": "Circuit de la Sarthe",
+      "km": 13.624,
+      "id": "lemans",
+      "n": 60,
+      "last": 1785581898638
+    },
+    "circuit de la sarthe mulsanne|13.56": {
+      "name": "Circuit de la Sarthe Mulsanne",
+      "km": 13.561,
+      "id": "lemans",
+      "n": 71,
+      "last": 1785581955395
+    },
+    "circuit de spa-francorchamps endurance|6.98": {
+      "name": "Circuit de Spa-Francorchamps Endurance",
+      "km": 6.982,
+      "id": "spa",
+      "n": 67,
+      "last": 1785582032642
+    },
+    "circuit of the americas|5.50": {
+      "name": "Circuit of the Americas",
+      "km": 5.497,
+      "id": "cota",
+      "n": 86,
+      "last": 1785582111405
+    },
+    "cota national circuit|3.71": {
+      "name": "COTA National Circuit",
+      "km": 3.707,
+      "id": "cota_national",
+      "n": 61,
+      "last": 1785582144647
+    },
+    "fuji speedway|4.54": {
+      "name": "Fuji Speedway",
+      "km": 4.536,
+      "id": "fuji",
+      "n": 241,
+      "last": 1785582282156
+    },
+    "fuji speedway classic|4.50": {
+      "name": "Fuji Speedway Classic",
+      "km": 4.502,
+      "id": "fuji_classic",
+      "n": 66,
+      "last": 1785582316132
+    },
+    "lusail international circuit|5.41": {
+      "name": "Lusail International Circuit",
+      "km": 5.405,
+      "id": "qatar",
+      "n": 77,
+      "last": 1785582359159
+    },
+    "lusail short circuit|3.68": {
+      "name": "Lusail Short Circuit",
+      "km": 3.676,
+      "id": "qatar_short",
+      "n": 90,
+      "last": 1785582398892
+    },
+    "paul ricard - elms|5.81": {
+      "name": "Paul Ricard - ELMS",
+      "km": 5.807,
+      "id": "paulricard",
+      "n": 75,
+      "last": 1785582437644
+    },
+    "paul ricard - 1a|5.70": {
+      "name": "Paul Ricard - 1A",
+      "km": 5.699,
+      "id": "paulricard_1a",
+      "n": 61,
+      "last": 1785582469154
+    },
+    "paul ricard - 1a-v2|5.76": {
+      "name": "Paul Ricard - 1A-V2",
+      "km": 5.758,
+      "id": "paulricard_1av2",
+      "n": 71,
+      "last": 1785582504152
+    },
+    "paul ricard - 1a-v2-short|5.16": {
+      "name": "Paul Ricard - 1A-V2-Short",
+      "km": 5.162,
+      "id": "paulricard_1av2s",
+      "n": 61,
+      "last": 1785582536890
+    },
+    "paul ricard - 3a|3.75": {
+      "name": "Paul Ricard - 3A",
+      "km": 3.752,
+      "id": "paulricard_3a",
+      "n": 79,
+      "last": 1785582574888
+    },
+    "sebring international raceway|5.82": {
+      "name": "Sebring International Raceway",
+      "km": 5.82,
+      "id": "sebring",
+      "n": 71,
+      "last": 1785582612900
+    },
+    "sebring school circuit|3.08": {
+      "name": "Sebring School Circuit",
+      "km": 3.083,
+      "id": "sebring_school",
+      "n": 72,
+      "last": 1785582649136
+    },
+    "silverstone grand prix circuit - wec|5.87": {
+      "name": "Silverstone Grand Prix Circuit - WEC",
+      "km": 5.869,
+      "id": "silverstone",
+      "n": 71,
+      "last": 1785582688896
+    },
+    "silverstone international circuit|2.96": {
+      "name": "Silverstone International Circuit",
+      "km": 2.962,
+      "id": "silverstone_int",
+      "n": 77,
+      "last": 1785582726638
+    }
+  }
+}
