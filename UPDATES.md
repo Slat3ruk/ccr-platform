@@ -19,6 +19,17 @@ Each entry states three things, because they are what the person shipping needs:
 **what changed**, **whether it needs anything beyond the standard recipe**, and
 **how to tell it worked**.
 
+> ### ✍️ Writing a verify step — the rule
+> **State an observable outcome with exact inputs and expected values, never
+> "check the fix works".** Whoever ships this cannot tell whether a fix *works* —
+> they weren't there when it was written and don't know what correct looks like.
+> They can tell whether a lap time survived a reload, or whether a field reads
+> `1:40.360`.
+> Where possible give the **pre-fix value too**, so a stale build is
+> distinguishable from a working one: seeing the old number is positive evidence
+> the update never reached the box, which "it looks fine" can never provide.
+> (Rule contributed by the website session, 2026-08-01.)
+
 ---
 
 ## PENDING — not yet on the box
@@ -40,11 +51,34 @@ Each entry states three things, because they are what the person shipping needs:
   design; the form now explains that.
 
 **Needs beyond the standard recipe:** nothing. No migration, no sync.
-**Verify:** edit any session, change or delete a lap time, save, reopen — the
-change must persist. Paste a lap list containing an obvious out-lap; the average
-should ignore it and the note should name which laps were dropped.
-**Risk if skipped:** managers keep silently losing lap-time edits, and averages
-stay inflated. Neither corrupts existing data.
+
+**Verify — stated as observable outcomes, with exact inputs and expected values,
+so someone who wasn't part of building it can run them:**
+
+1. *Lap edits persist.* Open any logged session → Edit → change one lap time in
+   the pasted list (or delete a line) → Save → reopen that same session.
+   **Expected:** the lap list shows your change.
+   **Before the fix it showed the ORIGINAL list** — the save reported success and
+   the laps reverted, which is the whole bug.
+2. *Average ignores out-laps.* On the log form, paste exactly:
+   ```
+   1:40.000
+   1:40.500
+   1:40.200
+   1:40.800
+   1:40.300
+   1:52.400
+   1:47.900
+   ```
+   **Expected, exactly:** best `1:40.000` · average `1:40.360` · laps completed
+   `7`, and a note reading *"2 laps excluded … lap 6 1:52.400 · lap 7 1:47.900"*.
+   **Before the fix the average read `1:43.157`.** If you see that figure, the
+   update did not reach the box.
+
+**Risk if skipped:** managers keep silently losing lap-time edits — the failure
+is invisible, so it will not be reported as a bug, it will just quietly produce
+sessions whose stored average disagrees with their own lap array. Averages also
+stay inflated by out-laps. Neither corrupts existing data.
 
 ### `e15199e` — Docs: reframe ongoing procedure as "ship an update"
 Documentation only — no runtime change, nothing to verify. Retitled `DEPLOY.md`,
