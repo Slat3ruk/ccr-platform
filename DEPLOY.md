@@ -10,6 +10,11 @@
 > only routine procedure in this file: reconcile → pull → install → **migrate** →
 > build → restart → **sync**.
 >
+> **→ What is waiting to ship, and what each update needs: `UPDATES.md`.** Read
+> it before shipping — it says which updates require a migration or a benchmark
+> sync and which are plain restarts, so you neither skip a required step nor run
+> one you don't need.
+>
 > Everything above that section is **history**, kept because it explains *why*
 > production is shaped the way it is:
 > - the **Deployment statement**, which was this repo's one-time input to the
