@@ -36,6 +36,46 @@ Each entry states three things, because they are what the person shipping needs:
 
 **Last confirmed on production: `0c44996`** (the 2026-08-01 go-live).
 
+### `5a8a093` — Driver identity: follow Discord renames, stop log-on-behalf duplicating people
+**Code change, no schema change.** Fixes the "same person appears twice on the
+leaderboard" problem at its actual source.
+
+- **Names now follow the Discord server nickname.** Previously the stored name
+  was frozen at first login, so the board drifted out of step with the server.
+  Identity was already `discord_id`, so a rename never split anyone on the
+  self-logging path — but the name never caught up either.
+- **Log-on-behalf no longer creates duplicates.** The roster dropdown offers
+  *current* Discord names while the API resolved the driver by **name** — so a
+  teammate whose stored name had drifted got a brand-new row. Both `POST` and
+  `PUT /api/sessions` now resolve by `discord_id` when the client can supply
+  one, falling back to a name lookup only for a genuinely unknown name.
+- ⚠ **This also fixes the workaround that was making it worse.** There is no
+  rename feature in this app (`/api/drivers` is GET-only). "Renaming" someone by
+  editing a session's driver field resolved by name and therefore **created a
+  second driver**, moving one session to it. That path now resolves by identity.
+
+**Needs beyond the standard recipe:** nothing. No migration, no sync.
+
+**Verify — observable outcomes with exact expectations:**
+1. *Names follow Discord.* Change your own nickname in the CCR Discord server,
+   then log a session. **Expected:** the Drivers board shows the NEW name on your
+   existing row, with your session history intact.
+   **Before this update the board kept the old name indefinitely.**
+2. *Log-on-behalf attaches to the real person.* As manager/admin, log a session
+   for a teammate using the roster dropdown. **Expected:** `GET /api/drivers`
+   contains exactly one row for that person, and their session count went up by
+   one. **Before, a teammate whose name had drifted gained a SECOND row and the
+   new session went to the wrong one.**
+
+**Risk if skipped:** duplicate drivers keep accumulating on the leaderboard, and
+each one silently splits a real person's history. The failure is invisible at the
+moment it happens — it only shows up later as a driver whose stats look wrong.
+
+⚠ **Does NOT merge duplicates that already exist.** This stops new ones being
+created; any pair already on the board stays until someone merges them
+deliberately. That is a separate job and moves real session data, so it should
+not be bundled into a routine update.
+
 ### `123b03c` — Fix: session edits discarded lap times; average included out-laps
 **Two user-reported bugs. Code change, no schema change.**
 
