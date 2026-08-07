@@ -1,18 +1,35 @@
-# Deployment Guide — CrossCurrent Racing Platform
+# Shipping Updates — CrossCurrent Racing Platform
 
-> **🚨 Deploying as part of the multi-app catch-up? Read the cross-app runbook
-> FIRST: `DEPLOY-RUNBOOK.md` in the CCR-Website repo.** This guide covers *this
-> app in isolation*; the runbook covers what it can't — the order the apps must
-> go in (this one is third: after `ccr-auth` and `ccr-data-service`, before the
-> website, which consumes this app's new `/api/public/stats`), and the
-> post-deploy behaviour checks. Most importantly: the patch-weighting fix
-> **deliberately re-scores existing sessions** — higher Representativeness on
-> hotfix-only-older setups, and slightly reordered car rankings. That is the fix
-> working, not data corruption.
+> ## 🚀 THE APP IS DEPLOYED. YOU ARE SHIPPING AN UPDATE.
+>
+> `data.crosscurrentracing.com` has been live on PostgreSQL since 2026-08-01,
+> with real drivers logging real sessions. **The install is done and must not be
+> repeated** — do not provision, do not re-seed, do not recreate the database.
+>
+> **→ The procedure you want is [Ship an update](#ship-an-update).** It is the
+> only routine procedure in this file: reconcile → pull → install → **migrate** →
+> build → restart → **sync**.
+>
+> Everything above that section is **history**, kept because it explains *why*
+> production is shaped the way it is:
+> - the **Deployment statement**, which was this repo's one-time input to the
+>   2026-08-01 catch-up;
+> - **Steps 1–5 (Provision the box … Seed)**, which describe the original
+>   first-time install. Re-running them against production would be actively
+>   harmful.
+>
+> ⚠ The word *deploy* below refers to that one-time event, deliberately. Ongoing
+> work is an **update**.
 
 ---
 
-## 📦 DEPLOYMENT STATEMENT — this repo's input to the catch-up deploy
+## 📦 HISTORY — deployment statement for the 2026-08-01 catch-up deploy
+
+> **This section is a RECORD, not instructions.** It was this repo's input to the
+> one-time go-live, and every check in it has since been run and passed. Kept
+> because it documents what changed and why production behaves as it does — not
+> because anything here is still to be done. For ongoing work see
+> [Ship an update](#ship-an-update).
 
 **From the data-platform session. Repo `Slat3ruk/ccr-platform`, branch
 `master`. Last revised 2026-07-29 — supersedes the 2026-07-22 version, which
@@ -232,7 +249,15 @@ bridge** — anything fixed on the box gets committed and pushed back.
 
 ---
 
-## Deploy steps
+## HISTORY — first-time install steps (2026-07, already done)
+
+> ⛔ **DO NOT RUN THESE AGAINST PRODUCTION.** Steps 1–5 provision a box, create
+> the database and seed it. All of that happened in July 2026. Re-running them
+> on the live server would at best waste time and at worst overwrite a working
+> install or a populated database.
+> They are kept for two reasons: standing up a *second* environment from
+> scratch, and understanding how production came to be configured the way it is.
+> **Shipping a change to the existing install is [Ship an update](#ship-an-update).**
 
 ### 1. Provision the box
 Ubuntu 24.04 LTS VPS (DigitalOcean, Hetzner, Linode…). Install Node 20, PostgreSQL,
@@ -471,7 +496,10 @@ Read it in this order: **anything in the first three means STOP and reconcile**
 guess). Only when the box is clean and has nothing unpushed is the update below
 safe. Repeat the same check for every repo on the box (`website/`, etc.).
 
-### Deploy an update
+## Ship an update
+
+**⭐ This is the routine procedure — the only one in this file that is still
+live.** Run the reconcile check above first, then:
 
 ```bash
 cd /srv/ccr/data-platform
@@ -482,7 +510,7 @@ npm run build
 pm2 restart ccr-data
 ```
 
-**⚠ `npm run migrate` is REQUIRED on every update, not just the first deploy.**
+**⚠ `npm run migrate` is REQUIRED on every update, not just the original install.**
 `db/1_init_schema.sql` is written to be idempotent for BOTH cases: fresh installs
 get `CREATE TABLE IF NOT EXISTS`, and **existing** databases get the newer columns
 via `ALTER TABLE … ADD COLUMN IF NOT EXISTS` (e.g. `benchmarks.good_102_time` /
@@ -492,7 +520,7 @@ already-live box means the code ships expecting columns the DB doesn't have —
 the failure shows up as runtime SQL errors on the affected page, not at build
 time. Re-running it when nothing changed is a harmless no-op.
 
-**Run "Sync from Ohne Speed" after every update, not just the first deploy.**
+**Run "Sync from Ohne Speed" after every update, not just the original install.**
 It is cheap, idempotent and fixes two things a `git pull` cannot:
 - new columns are NULL on pre-existing rows until a sync populates them (e.g.
   the 102%/104% sub-tiers);

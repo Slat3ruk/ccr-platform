@@ -119,7 +119,7 @@ Git hygiene that prevents this — follow it even when you think you're alone:
    like the above — another session or the server may already have pulled it.
    Leave an accurate note in the next commit message instead.
 5. **A commit that changes `db/1_init_schema.sql` must say so in its message** —
-   the deploy depends on humans noticing migrations.
+   shipping an update depends on humans noticing migrations.
 
 ## Known Gotchas
 
@@ -163,8 +163,10 @@ was verified end-to-end. Structure:
   seconds consistency regression, tyre/mistakes, SVS, the n/(n+1) confidence
   curve, and the weights presets/normalisation). `npm run migrate`
   (`scripts/migrate.mjs`) applies `db/1_init_schema.sql` via `DATABASE_URL` with
-  no psql needed; DEPLOY.md covers the VPS deploy (Postgres on the box, migrate,
-  seed via the UI banner).
+  no psql needed. **The app is LIVE on the VPS** — `DEPLOY.md`'s "Ship an update"
+  is the routine procedure (reconcile → pull → install → migrate → build →
+  restart → sync); its install and seed sections are history and must not be
+  re-run against production.
 - **Quick wins (round 4):** (1) **Session editing** — `/sessions` rows have an
   Edit button that opens `SessionForm` in edit mode (prefilled via an `edit`
   prop, saves through `api.updateSession` → `PUT /api/sessions/[id]`, which now

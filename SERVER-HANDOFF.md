@@ -1,9 +1,28 @@
-# START HERE — server deployment handoff
+# HISTORY — first-deploy handoff (SPENT, do not follow as instructions)
 
-**You are a fresh Claude Code session running ON the production server** (Hetzner
-CX33, Helsinki, Ubuntu 24.04, hostname `CrossCurrentRacing`). You have no prior
-context — this file, plus `CLAUDE.md` and `DEPLOY.md`, is your briefing. Read all
-three before acting.
+> ## ⛔ THIS FILE IS NO LONGER A TASK LIST.
+>
+> It briefed the one-time go-live, which **completed and was verified on
+> 2026-08-01**. `data.crosscurrentracing.com` runs on PostgreSQL with real
+> drivers logging. Its job list (provision, install, clone, seed) and its launch
+> checklist have all been done. **Following them now would re-run first-time
+> setup against a live database.**
+>
+> **→ Shipping a change is "Ship an update" in `DEPLOY.md`.** That is the only
+> live procedure.
+>
+> **Still worth reading here, and only these:**
+> - the **CRITICAL GUARDRAILS** — a live website shares this box, and the "never
+>   overwrite the Caddyfile / validate before reload" rules still bind;
+> - **"Where things stand"** — why production is not a bare server;
+> - the **Cloudflare gotcha**, if certificates ever misbehave;
+> - the **post-launch backlog** at the end, which is genuinely still open.
+>
+> Everything else is a record of how production came to exist.
+
+**Original briefing follows.** It addressed a fresh Claude Code session running
+ON the production server (Hetzner CX33, Helsinki, Ubuntu 24.04, hostname
+`CrossCurrentRacing`) with no prior context.
 
 ## What this project is
 The **CrossCurrent Racing data platform** — a Next.js car-to-track recommendation
