@@ -164,6 +164,7 @@ export class JsonStore implements Store {
     if (!keep || idx === -1) return null;
     // Sessions first — see the Postgres twin; the JSON store has no cascade but
     // keeping the order identical means the two can't drift in behaviour.
+    const totalBefore = this.db.sessions.length;
     let moved = 0;
     for (const s of this.db.sessions) {
       if (s.driver_id === removeId) {
@@ -172,6 +173,17 @@ export class JsonStore implements Store {
       }
     }
     this.db.drivers.splice(idx, 1);
+
+    // Same self-check as Postgres. Nothing here cascades today, so this should
+    // never fire — it exists so the two stores fail the same way if one ever
+    // grows a behaviour the other doesn't. Throw BEFORE persisting, so the
+    // on-disk file is never written in a damaged state.
+    if (this.db.sessions.length !== totalBefore) {
+      throw new Error(
+        `Merge aborted: session count changed ${totalBefore} → ${this.db.sessions.length}. Nothing was saved.`,
+      );
+    }
+
     await this.persist();
     return { moved };
   }

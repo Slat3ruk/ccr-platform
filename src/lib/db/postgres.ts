@@ -313,10 +313,32 @@ export class PostgresStore implements Store {
         await client.query("ROLLBACK");
         return null;
       }
+      // Count BEFORE. This is the number the whole operation is judged against:
+      // a merge must never change how many sessions exist, only who owns them.
+      const before = await client.query("SELECT COUNT(*)::int AS n FROM sessions");
+      const totalBefore = before.rows[0].n as number;
+
       // Sessions FIRST — drivers.id is ON DELETE CASCADE, so deleting the loser
       // before moving their sessions would destroy the very data we are merging.
       const moved = await client.query("UPDATE sessions SET driver_id = $1 WHERE driver_id = $2", [keepId, removeId]);
       await client.query("DELETE FROM drivers WHERE id = $1", [removeId]);
+
+      // ⚠ SELF-CHECK INSIDE THE TRANSACTION. If the cascade ever bit — a
+      // mis-ordered statement, a schema change adding another cascading table,
+      // a future edit to this method — the session count would drop and we roll
+      // back instead of committing the damage. This is the guard that lets a
+      // destructive operation be trusted on a database no test has ever run
+      // against: it does not assume the code is right, it verifies the outcome.
+      const after = await client.query("SELECT COUNT(*)::int AS n FROM sessions");
+      const totalAfter = after.rows[0].n as number;
+      if (totalAfter !== totalBefore) {
+        await client.query("ROLLBACK");
+        throw new Error(
+          `Merge aborted: session count changed ${totalBefore} → ${totalAfter}. ` +
+            `Nothing was saved. This means deleting driver ${removeId} would have destroyed sessions.`,
+        );
+      }
+
       await client.query("COMMIT");
       return { moved: moved.rowCount ?? 0 };
     } catch (e) {

@@ -138,6 +138,21 @@ describe("mergeDrivers", () => {
     expect((await store.listSessions()).every((s) => s.driver_id === keep.id)).toBe(true);
   });
 
+  it("keeps the tyre data attached to every moved session", async () => {
+    // The cascade chain is drivers → sessions → tyres, so a merge that lost
+    // sessions would take their tyre rows too. Asserting the second-order data
+    // survives, rather than assuming it because the first-order data did.
+    const { keep, dupe } = await seedPair();
+    await store.mergeDrivers(keep.id, dupe.id);
+
+    const sessions = await store.listSessions();
+    expect(sessions).toHaveLength(3);
+    for (const s of sessions) {
+      expect(s.tyres, `session ${s.id} lost its tyre row`).toBeTruthy();
+      expect(s.tyres.tyre_fl_pct_remaining).toBe(80);
+    }
+  });
+
   it("refuses to merge a driver into themselves", async () => {
     const { keep } = await seedPair();
     expect(await store.mergeDrivers(keep.id, keep.id)).toBeNull();
