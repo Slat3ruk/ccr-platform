@@ -540,6 +540,10 @@ environment (`pm2 env 0 | grep AUTH_DEV` should return nothing — it's a
 local-dev-only flag that would fake an authenticated admin if it ever leaked
 into production; `NODE_ENV=production` independently blocks it, but check anyway).
 
+**⚠ Also confirm the backup is alive — see "Standing post-update checks" in
+`UPDATES.md`.** It is the only undo this app has, and the one thing whose
+absence is invisible until the day it is needed.
+
 ---
 
 ## Troubleshooting

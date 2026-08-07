@@ -32,9 +32,98 @@ Each entry states three things, because they are what the person shipping needs:
 
 ---
 
+## 🔁 STANDING POST-UPDATE CHECKS — run after EVERY update
+
+Not tied to any entry below. These confirm the safety net is intact, and the
+first one is the only undo this app has.
+
+### 1. ⚠ IS THE BACKUP ACTUALLY RUNNING?
+
+```bash
+crontab -l | grep -i backup
+ls -la /srv/ccr/backups/
+```
+
+| What you see | What it means | Do |
+|---|---|---|
+| A `0 4 * * *` line **and** recent `ccr_platform_*.sql` files | Covered | Nothing |
+| Cron line but **no recent dumps** | Scheduled but FAILING | Read `/srv/ccr/backups/backup.log` and fix |
+| Neither | 🚨 **No undo exists for anything** | Fix before any further change |
+
+**Why this is a standing check rather than a one-off:** a backup's absence is
+invisible until the day it's needed, and every failure mode here is silent — a
+cron that was never installed, a job failing on a changed password, a disk that
+filled. Nothing surfaces it except looking. It was launch-checklist item 4 and
+has not been confirmed since.
+
+**This matters more than any single update.** It is the recovery path for a bad
+merge, a mistaken purge, a failed migration, and disk loss alike. If it is not
+running, that outranks whatever was being shipped.
+
+### 2. Has a restore ever been *tested*?
+
+A dump nobody has restored is an assumption, not a backup. If the round-trip
+test in `DEPLOY.md` ("Backups & ops") has never been run, run it once: restore
+into a scratch database, sanity-query a table, drop it. **Never let the first
+restore be during an emergency.**
+
+### 3. Before anything destructive, take a manual dump
+
+Merging drivers and purging sessions are irreversible. One command removes the
+question:
+```bash
+pg_dump "$DATABASE_URL" > /srv/ccr/backups/pre-change-$(date +%Y%m%d-%H%M).sql
+```
+
+> **Note on why there is no CSV import.** The control panel exports sessions but
+> deliberately cannot import them, and that is not an oversight. The export
+> resolves drivers to NAMES, so re-importing would create fresh driver rows
+> rather than restore deleted ones, and would duplicate every session that still
+> exists. **A backup restores a known-good state; an import adds rows.** Only the
+> first is an undo. If a CSV import is ever built it should be treated as a
+> bulk data-entry feature with its own duplicate guards — never as recovery.
+
+---
+
 ## PENDING — not yet on the box
 
 **Last confirmed on production: `0c44996`** (the 2026-08-01 go-live).
+
+### `78efeff` + `c7ab5de` — Duplicate drivers: find, review, merge
+**Code change, no schema change.** Clears up the duplicate rows left behind by
+the name-keyed resolution that `5a8a093` fixed at source.
+
+New **Duplicate drivers** card in the control panel: *Scan* lists rows whose
+names collide once case and punctuation are ignored, showing each one's session
+count, last session, and whether it's Discord-linked. Merging is **admin-only**
+and one pair at a time.
+
+**⚠ THE MERGE IS IRREVERSIBLE — confirm the backup (standing check 1) BEFORE
+using it, and take a manual dump first.** It moves session history between
+drivers and deletes the losing row; nothing records which sessions came from
+where.
+
+Safety built in, because `sessions.driver_id` and `tyres.session_id` are both
+`ON DELETE CASCADE`:
+- sessions move **first**, then the row is deleted, inside a transaction;
+- the transaction **counts sessions before and after and rolls back if the
+  number changed** — so if the cascade ever bit, nothing is saved;
+- it **refuses** to merge two rows linked to different Discord accounts (two
+  real people sharing a display name), and the card explains rather than
+  offering a button that would fail.
+
+**Needs beyond the standard recipe:** nothing to ship. But see the warning above
+before *using* it.
+
+**Verify:**
+1. Control panel → **Duplicate drivers** → *Scan*. **Expected:** either a list
+   of candidate groups, or "No duplicate names found across N drivers".
+2. If merging: note the driver-board session total first, merge one **small**
+   pair, then re-check. **Expected: the total is unchanged** — only the number
+   of drivers drops. A changed total means stop and restore.
+
+**Risk if skipped:** the leaderboard keeps showing one person as several, and
+their stats stay split across rows.
 
 ### `5a8a093` — Driver identity: follow Discord renames, stop log-on-behalf duplicating people
 **Code change, no schema change.** Fixes the "same person appears twice on the
