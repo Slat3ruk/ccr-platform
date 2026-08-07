@@ -53,7 +53,14 @@ export async function PUT(req: Request, ctx: Ctx) {
   if (!car) return NextResponse.json({ error: "Unknown car_id." }, { status: 400 });
   if (!track) return NextResponse.json({ error: "Unknown track_id." }, { status: 400 });
 
-  const driver = await store.getOrCreateDriver(input.driver_name);
+  // Same identity-first rule as POST. This path matters more than it looks:
+  // re-pointing a session by typing a different name is what an admin reaches
+  // for when they want to "rename" someone — and a name lookup answers that by
+  // CREATING a second driver and moving one session to it, rather than renaming
+  // anyone. With a Discord id the session attaches to the real person.
+  const driver = input.driver_discord_id
+    ? await store.getOrCreateDriverByDiscordId(input.driver_discord_id, input.driver_name)
+    : await store.getOrCreateDriver(input.driver_name);
 
   const updated = await store.updateSession(id, {
     driver_id: driver.id,

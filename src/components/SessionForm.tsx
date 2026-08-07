@@ -90,7 +90,11 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   const [currentPatch, setCurrentPatch] = useState<string | null>(null);
 
   const [driverName, setDriverName] = useState(edit?.driverName ?? "");
-  const [driverOptions, setDriverOptions] = useState<string[]>([]);
+  // Full roster rows, not just names — the `discordId` is what stops
+  // log-on-behalf creating a duplicate driver when a teammate's stored name
+  // has drifted from their current Discord nickname.
+  const [roster, setRoster] = useState<{ discordId: string; name: string }[]>([]);
+  const driverOptions = useMemo(() => roster.map((m) => m.name), [roster]);
 
   // Pre-fill with the caller's own verified name on a fresh (non-edit) form —
   // Drivers stay locked to it (see driverNameLocked above); Manager/Admin get
@@ -101,7 +105,7 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
   }, [isEdit, sessionName]);
 
   useEffect(() => {
-    if (!driverNameLocked) api.roster().then((r) => setDriverOptions(r.roster.map((m) => m.name))).catch(() => {});
+    if (!driverNameLocked) api.roster().then((r) => setRoster(r.roster)).catch(() => {});
   }, [driverNameLocked]);
   const [carId, setCarId] = useState(s ? String(s.car_id) : "");
   const [trackId, setTrackId] = useState(s ? String(s.track_id) : "");
@@ -278,8 +282,18 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
       return;
     }
 
+    // If the typed name matches a roster entry, send that person's Discord id so
+    // the session attaches to their EXISTING driver row. Without it the server
+    // falls back to a name lookup, and a teammate whose stored name has drifted
+    // gets a brand-new duplicate row. A free-typed name (someone not on the
+    // roster) sends nothing and keeps the legacy name behaviour.
+    const rosterMatch = roster.find(
+      (m) => m.name.trim().toLowerCase() === driverName.trim().toLowerCase(),
+    );
+
     const payload = {
       driver_name: driverName.trim(),
+      driver_discord_id: rosterMatch?.discordId,
       car_id: Number(carId),
       track_id: Number(trackId),
       session_type: sessionType as (typeof SESSION_TYPES)[number],

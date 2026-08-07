@@ -134,6 +134,8 @@ export function validateSessionInput(raw: unknown): ValidationResult {
     errors: [],
     data: {
       driver_name,
+      driver_discord_id:
+        typeof b.driver_discord_id === "string" ? b.driver_discord_id.trim() || undefined : undefined,
       car_id,
       track_id,
       session_type,

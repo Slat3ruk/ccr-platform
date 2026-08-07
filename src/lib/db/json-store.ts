@@ -159,7 +159,15 @@ export class JsonStore implements Store {
   async getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver> {
     await this.init();
     const byId = this.db.drivers.find((d) => d.discord_id === discordId);
-    if (byId) return byId;
+    if (byId) {
+      // Follow the Discord server nickname — see the Postgres twin for why.
+      if (name && name !== byId.name) {
+        byId.name = name;
+        byId.updated_at = this.now();
+        await this.persist();
+      }
+      return byId;
+    }
 
     const byName = this.db.drivers.find((d) => !d.discord_id && d.name.toLowerCase() === name.toLowerCase());
     if (byName) {

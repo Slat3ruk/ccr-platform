@@ -204,6 +204,13 @@ export interface Recommendation {
 /** Payload accepted by POST /api/sessions (driver name resolved to id). */
 export interface SessionInput {
   driver_name: string;
+  /**
+   * Discord id of the person this session belongs to, when the client could
+   * resolve one (the log-on-behalf roster dropdown). Identity beats the typed
+   * name: without it the server falls back to a name lookup and a teammate
+   * whose stored name has drifted gets a duplicate driver row.
+   */
+  driver_discord_id?: string;
   car_id: number;
   track_id: number;
   session_type: SessionType;

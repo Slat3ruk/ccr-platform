@@ -56,9 +56,17 @@ export async function POST(req: Request) {
       { status: 403 },
     );
   }
+  // Resolve the driver by IDENTITY wherever one is available, and only fall
+  // back to a name lookup for a free-typed name that matches nobody on the
+  // roster. A name lookup is how duplicate drivers get created: the roster
+  // offers Discord names, so if a teammate's stored name has drifted from their
+  // current nickname, `getOrCreateDriver(name)` misses and silently makes a
+  // second row for the same person.
   const driver = loggingForSelf
     ? await store.getOrCreateDriverByDiscordId(auth.discordId, auth.name)
-    : await store.getOrCreateDriver(input.driver_name);
+    : input.driver_discord_id
+      ? await store.getOrCreateDriverByDiscordId(input.driver_discord_id, input.driver_name)
+      : await store.getOrCreateDriver(input.driver_name);
 
   // Guard against an accidental double-submit (double-click fires two POSTs
   // before any client state updates, so this can only be caught here). Strict
