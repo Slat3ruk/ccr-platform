@@ -71,6 +71,15 @@ export async function PUT(req: Request, ctx: Ctx) {
     setup_type: input.setup_type ?? null,
     setup_version: input.setup_version ?? null,
     comments: input.comments ?? null,
+    // ⚠ These three MUST be listed explicitly. `updateSession` only writes keys
+    // present in the patch, so an omitted field silently keeps its old value —
+    // which is what made editing a lap list appear to "revert": best/avg saved
+    // but the lap array didn't, leaving the session internally inconsistent and
+    // scoring off the stale laps. `?? null` matters too: it lets a driver CLEAR
+    // a lap list or a consumption figure, which `?? undefined` would not.
+    lap_times: input.lap_times ?? null,
+    fuel_per_lap: input.fuel_per_lap ?? null,
+    ve_per_lap: input.ve_per_lap ?? null,
     tyre_fl_pct_remaining: input.tyre_fl_pct_remaining,
     tyre_fr_pct_remaining: input.tyre_fr_pct_remaining,
     tyre_rl_pct_remaining: input.tyre_rl_pct_remaining,

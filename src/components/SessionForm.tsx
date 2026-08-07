@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
 import { useRole } from "@/lib/role";
 import { sessionQualityWarnings } from "@/lib/quality";
-import { cleanLaps, stdDev } from "@/lib/scoring";
+import { cleanLaps, LAP_OUTLIER_FACTOR, stdDev } from "@/lib/scoring";
 import { formatLapTime, parseLapTime, parseLapTimes } from "@/lib/time";
 import { categoryToClass, CONDITIONS, SESSION_TYPES, SETUP_TYPES, type Benchmark, type Car, type Session, type Track } from "@/types";
 
@@ -151,13 +151,24 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     if (parsedLaps.laps.length < 2) return null;
     const usable = cleanLaps(parsedLaps.laps);
     const best = Math.min(...parsedLaps.laps);
-    const avg = parsedLaps.laps.reduce((a, b) => a + b, 0) / parsedLaps.laps.length;
+    // Average over the CLEANED set, matching what the form fills in and what the
+    // "excluded" note claims. Averaging every lap here was the reason a session
+    // with one out-lap showed a stubbornly high average.
+    const forAvg = usable.length >= 1 ? usable : parsedLaps.laps;
+    const avg = forAvg.reduce((a, b) => a + b, 0) / forAvg.length;
+    // Which laps were dropped, by position, so the exclusion is inspectable
+    // rather than a number the driver has to trust.
+    const usableSet = new Set(usable);
+    const droppedLaps = parsedLaps.laps
+      .map((t, i) => ({ lap: i + 1, t }))
+      .filter(({ t }) => !usableSet.has(t));
     return {
       count: parsedLaps.laps.length,
       best,
       avg,
       sigma: usable.length >= 2 ? stdDev(usable) : null,
       excluded: parsedLaps.laps.length - usable.length,
+      droppedLaps,
     };
   }, [parsedLaps]);
 
@@ -169,13 +180,26 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
     setupType !== "" &&
     ((setupIsWet && condition !== "Wet") || (!setupIsWet && condition === "Wet"));
 
-  /** Paste laps → best/avg/count fill themselves (still editable afterwards). */
+  /**
+   * Paste laps → best/avg/count fill themselves (still editable afterwards).
+   *
+   * ⚠ The AVERAGE is computed from the CLEANED set — out-laps and traffic laps
+   * excluded — while `lap_count` stays the true number of laps run. Previously
+   * the average used every lap, so a single out-lap dragged it up and the form
+   * said "N traffic/out-laps excluded from consistency" beside a figure that had
+   * excluded nothing. The two now agree.
+   * `lap_count` deliberately still counts everything: it measures how much
+   * running was done (and feeds the SVS completeness component), not how many
+   * laps were representative of pace.
+   */
   function onLapTimesChange(text: string) {
     setLapTimesText(text);
     const { laps } = parseLapTimes(text);
     if (laps.length >= 2) {
+      const usable = cleanLaps(laps);
+      const forAvg = usable.length >= 1 ? usable : laps;
       setBestLap(formatLapTime(Math.min(...laps)));
-      setAvgLap(formatLapTime(laps.reduce((a, b) => a + b, 0) / laps.length));
+      setAvgLap(formatLapTime(forAvg.reduce((a, b) => a + b, 0) / forAvg.length));
       setLapCount(String(laps.length));
     }
   }
@@ -447,15 +471,28 @@ export default function SessionForm({ edit, onDone }: { edit?: EditContext; onDo
           />
           {lapStats && (
             <div className="lap-parse ok">
-              ✓ {lapStats.count} laps parsed · best {formatLapTime(lapStats.best)} · avg {formatLapTime(lapStats.avg)}
+              ✓ {lapStats.count} laps parsed · best {formatLapTime(lapStats.best)} · avg{" "}
+              {formatLapTime(lapStats.avg)}
               {lapStats.sigma != null && <> · σ {lapStats.sigma.toFixed(3)}s</>}
+              {" "}— best/avg/count filled in for you.
               {lapStats.excluded > 0 && (
-                <span className="muted">
-                  {" "}
-                  ({lapStats.excluded} traffic/out-lap{lapStats.excluded === 1 ? "" : "s"} excluded from consistency)
-                </span>
+                <div style={{ marginTop: 4 }}>
+                  <strong>
+                    {lapStats.excluded} lap{lapStats.excluded === 1 ? "" : "s"} excluded from the average and
+                    consistency
+                  </strong>{" "}
+                  <span className="muted">
+                    (out-laps / traffic — anything slower than ~{Math.round((LAP_OUTLIER_FACTOR - 1) * 100)}% over the
+                    median):{" "}
+                    {lapStats.droppedLaps
+                      .slice(0, 8)
+                      .map((d) => `lap ${d.lap} ${formatLapTime(d.t)}`)
+                      .join(" · ")}
+                    {lapStats.droppedLaps.length > 8 && ` · +${lapStats.droppedLaps.length - 8} more`}
+                    . Lap count still counts all {lapStats.count}. Disagree? Edit the average by hand — it stays yours.
+                  </span>
+                </div>
               )}
-              — best/avg/count filled in for you.
             </div>
           )}
           {parsedLaps.bad.length > 0 && (
