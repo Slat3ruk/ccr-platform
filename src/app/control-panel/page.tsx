@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type WebhookChannelName } from "@/lib/api-client";
+import { type DuplicateGroup } from "@/lib/duplicate-drivers";
 import { currentEra, sortEras } from "@/lib/eras";
 import { comparePatch, newestPatchIn, normalizeSheetPatchLabel, patchChangeKind, shouldDrawLineByDefault } from "@/lib/patch";
 import { useRole } from "@/lib/role";
@@ -85,6 +86,13 @@ export default function ControlPanelPage() {
 
   // Track reference data (manager/admin) — add a circuit/layout, or backfill a
   // lap distance the benchmark sync couldn't know.
+  // Duplicate-driver tidy-up. `null` groups = not scanned yet (the card shows a
+  // button rather than implying "none found" before anything has looked).
+  const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
+  const [dupTotal, setDupTotal] = useState(0);
+  const [dupLoading, setDupLoading] = useState(false);
+  const [dupBusy, setDupBusy] = useState(false);
+
   const [newTrack, setNewTrack] = useState({ name: "", country: "", length_km: "" });
   const [trackBusy, setTrackBusy] = useState(false);
   const [editTrackId, setEditTrackId] = useState<number | null>(null);
@@ -344,6 +352,49 @@ export default function ControlPanelPage() {
       setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't add that track." });
     } finally {
       setTrackBusy(false);
+    }
+  }
+
+  // ---- Duplicate drivers (admin) ------------------------------------------
+  // Not loaded with the rest of the page: it scans every session, and it is a
+  // tidy-up tool nobody needs on a normal visit. Explicit button instead.
+  async function loadDuplicates() {
+    setDupLoading(true);
+    setMsg(null);
+    try {
+      const res = await api.duplicateDrivers();
+      setDupGroups(res.groups);
+      setDupTotal(res.total_drivers);
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Couldn't scan for duplicates." });
+    } finally {
+      setDupLoading(false);
+    }
+  }
+
+  async function mergeDriver(keepId: number, removeId: number, removeName: string, sessions: number) {
+    setMsg(null);
+    // Spell out the irreversible part, and the actual number of sessions about
+    // to move — a count is what makes the consequence concrete.
+    const ok = confirm(
+      `Merge “${removeName}” (#${removeId}) into driver #${keepId}?\n\n` +
+        `${sessions} session${sessions === 1 ? "" : "s"} will move across, and “${removeName}” will be deleted.\n\n` +
+        `THIS CANNOT BE UNDONE — nothing records which sessions came from where. ` +
+        `The only way back is a database restore.`,
+    );
+    if (!ok) return;
+    setDupBusy(true);
+    try {
+      const res = await api.mergeDrivers(keepId, removeId);
+      setMsg({
+        kind: "success",
+        text: `Merged “${res.removed.name}” into “${res.kept.name}” — ${res.sessions_moved} session${res.sessions_moved === 1 ? "" : "s"} moved. Rankings recomputed.`,
+      });
+      await loadDuplicates();
+    } catch (err) {
+      setMsg({ kind: "error", text: err instanceof Error ? err.message : "Merge failed." });
+    } finally {
+      setDupBusy(false);
     }
   }
 
@@ -1085,6 +1136,93 @@ export default function ControlPanelPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* ---- Duplicate drivers ---- */}
+            <div className="card">
+              <h2>Duplicate drivers</h2>
+              <div className="card-sub">
+                Rows that look like the same person. These were created before{" "}
+                <code>5a8a093</code> — log-on-behalf and session edits both resolved drivers by
+                NAME, so a teammate whose name had drifted gained a second row. That cause is fixed;
+                this clears up what it left behind.
+                <br />
+                <strong>Merging moves session history and cannot be undone.</strong> Check the
+                counts below before you press anything, and take a backup first if you&rsquo;re
+                doing several.
+              </div>
+
+              {dupLoading ? (
+                <div className="muted">Checking…</div>
+              ) : dupGroups === null ? (
+                <button className="btn btn-ghost btn-sm" onClick={loadDuplicates}>
+                  Scan for duplicates
+                </button>
+              ) : dupGroups.length === 0 ? (
+                <div className="msg success" style={{ margin: 0 }}>
+                  ✓ No duplicate names found across {dupTotal} drivers. Note this only catches
+                  name collisions — two rows for one person under genuinely different names
+                  (&ldquo;Darren&rdquo; vs &ldquo;Dazza&rdquo;) need spotting by eye on the
+                  driver-board.
+                </div>
+              ) : (
+                <>
+                  <div className="nav-section" style={{ padding: "6px 0 4px" }}>
+                    {dupGroups.length} likely duplicate{dupGroups.length === 1 ? "" : "s"} · most
+                    sessions at stake first
+                  </div>
+                  {dupGroups.map((g) => (
+                    <div key={g.key} className="dup-group" style={{ padding: "8px 0", borderTop: "1px solid var(--bd)" }}>
+                      {g.distinct_people && (
+                        <div className="hint" style={{ color: "var(--yellow)", marginBottom: 4 }}>
+                          ⚠ Not a duplicate — these rows are linked to <strong>different Discord
+                          accounts</strong>, so they are two real people sharing a display name.
+                          Merging is blocked; it would delete one person&rsquo;s history. Listed only
+                          so you know the collision was checked.
+                        </div>
+                      )}
+                      {g.members.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex"
+                          style={{ gap: 8, alignItems: "center", justifyContent: "space-between", padding: "2px 0" }}
+                        >
+                          <div>
+                            <strong>{m.name}</strong> <span className="hint">#{m.id}</span>{" "}
+                            {m.discord_id ? (
+                              <span className="hint" style={{ color: "var(--green)" }}>
+                                Discord-linked
+                              </span>
+                            ) : (
+                              <span className="hint" style={{ color: "var(--yellow)" }}>
+                                no Discord link
+                              </span>
+                            )}
+                            <span className="muted">
+                              {" "}
+                              · {m.sessions} session{m.sessions === 1 ? "" : "s"}
+                              {m.last_session ? ` · last ${m.last_session.slice(0, 10)}` : " · never logged"}
+                            </span>
+                          </div>
+                          {g.distinct_people ? null : m.id === g.suggested_keep_id ? (
+                            <span className="hint" style={{ color: "var(--green)" }}>
+                              KEEP ({g.reason})
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              disabled={dupBusy}
+                              onClick={() => mergeDriver(g.suggested_keep_id, m.id, m.name, m.sessions)}
+                            >
+                              Merge into #{g.suggested_keep_id}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
 
             {/* ---- Danger zone ---- */}

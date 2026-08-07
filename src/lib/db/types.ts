@@ -123,6 +123,15 @@ export interface Store {
    */
   getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver>;
   listDrivers(): Promise<Driver[]>;
+  /**
+   * Move every session from `removeId` onto `keepId`, then delete `removeId`.
+   *
+   * ⚠ ORDER IS LOAD-BEARING: `sessions.driver_id` is `ON DELETE CASCADE`, so
+   * deleting the loser first would take their sessions with it. Sessions move,
+   * THEN the row goes. Returns how many sessions were moved, or null if either
+   * driver doesn't exist.
+   */
+  mergeDrivers(keepId: number, removeId: number): Promise<{ moved: number } | null>;
 
   // cars
   listCars(): Promise<Car[]>;

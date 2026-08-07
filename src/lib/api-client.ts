@@ -3,6 +3,7 @@
 // same-origin to the Next.js API routes.
 // ============================================================================
 
+import type { DuplicateGroup } from "@/lib/duplicate-drivers";
 import type {
   BadgeDef,
   Benchmark,
@@ -73,6 +74,20 @@ export const api = {
     jsend<{ ok: true; track: Track }>(`/api/tracks/${id}`, "PATCH", patch),
   /** Refused (409) unless nothing references the track — see the route's notes. */
   deleteTrack: (id: number) => jsend<{ ok: true; deleted: string }>(`/api/tracks/${id}`, "DELETE"),
+  // Duplicate-driver tidy-up ---------------------------------------------------
+  /** Read-only: drivers who look like the same person. Manager/Admin. */
+  duplicateDrivers: () =>
+    jget<{ groups: DuplicateGroup[]; all_drivers: { id: number; name: string; discord_id: string | null; sessions: number }[]; total_drivers: number }>(
+      "/api/drivers/duplicates",
+    ),
+  /** ⚠ Irreversible. Moves sessions then deletes the losing row. Admin only. */
+  mergeDrivers: (keepId: number, removeId: number) =>
+    jsend<{ ok: true; kept: { id: number; name: string }; removed: { id: number; name: string }; sessions_moved: number }>(
+      "/api/drivers/merge",
+      "POST",
+      { keep_id: keepId, remove_id: removeId, confirm: "MERGE" },
+    ),
+
   /** Fills known lap distances on tracks that have none. Never overwrites. */
   backfillTrackKm: () =>
     jsend<{ ok: true; filled: { name: string; km: number }[]; already_set: number; skipped: string[]; message: string }>(

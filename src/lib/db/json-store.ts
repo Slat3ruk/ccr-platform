@@ -156,6 +156,26 @@ export class JsonStore implements Store {
     return driver;
   }
 
+  async mergeDrivers(keepId: number, removeId: number): Promise<{ moved: number } | null> {
+    await this.init();
+    if (keepId === removeId) return null;
+    const keep = this.db.drivers.find((d) => d.id === keepId);
+    const idx = this.db.drivers.findIndex((d) => d.id === removeId);
+    if (!keep || idx === -1) return null;
+    // Sessions first — see the Postgres twin; the JSON store has no cascade but
+    // keeping the order identical means the two can't drift in behaviour.
+    let moved = 0;
+    for (const s of this.db.sessions) {
+      if (s.driver_id === removeId) {
+        s.driver_id = keepId;
+        moved++;
+      }
+    }
+    this.db.drivers.splice(idx, 1);
+    await this.persist();
+    return { moved };
+  }
+
   async getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver> {
     await this.init();
     const byId = this.db.drivers.find((d) => d.discord_id === discordId);

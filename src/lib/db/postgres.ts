@@ -302,6 +302,31 @@ export class PostgresStore implements Store {
     return this.driver(ins.rows[0]);
   }
 
+  async mergeDrivers(keepId: number, removeId: number): Promise<{ moved: number } | null> {
+    if (keepId === removeId) return null;
+    const pool = await this.getPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const both = await client.query("SELECT id FROM drivers WHERE id = ANY($1::int[])", [[keepId, removeId]]);
+      if (both.rows.length !== 2) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      // Sessions FIRST — drivers.id is ON DELETE CASCADE, so deleting the loser
+      // before moving their sessions would destroy the very data we are merging.
+      const moved = await client.query("UPDATE sessions SET driver_id = $1 WHERE driver_id = $2", [keepId, removeId]);
+      await client.query("DELETE FROM drivers WHERE id = $1", [removeId]);
+      await client.query("COMMIT");
+      return { moved: moved.rowCount ?? 0 };
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
   async getOrCreateDriverByDiscordId(discordId: string, name: string): Promise<Driver> {
     const byId = await this.q("SELECT * FROM drivers WHERE discord_id = $1 LIMIT 1", [discordId]);
     if (byId.rows[0]) {
